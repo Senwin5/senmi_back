@@ -1,10 +1,9 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from .views import RiderViewSet
+# senmi/urls.py
 
-router = DefaultRouter()
-router.register(r'riders', RiderViewSet)
+from django.urls import path
+from .views import RegisterView, RiderProfileUpdateView
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path('register/', RegisterView.as_view()),
+    path('rider/profile/update/', RiderProfileUpdateView.as_view()),
 ]
