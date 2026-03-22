@@ -160,3 +160,72 @@ class IsApprovedRider(BasePermission):
             profile = getattr(request.user, 'riderprofile', None)
             return profile is not None and profile.status == 'approved'
         return True  # other roles are allowed
+    
+
+from .models import Package
+from django.http import JsonResponse
+
+class AvailablePackagesView(APIView):
+    permission_classes = [IsAuthenticated, IsApprovedRider]
+
+    def get(self, request):
+        rider_profile = getattr(request.user, 'riderprofile', None)
+        if not rider_profile:
+            return Response({"error": "Rider profile not found"}, status=404)
+
+        rider_city = rider_profile.city.strip().lower()  # normalize for comparison
+
+        # Filter packages: pending, unassigned, pickup address contains rider's city
+        packages = Package.objects.filter(
+            status='pending',
+            rider__isnull=True,
+        )
+
+        # Only include packages in rider's city
+        packages = [p for p in packages if rider_city in p.pickup_address.lower()]
+
+        data = []
+        for p in packages:
+            data.append({
+                "id": p.id,
+                "description": p.description,
+                "pickup": p.pickup_address,
+                "delivery": p.delivery_address,
+                "price": float(p.price),
+                "receiver_name": p.receiver_name,
+                "receiver_phone": p.receiver_phone,
+            })
+
+        return Response(data)
+
+
+
+
+
+from django.views.decorators.csrf import csrf_exempt
+import json
+
+
+class AcceptPackageView(APIView):
+    permission_classes = [IsAuthenticated, IsApprovedRider]
+
+    def post(self, request, package_id):
+        try:
+            package = Package.objects.get(id=package_id)
+        except Package.DoesNotExist:
+            return Response({"error": "Package not found"}, status=404)
+
+        # ✅ Only riders allowed
+        if request.user.role != 'rider':
+            return Response({"error": "Only riders can accept"}, status=403)
+
+        # ✅ Prevent multiple riders
+        if package.rider is not None:
+            return Response({"error": "Already taken"}, status=400)
+
+        # Assign rider
+        package.rider = request.user
+        package.status = 'accepted'
+        package.save()
+
+        return Response({"message": "Accepted successfully"})
