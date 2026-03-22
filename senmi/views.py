@@ -1,12 +1,12 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-# Custom permission to block pending riders
-from rest_framework.permissions import BasePermission
-from rest_framework.permissions import IsAuthenticated, BasePermission, IsAdminUser
+from rest_framework.permissions import BasePermission, IsAuthenticated, IsAdminUser
 from rest_framework.decorators import api_view, permission_classes
 from django.core.mail import send_mail
 from django.conf import settings
+import uuid
+from senmi.models import User
 from .serializers import RegisterSerializer, RiderProfileSerializer, CustomLoginSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 
@@ -17,11 +17,16 @@ class CustomLoginView(TokenObtainPairView):
 
 class RegisterView(APIView):
     def post(self, request):
+        email = request.data.get('email')
+        username = request.data.get('username')
+
+        if User.objects.filter(email=email).exists():
+            return Response({"error": "Email is already in use."}, status=status.HTTP_400_BAD_REQUEST)
+
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
 
-            # ------------------------
             # Send email based on role
             if user.role == 'rider':
                 subject = "Welcome to SenMi!"
@@ -42,9 +47,8 @@ class RegisterView(APIView):
                 message=message,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[user.email],
-                fail_silently=True,  # True in dev, False in production
+                fail_silently=True,
             )
-            # ------------------------
 
             return Response({
                 "message": "User created successfully",
@@ -52,10 +56,8 @@ class RegisterView(APIView):
             }, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
 
 
-# senmi/views.py
 class RiderProfileUpdateView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -65,13 +67,31 @@ class RiderProfileUpdateView(APIView):
 
         profile = request.user.riderprofile
         serializer = RiderProfileSerializer(profile, data=request.data)
+
         if serializer.is_valid():
-            serializer.save(status='pending')  # mark as pending after edit
+            # Required text fields
+            required_fields = ['full_name', 'phone_number', 'vehicle_number', 'address', 'city']
+            missing_text_fields = [field for field in required_fields if not request.data.get(field)]
+
+            # Required image fields
+            required_images = ['profile_picture', 'rider_image_1', 'rider_image_with_bike']
+            missing_images = [field for field in required_images if not request.FILES.get(field) and not getattr(profile, field)]
+
+            if missing_text_fields or missing_images:
+                errors = {}
+                if missing_text_fields:
+                    errors['missing_fields'] = f"Missing required fields: {', '.join(missing_text_fields)}"
+                if missing_images:
+                    errors['missing_images'] = f"Missing required images: {', '.join(missing_images)}"
+                return Response(errors, status=status.HTTP_400_BAD_REQUEST)
+
+            # Save profile as pending
+            serializer.save(status='pending')
 
             # --- Email to rider ---
             send_mail(
                 subject="Rider Profile Submitted",
-                message="Your rider profile has been submitted successfully and is pending admin review.",
+                message=f"Your rider profile (ID: {profile.rider_id}) has been submitted successfully and is pending admin review.",
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[request.user.email],
                 fail_silently=True,
@@ -83,20 +103,20 @@ class RiderProfileUpdateView(APIView):
             admins = User.objects.filter(is_superuser=True).values_list('email', flat=True)
             send_mail(
                 subject="New Rider Profile Pending Review",
-                message=f"Rider {request.user.username} has submitted their profile. Please review and approve.",
+                message=f"Rider {request.user.username} (ID: {profile.rider_id}) has submitted their profile. Please review and approve.",
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=admins,
                 fail_silently=True,
             )
 
-            return Response({"message": "Profile submitted successfully and is pending admin review."}, status=status.HTTP_200_OK)
+            return Response({
+                "message": "Profile submitted successfully and is pending admin review.",
+                "rider_id": profile.rider_id
+            }, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
 
 
-# -------------------------------
-# Admin review API
 @api_view(['POST'])
 @permission_classes([IsAdminUser])
 def review_rider(request, rider_id):
@@ -132,8 +152,6 @@ def review_rider(request, rider_id):
     )
 
     return Response({"message": f"Rider profile {status_value} successfully."}, status=200)
-
-
 
 
 class IsApprovedRider(BasePermission):
