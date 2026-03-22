@@ -61,7 +61,7 @@ class RiderProfile(models.Model):
 
 
 
-
+#Customer(vendor)package order
 class Package(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),      # Waiting for rider to accept
@@ -76,6 +76,9 @@ class Package(models.Model):
     description = models.CharField(max_length=255)
     pickup_address = models.TextField()
     delivery_address = models.TextField()
+    # inside Package model
+    receiver_name = models.CharField(max_length=255, blank=True)
+    receiver_phone = models.CharField(max_length=20, blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)        # Total price customer pays
     commission = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # Your app’s cut
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
@@ -83,9 +86,9 @@ class Package(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def save(self, *args, **kwargs):
-        # Auto-calculate commission: e.g., 500 naira fixed per package
-        self.commission = 500
-        super().save(*args, **kwargs)
+        base_fee = 200
+        percentage = 0.10  # 10%
 
-    def __str__(self):
-        return f"Package {self.id} - {self.status}"
+        self.commission = base_fee + (self.price * percentage)
+
+        super().save(*args, **kwargs)

@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.core.mail import send_mail
 from django.conf import settings
+from .models import Package
 from .models import User, RiderProfile
 
 # -----------------------------
@@ -27,7 +28,7 @@ class RiderProfileAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         # 0️⃣ Ensure rider_id is set if missing
         if not obj.rider_id:
-            import uuid
+            import uuid 
             obj.rider_id = f"RIDER-{uuid.uuid4().hex[:8].upper()}"
 
         # 1️⃣ Enforce all images uploaded
@@ -92,3 +93,13 @@ class RiderProfileAdmin(admin.ModelAdmin):
                     recipient_list=[obj.user.email],
                     fail_silently=True,
                 )
+
+
+
+@admin.register(Package)
+class PackageAdmin(admin.ModelAdmin):
+    list_display = ('id', 'customer', 'rider', 'description', 'status', 'price', 'commission', 'created_at')
+    list_filter = ('status', 'rider')
+    search_fields = ('customer__email', 'rider__email', 'description')
+    readonly_fields = ('commission', 'created_at', 'updated_at')
+    ordering = ('id',)
