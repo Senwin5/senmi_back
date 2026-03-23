@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.core.mail import send_mail
 from django.conf import settings
-from .models import Package
+from .models import Package, PackageTracking, RiderWallet
 from .models import User, RiderProfile
 
 # -----------------------------
@@ -103,3 +103,16 @@ class PackageAdmin(admin.ModelAdmin):
     search_fields = ('customer__email', 'rider__email', 'description')
     readonly_fields = ('commission', 'created_at', 'updated_at')
     ordering = ('id',)
+
+
+@admin.register(RiderWallet)
+class RiderWalletAdmin(admin.ModelAdmin):
+    list_display = ('rider', 'balance', 'total_earned')
+    search_fields = ('rider__email', 'rider__username')
+
+
+@admin.register(PackageTracking)
+class PackageTrackingAdmin(admin.ModelAdmin):
+    list_display = ('package', 'rider', 'latitude', 'longitude', 'timestamp')
+    search_fields = ('package__description', 'rider__email')
+    ordering = ('-timestamp',)
