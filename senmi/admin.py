@@ -32,7 +32,7 @@ class RiderProfileAdmin(admin.ModelAdmin):
             obj.rider_id = f"RIDER-{uuid.uuid4().hex[:8].upper()}"
 
         # 1️⃣ Enforce all images uploaded
-        required_images = ['profile_picture', 'rider_image_1', 'rider_image_with_bike']
+        required_images = ['profile_picture', 'rider_image_1', 'rider_image_with_vehicle']
         missing_images = [img for img in required_images if not getattr(obj, img)]
         if missing_images:
             raise ValueError(f"Cannot save: missing required images: {', '.join(missing_images)}")

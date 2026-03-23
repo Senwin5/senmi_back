@@ -3,10 +3,7 @@ from django.db import models
 from django.conf import settings
 from decimal import Decimal
 from django.contrib.auth.models import AbstractUser
-from django.db import models
-from django.conf import settings
 import uuid
-
 
 class User(AbstractUser):
     ROLE_CHOICES = (
@@ -48,6 +45,7 @@ class RiderProfile(models.Model):
     vehicle_number = models.CharField(max_length=50, blank=True)
     address = models.TextField(blank=True)
     city = models.CharField(max_length=100, blank=True)
+    rating = models.FloatField(default=0)
 
     # Status fields
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
@@ -142,3 +140,21 @@ class RiderWallet(models.Model):
             raise ValueError("Insufficient funds")  # 🚫 prevents overdraft
         self.balance -= amount
         self.save()
+
+
+
+class RiderRating(models.Model):
+    rider = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='ratings')
+    customer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    package = models.OneToOneField(Package, on_delete=models.CASCADE)
+
+    rating = models.IntegerField()  # 1–5 stars
+    comment = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class PackageStatusHistory(models.Model):
+    package = models.ForeignKey(Package, on_delete=models.CASCADE, related_name='history')
+    status = models.CharField(max_length=20)
+    timestamp = models.DateTimeField(auto_now_add=True)

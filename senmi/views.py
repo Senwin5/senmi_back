@@ -165,7 +165,7 @@ class IsApprovedRider(BasePermission):
 
 
 
-from .models import Package, PackageTracking, RiderWallet
+from .models import Package, PackageStatusHistory, PackageTracking, RiderRating, RiderWallet
 from django.http import JsonResponse
 
 class AvailablePackagesView(APIView):
@@ -225,6 +225,10 @@ class AcceptPackageView(APIView):
         if request.user.role != 'rider':
             return Response({"error": "Only riders can accept"}, status=403)
 
+        # ✅ Prevent accepting unpaid package (FIX)
+        if not package.is_paid:
+            return Response({"error": "Package not paid"}, status=400)
+
         # ✅ Prevent multiple riders
         if package.rider is not None:
             return Response({"error": "Already taken"}, status=400)
@@ -233,6 +237,11 @@ class AcceptPackageView(APIView):
         package.rider = request.user
         package.status = 'accepted'
         package.save()
+
+        PackageStatusHistory.objects.create(
+            package=package,
+            status='accepted'
+        )
 
         return Response({"message": "Accepted successfully"})
     
@@ -292,6 +301,10 @@ class UpdateDeliveryStatusView(APIView):
         package.status = new_status
         package.save()
 
+        PackageStatusHistory.objects.create(
+            package=package,
+            status=new_status
+        )
         return Response({"message": f"Package marked as {new_status}"})
     
 
@@ -313,7 +326,6 @@ class RiderEarningsView(APIView):
 
 import requests
 from django.conf import settings
-
 class InitializePaymentView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -322,6 +334,10 @@ class InitializePaymentView(APIView):
             package = Package.objects.get(id=package_id, customer=request.user)
         except Package.DoesNotExist:
             return Response({"error": "Package not found"}, status=404)
+
+        # ✅ Prevent duplicate payment
+        if package.is_paid:
+            return Response({"error": "Already paid"}, status=400)
 
         url = "https://api.paystack.co/transaction/initialize"
 
@@ -332,7 +348,7 @@ class InitializePaymentView(APIView):
 
         data = {
             "email": request.user.email,
-            "amount": int(package.price * 100),  # Paystack uses kobo
+            "amount": int(package.price * 100),
             "reference": f"PKG-{package.id}-{uuid.uuid4().hex[:6]}",
             "callback_url": "https://yourdomain.com/payment-success/"
         }
@@ -341,29 +357,39 @@ class InitializePaymentView(APIView):
         res_data = response.json()
 
         if res_data.get("status"):
-            payment_url = res_data["data"]["authorization_url"]
-            reference = res_data["data"]["reference"]
-
-            package.payment_reference = reference
+            package.payment_reference = res_data["data"]["reference"]
             package.save()
 
             return Response({
-                "payment_url": payment_url
+                "payment_url": res_data["data"]["authorization_url"]
             })
 
         return Response({"error": "Payment initialization failed"}, status=400)
     
 
 
+
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+import hashlib
+import hmac
 
 @method_decorator(csrf_exempt, name='dispatch')
 class PaystackWebhookView(APIView):
 
     def post(self, request):
-        payload = request.data
+        secret = settings.PAYSTACK_SECRET_KEY
 
+        hash = hmac.new(
+            secret.encode('utf-8'),
+            request.body,
+            hashlib.sha512
+        ).hexdigest()
+
+        if hash != request.headers.get('x-paystack-signature'):
+            return Response(status=400)
+
+        payload = request.data
         event = payload.get('event')
 
         if event == 'charge.success':
@@ -379,6 +405,7 @@ class PaystackWebhookView(APIView):
 
         return Response(status=200)
     
+
 
 
 class UpdateLocationView(APIView):
@@ -419,7 +446,10 @@ class TrackPackageView(APIView):
 
         return Response({
             "lat": t.latitude,
-            "lng": t.longitude
+            "lng": t.longitude,
+            "timestamp": t.timestamp,
+            "status": t.package.status
+            
         })
     
 
@@ -431,17 +461,40 @@ class CustomerPackagesView(APIView):
     def get(self, request):
         packages = Package.objects.filter(customer=request.user)
         data = []
+
         for p in packages:
+            # ✅ get rider profile safely
+            rider_profile = getattr(p.rider, 'riderprofile', None) if p.rider else None
+
+            # ✅ get latest tracking
+            tracking = PackageTracking.objects.filter(package=p).order_by('-timestamp').first()
+
             data.append({
                 "id": p.id,
                 "description": p.description,
                 "price": float(p.price),
                 "is_paid": p.is_paid,
                 "status": p.status,
-                "rider": p.rider.username if p.rider else None
+
+                # ✅ FULL rider info using RiderProfile.rating
+                "rider": {
+                    "username": p.rider.username if p.rider else None,
+                    "phone": rider_profile.phone_number if rider_profile else None,
+                    "rating": float(rider_profile.rating) if rider_profile else None
+                },
+
+                # ✅ LIVE location
+                "tracking": {
+                    "lat": tracking.latitude if tracking else None,
+                    "lng": tracking.longitude if tracking else None,
+                },
+
+                "created_at": p.created_at,
             })
+
         return Response(data)
     
+
 
 
 class RiderWalletView(APIView):
@@ -465,31 +518,55 @@ class RiderWithdrawView(APIView):
         wallet, _ = RiderWallet.objects.get_or_create(rider=request.user)
         amount = float(request.data.get('amount', 0))
 
-        # 1️⃣ Check if the rider has enough balance
+        # 1️⃣ Check balance
         if amount > wallet.balance:
             return Response({"error": "Insufficient funds"}, status=status.HTTP_400_BAD_REQUEST)
 
-        bank_account = request.data.get('bank_account')  # Account number
-        bank_code = request.data.get('bank_code')        # Paystack bank code
+        bank_account = request.data.get('bank_account')
+        bank_code = request.data.get('bank_code')
 
-        # 2️⃣ Call Paystack Payout API
-        url = "https://api.paystack.co/transfer"
         headers = {
             "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
             "Content-Type": "application/json"
         }
 
-        data = {
+        # ✅ STEP 1: Create recipient (FIX)
+        recipient_data = {
+            "type": "nuban",
+            "name": request.user.username,
+            "account_number": bank_account,
+            "bank_code": bank_code,
+            "currency": "NGN"
+        }
+
+        recipient_res = requests.post(
+            "https://api.paystack.co/transferrecipient",
+            json=recipient_data,
+            headers=headers
+        ).json()
+
+        if not recipient_res.get("status"):
+            return Response({"error": "Recipient creation failed", "details": recipient_res}, status=400)
+
+        recipient_code = recipient_res["data"]["recipient_code"]
+
+        # ✅ STEP 2: Transfer money (FIX)
+        transfer_data = {
             "source": "balance",
-            "amount": int(amount * 100),  # Paystack expects kobo
-            "recipient": bank_account,
+            "amount": int(amount * 100),
+            "recipient": recipient_code,
             "reason": "Rider Payout"
         }
 
-        response = requests.post(url, json=data, headers=headers)
+        response = requests.post(
+            "https://api.paystack.co/transfer",
+            json=transfer_data,
+            headers=headers
+        )
+
         res_data = response.json()
 
-        # 3️⃣ If successful, deduct from wallet
+        # 3️⃣ Deduct wallet
         if res_data.get("status"):
             wallet.withdraw(amount)
             return Response({
@@ -498,3 +575,71 @@ class RiderWithdrawView(APIView):
             })
 
         return Response({"error": "Paystack transfer failed", "details": res_data}, status=400)
+    
+
+
+
+class RateRiderView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, package_id):
+        try:
+            package = Package.objects.get(
+                id=package_id,
+                customer=request.user,
+                status='delivered'
+            )
+        except Package.DoesNotExist:
+            return Response({"error": "Invalid package"}, status=404)
+
+        # Prevent double rating
+        if hasattr(package, 'riderrating'):
+            return Response({"error": "Already rated"}, status=400)
+
+        rating = int(request.data.get('rating'))
+        comment = request.data.get('comment', '')
+
+        # Prevent rating before delivery (extra safety)
+        if package.status != 'delivered':
+            return Response({"error": "Cannot rate before delivery"}, status=400)
+
+        # Validate rating range
+        if rating < 1 or rating > 5:
+            return Response({"error": "Rating must be 1–5"}, status=400)
+
+        # Save rating
+        RiderRating.objects.create(
+            rider=package.rider,
+            customer=request.user,
+            package=package,
+            rating=rating,
+            comment=comment
+        )
+
+        # --- OPTIMIZATION: update rider's average rating ---
+        rider_profile = getattr(package.rider, 'riderprofile', None)
+        if rider_profile:
+            all_ratings = package.rider.ratings.all()
+            avg_rating = round(sum(r.rating for r in all_ratings) / all_ratings.count(), 1)
+            rider_profile.rating = avg_rating
+            rider_profile.save(update_fields=['rating'])
+
+        return Response({"message": "Rating submitted"})
+    
+
+
+
+class PackageTimelineView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, package_id):
+        history = PackageStatusHistory.objects.filter(package_id=package_id).order_by('timestamp')
+
+        data = []
+        for h in history:
+            data.append({
+                "status": h.status,
+                "time": h.timestamp
+            })
+
+        return Response(data)
