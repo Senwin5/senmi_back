@@ -1,6 +1,7 @@
 # senmi/models.py
+from django.db import models
+from django.conf import settings
 from decimal import Decimal
-
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.conf import settings
@@ -125,27 +126,19 @@ class PackageTracking(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
 
 
-
-
-from django.db import models
-from django.conf import settings
-from decimal import Decimal
-
+    
 class RiderWallet(models.Model):
     rider = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    total_earned = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # total delivered earnings
+    total_earned = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
-    def deposit(self, amount: Decimal):
+    def deposit(self, amount):
         self.balance += amount
         self.total_earned += amount
         self.save()
 
-    def withdraw(self, amount: Decimal):
+    def withdraw(self, amount):
         if amount > self.balance:
-            raise ValueError("Insufficient funds")
+            raise ValueError("Insufficient funds")  # 🚫 prevents overdraft
         self.balance -= amount
         self.save()
-
-    def __str__(self):
-        return f"{self.rider.username} Wallet - Balance: {self.balance}"

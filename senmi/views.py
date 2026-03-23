@@ -6,6 +6,7 @@ from rest_framework.decorators import api_view, permission_classes
 from django.core.mail import send_mail
 from django.conf import settings
 import uuid
+import requests
 from senmi.models import User
 from .serializers import RegisterSerializer, RiderProfileSerializer, CustomLoginSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -74,7 +75,7 @@ class RiderProfileUpdateView(APIView):
             missing_text_fields = [field for field in required_fields if not request.data.get(field)]
 
             # Required image fields
-            required_images = ['profile_picture', 'rider_image_1', 'rider_image_with_bike']
+            required_images = ['profile_picture', 'rider_image_1', 'rider_image_with_vehicle']
             missing_images = [field for field in required_images if not request.FILES.get(field) and not getattr(profile, field)]
 
             if missing_text_fields or missing_images:
@@ -452,3 +453,48 @@ class RiderWalletView(APIView):
             "balance": float(wallet.balance),
             "total_earned": float(wallet.total_earned)
         })
+    
+
+
+
+
+class RiderWithdrawView(APIView):
+    permission_classes = [IsAuthenticated, IsApprovedRider]
+
+    def post(self, request):
+        wallet, _ = RiderWallet.objects.get_or_create(rider=request.user)
+        amount = float(request.data.get('amount', 0))
+
+        # 1️⃣ Check if the rider has enough balance
+        if amount > wallet.balance:
+            return Response({"error": "Insufficient funds"}, status=status.HTTP_400_BAD_REQUEST)
+
+        bank_account = request.data.get('bank_account')  # Account number
+        bank_code = request.data.get('bank_code')        # Paystack bank code
+
+        # 2️⃣ Call Paystack Payout API
+        url = "https://api.paystack.co/transfer"
+        headers = {
+            "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
+            "Content-Type": "application/json"
+        }
+
+        data = {
+            "source": "balance",
+            "amount": int(amount * 100),  # Paystack expects kobo
+            "recipient": bank_account,
+            "reason": "Rider Payout"
+        }
+
+        response = requests.post(url, json=data, headers=headers)
+        res_data = response.json()
+
+        # 3️⃣ If successful, deduct from wallet
+        if res_data.get("status"):
+            wallet.withdraw(amount)
+            return Response({
+                "message": f"Withdrawal of ₦{amount} successful",
+                "current_balance": float(wallet.balance)
+            })
+
+        return Response({"error": "Paystack transfer failed", "details": res_data}, status=400)
