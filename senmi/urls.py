@@ -1,7 +1,8 @@
 # senmi/urls.py
 from django.urls import path
-from .views import CreatePackageView, RegisterView, RiderEarningsView, RiderProfileUpdateView
-from .views import AvailablePackagesView, AcceptPackageView,UpdateDeliveryStatusView,CustomLoginView
+from .views import CreatePackageView, InitializePaymentView, RiderProfileUpdateView, RiderWalletView, TrackPackageView, UpdateLocationView
+from .views import AcceptPackageView,UpdateDeliveryStatusView,CustomLoginView,RegisterView
+from .views import AvailablePackagesView,PaystackWebhookView,RiderEarningsView
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
@@ -12,4 +13,9 @@ urlpatterns = [
     path('create-package/', CreatePackageView.as_view()),
     path('packages/<int:package_id>/update-status/', UpdateDeliveryStatusView.as_view()),
     path('rider-earnings/', RiderEarningsView.as_view()),
+    path('packages/<int:package_id>/pay/', InitializePaymentView.as_view()),
+    path('paystack/webhook/', PaystackWebhookView.as_view()),
+    path('packages/<int:package_id>/update-location/', UpdateLocationView.as_view()),
+    path('packages/<int:package_id>/track/', TrackPackageView.as_view()),
+    path('rider/wallet/', RiderWalletView.as_view()),
 ]

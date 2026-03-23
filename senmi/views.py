@@ -164,7 +164,7 @@ class IsApprovedRider(BasePermission):
 
 
 
-from .models import Package
+from .models import Package, PackageTracking, RiderWallet
 from django.http import JsonResponse
 
 class AvailablePackagesView(APIView):
@@ -178,10 +178,12 @@ class AvailablePackagesView(APIView):
         rider_city = rider_profile.city.strip().lower()  # normalize for comparison
 
         # Filter packages: pending, unassigned, pickup address contains rider's city
+
         packages = Package.objects.filter(
             status='pending',
             rider__isnull=True,
-            pickup_lat__isnull=False
+            pickup_lat__isnull=False,
+            is_paid=True   # ✅ ONLY PAID PACKAGES
         )
 
         # Only include packages in rider's city
@@ -281,6 +283,11 @@ class UpdateDeliveryStatusView(APIView):
         if new_status != valid_flow[package.status]:
             return Response({"error": "Invalid status transition"}, status=400)
 
+        if new_status == "delivered":
+            # Deposit rider earning
+            wallet, created = RiderWallet.objects.get_or_create(rider=request.user)
+            wallet.deposit(package.rider_earning)
+
         package.status = new_status
         package.save()
 
@@ -299,4 +306,149 @@ class RiderEarningsView(APIView):
         return Response({
             "total_earnings": float(total_earnings),
             "total_deliveries": deliveries.count()
+        })
+    
+
+
+import requests
+from django.conf import settings
+
+class InitializePaymentView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, package_id):
+        try:
+            package = Package.objects.get(id=package_id, customer=request.user)
+        except Package.DoesNotExist:
+            return Response({"error": "Package not found"}, status=404)
+
+        url = "https://api.paystack.co/transaction/initialize"
+
+        headers = {
+            "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
+            "Content-Type": "application/json"
+        }
+
+        data = {
+            "email": request.user.email,
+            "amount": int(package.price * 100),  # Paystack uses kobo
+            "reference": f"PKG-{package.id}-{uuid.uuid4().hex[:6]}",
+            "callback_url": "https://yourdomain.com/payment-success/"
+        }
+
+        response = requests.post(url, json=data, headers=headers)
+        res_data = response.json()
+
+        if res_data.get("status"):
+            payment_url = res_data["data"]["authorization_url"]
+            reference = res_data["data"]["reference"]
+
+            package.payment_reference = reference
+            package.save()
+
+            return Response({
+                "payment_url": payment_url
+            })
+
+        return Response({"error": "Payment initialization failed"}, status=400)
+    
+
+
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+
+@method_decorator(csrf_exempt, name='dispatch')
+class PaystackWebhookView(APIView):
+
+    def post(self, request):
+        payload = request.data
+
+        event = payload.get('event')
+
+        if event == 'charge.success':
+            data = payload.get('data')
+            reference = data.get('reference')
+
+            try:
+                package = Package.objects.get(payment_reference=reference)
+                package.is_paid = True
+                package.save()
+            except Package.DoesNotExist:
+                pass
+
+        return Response(status=200)
+    
+
+
+class UpdateLocationView(APIView):
+    permission_classes = [IsAuthenticated, IsApprovedRider]
+
+    def post(self, request, package_id):
+        lat = request.data.get('lat')
+        lng = request.data.get('lng')
+
+        try:
+            package = Package.objects.get(id=package_id, rider=request.user)
+        except Package.DoesNotExist:
+            return Response({"error": "Not your package"}, status=403)
+
+        PackageTracking.objects.create(
+            package=package,
+            rider=request.user,
+            latitude=lat,
+            longitude=lng
+        )
+
+        return Response({"message": "Location updated"})
+    
+
+
+class TrackPackageView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, package_id):
+        tracking = PackageTracking.objects.filter(
+            package_id=package_id
+        ).order_by('-timestamp')[:1]
+
+        if not tracking:
+            return Response({"error": "No tracking data"})
+
+        t = tracking[0]
+
+        return Response({
+            "lat": t.latitude,
+            "lng": t.longitude
+        })
+    
+
+
+
+class CustomerPackagesView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        packages = Package.objects.filter(customer=request.user)
+        data = []
+        for p in packages:
+            data.append({
+                "id": p.id,
+                "description": p.description,
+                "price": float(p.price),
+                "is_paid": p.is_paid,
+                "status": p.status,
+                "rider": p.rider.username if p.rider else None
+            })
+        return Response(data)
+    
+
+
+class RiderWalletView(APIView):
+    permission_classes = [IsAuthenticated, IsApprovedRider]
+
+    def get(self, request):
+        wallet, created = RiderWallet.objects.get_or_create(rider=request.user)
+        return Response({
+            "balance": float(wallet.balance),
+            "total_earned": float(wallet.total_earned)
         })
