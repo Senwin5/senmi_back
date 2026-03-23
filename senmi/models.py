@@ -1,4 +1,6 @@
 # senmi/models.py
+from decimal import Decimal
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.conf import settings
@@ -41,7 +43,8 @@ class RiderProfile(models.Model):
     phone_number = models.CharField(max_length=20, blank=True)
     profile_picture = models.ImageField(upload_to='riders/profile/', blank=True, null=True)
     rider_image_1 = models.ImageField(upload_to='riders/images1/', blank=True, null=True)
-    rider_image_with_bike = models.ImageField(upload_to='riders/images2/', blank=True, null=True)
+    rider_image_with_vehicle = models.ImageField(upload_to='riders/images2/', blank=True, null=True)
+    vehicle_number = models.CharField(max_length=50, blank=True)
     address = models.TextField(blank=True)
     city = models.CharField(max_length=100, blank=True)
 
@@ -64,8 +67,8 @@ class RiderProfile(models.Model):
 #Customer(vendor)package order
 class Package(models.Model):
     STATUS_CHOICES = [
-        ('pending', 'Pending'),      # Waiting for rider to accept
-        ('accepted', 'Accepted'),    # Rider accepted the package
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
         ('picked_up', 'Picked Up'),
         ('delivered', 'Delivered'),
         ('cancelled', 'Cancelled'),
@@ -73,22 +76,39 @@ class Package(models.Model):
 
     customer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='orders')
     rider = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='deliveries')
+
     description = models.CharField(max_length=255)
+
     pickup_address = models.TextField()
     delivery_address = models.TextField()
-    # inside Package model
+
+    # ✅ GPS coordinates (NEW)
+    pickup_lat = models.FloatField(null=True, blank=True)
+    pickup_lng = models.FloatField(null=True, blank=True)
+    delivery_lat = models.FloatField(null=True, blank=True)
+    delivery_lng = models.FloatField(null=True, blank=True)
+
     receiver_name = models.CharField(max_length=255, blank=True)
     receiver_phone = models.CharField(max_length=20, blank=True)
-    price = models.DecimalField(max_digits=10, decimal_places=2)        # Total price customer pays
-    commission = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # Your app’s cut
+
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    commission = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    # ✅ Rider earning
+    rider_earning = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    payment_reference = models.CharField(max_length=100, blank=True, null=True)
+    is_paid = models.BooleanField(default=False)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def save(self, *args, **kwargs):
-        base_fee = 200
-        percentage = 0.10  # 10%
+        from decimal import Decimal
+        base_fee = Decimal('200')
+        percentage = Decimal('0.10')
 
         self.commission = base_fee + (self.price * percentage)
+        self.rider_earning = self.price - self.commission  # ✅ NEW
 
         super().save(*args, **kwargs)
