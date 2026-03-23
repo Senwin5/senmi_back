@@ -162,6 +162,8 @@ class IsApprovedRider(BasePermission):
         return True  # other roles are allowed
     
 
+
+
 from .models import Package
 from django.http import JsonResponse
 
@@ -179,6 +181,7 @@ class AvailablePackagesView(APIView):
         packages = Package.objects.filter(
             status='pending',
             rider__isnull=True,
+            pickup_lat__isnull=False
         )
 
         # Only include packages in rider's city
@@ -229,3 +232,71 @@ class AcceptPackageView(APIView):
         package.save()
 
         return Response({"message": "Accepted successfully"})
+    
+
+
+
+from rest_framework.permissions import IsAuthenticated
+from .serializers import PackageSerializer
+
+class CreatePackageView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if request.user.role != 'customer':
+            return Response({"error": "Only customers can create packages"}, status=403)
+
+        serializer = PackageSerializer(data=request.data)
+
+        if serializer.is_valid():
+            serializer.save(customer=request.user)
+            return Response(serializer.data, status=201)
+
+        return Response(serializer.errors, status=400)
+    
+
+
+class UpdateDeliveryStatusView(APIView):
+    permission_classes = [IsAuthenticated, IsApprovedRider]
+
+    def post(self, request, package_id):
+        try:
+            package = Package.objects.get(id=package_id)
+        except Package.DoesNotExist:
+            return Response({"error": "Package not found"}, status=404)
+
+        if package.rider != request.user:
+            return Response({"error": "Not your package"}, status=403)
+
+        new_status = request.data.get('status')
+
+        valid_flow = {
+            'accepted': 'picked_up',
+            'picked_up': 'delivered'
+        }
+
+        if package.status not in valid_flow:
+            return Response({"error": "Invalid current status"}, status=400)
+
+        if new_status != valid_flow[package.status]:
+            return Response({"error": "Invalid status transition"}, status=400)
+
+        package.status = new_status
+        package.save()
+
+        return Response({"message": f"Package marked as {new_status}"})
+    
+
+
+class RiderEarningsView(APIView):
+    permission_classes = [IsAuthenticated, IsApprovedRider]
+
+    def get(self, request):
+        deliveries = Package.objects.filter(rider=request.user, status='delivered')
+
+        total_earnings = sum([p.rider_earning for p in deliveries])
+
+        return Response({
+            "total_earnings": float(total_earnings),
+            "total_deliveries": deliveries.count()
+        })
