@@ -6,6 +6,8 @@ from rest_framework.decorators import api_view, permission_classes
 from django.core.mail import send_mail
 from django.conf import settings
 import uuid
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 import requests
 from senmi.models import User
 from django.db.models import Avg, Count
@@ -421,11 +423,24 @@ class UpdateLocationView(APIView):
         except Package.DoesNotExist:
             return Response({"error": "Not your package"}, status=403)
 
+        # ✅ Save to DB (you already have this)
         PackageTracking.objects.create(
             package=package,
             rider=request.user,
             latitude=lat,
             longitude=lng
+        )
+
+        # 🚀 SEND REALTIME UPDATE (THIS IS THE NEW PART)
+        channel_layer = get_channel_layer()
+
+        async_to_sync(channel_layer.group_send)(
+            f"tracking_{package.id}",  # room name
+            {
+                "type": "send_location",
+                "lat": lat,
+                "lng": lng,
+            }
         )
 
         return Response({"message": "Location updated"})
@@ -477,7 +492,7 @@ class CustomerPackagesView(APIView):
                 "is_paid": p.is_paid,
                 "status": p.status,
 
-                # ✅ FULL rider info using RiderProfile.rating
+                #FULL rider info using RiderProfile.rating
                 "rider": {
                     "username": p.rider.username if p.rider else None,
                     "phone": rider_profile.phone_number if rider_profile else None,
@@ -485,7 +500,7 @@ class CustomerPackagesView(APIView):
                     "rating_count": rider_profile.rating_count if rider_profile else 0
                 },
 
-                # ✅ LIVE location
+                # LIVE location
                 "tracking": {
                     "lat": tracking.latitude if tracking else None,
                     "lng": tracking.longitude if tracking else None,
