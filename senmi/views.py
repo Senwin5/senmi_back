@@ -8,6 +8,7 @@ from django.conf import settings
 import uuid
 import requests
 from senmi.models import User
+from django.db.models import Avg, Count
 from .serializers import RegisterSerializer, RiderProfileSerializer, CustomLoginSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 
@@ -480,7 +481,8 @@ class CustomerPackagesView(APIView):
                 "rider": {
                     "username": p.rider.username if p.rider else None,
                     "phone": rider_profile.phone_number if rider_profile else None,
-                    "rating": float(rider_profile.rating) if rider_profile else None
+                    "rating": float(rider_profile.rating) if rider_profile else None,
+                    "rating_count": rider_profile.rating_count if rider_profile else 0
                 },
 
                 # ✅ LIVE location
@@ -592,22 +594,26 @@ class RateRiderView(APIView):
         except Package.DoesNotExist:
             return Response({"error": "Invalid package"}, status=404)
 
-        # Prevent double rating
         if hasattr(package, 'riderrating'):
             return Response({"error": "Already rated"}, status=400)
 
-        rating = int(request.data.get('rating'))
+        try:
+            rating = int(request.data.get('rating'))
+        except (TypeError, ValueError):
+            return Response({"error": "Rating must be a number"}, status=400)
+
         comment = request.data.get('comment', '')
 
-        # Prevent rating before delivery (extra safety)
         if package.status != 'delivered':
             return Response({"error": "Cannot rate before delivery"}, status=400)
 
-        # Validate rating range
         if rating < 1 or rating > 5:
             return Response({"error": "Rating must be 1–5"}, status=400)
 
-        # Save rating
+        if not package.rider:
+            return Response({"error": "No rider assigned"}, status=400)
+
+        # ✅ Save rating
         RiderRating.objects.create(
             rider=package.rider,
             customer=request.user,
@@ -616,16 +622,19 @@ class RateRiderView(APIView):
             comment=comment
         )
 
-        # --- OPTIMIZATION: update rider's average rating ---
+        #SUPER OPTIMIZED (DB handles everything)
         rider_profile = getattr(package.rider, 'riderprofile', None)
         if rider_profile:
-            all_ratings = package.rider.ratings.all()
-            avg_rating = round(sum(r.rating for r in all_ratings) / all_ratings.count(), 1)
-            rider_profile.rating = avg_rating
-            rider_profile.save(update_fields=['rating'])
+            stats = package.rider.ratings.aggregate(
+                avg=Avg('rating'),
+                count=Count('id')
+            )
+
+            rider_profile.rating = round(stats['avg'] or 0, 1)
+            rider_profile.rating_count = stats['count'] or 0
+            rider_profile.save(update_fields=['rating', 'rating_count'])
 
         return Response({"message": "Rating submitted"})
-    
 
 
 
