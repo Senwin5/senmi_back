@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.core.mail import send_mail
 from django.conf import settings
-from .models import Package, PackageTracking, RiderWallet
+from .models import Package, PackageStatusHistory, PackageTracking, RiderWallet
 from .models import User, RiderProfile
 
 # -----------------------------
@@ -115,4 +115,10 @@ class RiderWalletAdmin(admin.ModelAdmin):
 class PackageTrackingAdmin(admin.ModelAdmin):
     list_display = ('package', 'rider', 'latitude', 'longitude', 'timestamp')
     search_fields = ('package__description', 'rider__email')
+    ordering = ('-timestamp',)
+
+    
+@admin.register(PackageStatusHistory)
+class PackageStatusHistoryAdmin(admin.ModelAdmin):
+    list_display = ('package','timestamp')
     ordering = ('-timestamp',)
