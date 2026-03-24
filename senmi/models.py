@@ -46,6 +46,7 @@ class RiderProfile(models.Model):
     address = models.TextField(blank=True)
     city = models.CharField(max_length=100, blank=True)
     rating = models.FloatField(default=0)
+    rating_count = models.IntegerField(default=0) 
 
     # Status fields
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
