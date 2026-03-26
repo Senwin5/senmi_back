@@ -1,4 +1,6 @@
 # senmi/models.py
+import random
+
 from django.db import models
 from django.conf import settings
 from decimal import Decimal
@@ -74,6 +76,18 @@ class Package(models.Model):
         ('cancelled', 'Cancelled'),
     ]
 
+    PAYMENT_TYPE_CHOICES = [
+        ('sender', 'Sender Pays'),
+        ('receiver', 'Receiver Pays'),
+    ]
+
+    payment_type = models.CharField(
+        max_length=10,
+        choices=PAYMENT_TYPE_CHOICES,
+        default='sender'
+    )
+
+    is_collected = models.BooleanField(default=False)
     customer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='orders')
     rider = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='deliveries')
 
@@ -82,7 +96,6 @@ class Package(models.Model):
     pickup_address = models.TextField()
     delivery_address = models.TextField()
 
-    # ✅ GPS coordinates (NEW)
     pickup_lat = models.FloatField(null=True, blank=True)
     pickup_lng = models.FloatField(null=True, blank=True)
     delivery_lat = models.FloatField(null=True, blank=True)
@@ -93,25 +106,28 @@ class Package(models.Model):
 
     price = models.DecimalField(max_digits=10, decimal_places=2)
     commission = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-
-    # ✅ Rider earning
     rider_earning = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     payment_reference = models.CharField(max_length=100, blank=True, null=True)
     is_paid = models.BooleanField(default=False)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
 
+    delivery_code = models.CharField(max_length=4, blank=True, null=True)  # NEW
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def save(self, *args, **kwargs):
-        from decimal import Decimal
+        # Generate 4-digit code if not already set
+        if not self.delivery_code:
+            self.delivery_code = f"{random.randint(1000, 9999)}"
+
         base_fee = Decimal('200')
         percentage = Decimal('0.10')
 
         self.commission = base_fee + (self.price * percentage)
-        self.rider_earning = self.price - self.commission  # ✅ NEW
-
+        self.rider_earning = self.price - self.commission
         super().save(*args, **kwargs)
+
 
 
 

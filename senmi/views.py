@@ -1,3 +1,5 @@
+import random
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -179,18 +181,13 @@ class AvailablePackagesView(APIView):
         if not rider_profile:
             return Response({"error": "Rider profile not found"}, status=404)
 
-        rider_city = rider_profile.city.strip().lower()  # normalize for comparison
-
-        # Filter packages: pending, unassigned, pickup address contains rider's city
-
+        rider_city = rider_profile.city.strip().lower()
         packages = Package.objects.filter(
             status='pending',
             rider__isnull=True,
-            pickup_lat__isnull=False,
-            is_paid=True   # ✅ ONLY PAID PACKAGES
+            pickup_lat__isnull=False
         )
 
-        # Only include packages in rider's city
         packages = [p for p in packages if rider_city in p.pickup_address.lower()]
 
         data = []
@@ -206,7 +203,6 @@ class AvailablePackagesView(APIView):
             })
 
         return Response(data)
-
 
 
 
@@ -228,9 +224,8 @@ class AcceptPackageView(APIView):
         if request.user.role != 'rider':
             return Response({"error": "Only riders can accept"}, status=403)
 
-        # ✅ Prevent accepting unpaid package (FIX)
-        if not package.is_paid:
-            return Response({"error": "Package not paid"}, status=400)
+        if package.payment_type == "sender" and not package.is_paid:
+            return Response({"error": "Sender has not paid"}, status=400)
 
         # ✅ Prevent multiple riders
         if package.rider is not None:
@@ -262,13 +257,22 @@ class CreatePackageView(APIView):
             return Response({"error": "Only customers can create packages"}, status=403)
 
         serializer = PackageSerializer(data=request.data)
-
         if serializer.is_valid():
-            serializer.save(customer=request.user)
-            return Response(serializer.data, status=201)
+            package = serializer.save(customer=request.user)
+
+            # If receiver pays, generate delivery code and payment link
+            if package.payment_type == "receiver":
+                package.delivery_code = f"{random.randint(1000, 9999)}"
+                package.save()
+
+            return Response({
+                **serializer.data,
+                "delivery_code": package.delivery_code
+            }, status=201)
 
         return Response(serializer.errors, status=400)
     
+
 
 
 class UpdateDeliveryStatusView(APIView):
@@ -284,7 +288,6 @@ class UpdateDeliveryStatusView(APIView):
             return Response({"error": "Not your package"}, status=403)
 
         new_status = request.data.get('status')
-
         valid_flow = {
             'accepted': 'picked_up',
             'picked_up': 'delivered'
@@ -296,20 +299,32 @@ class UpdateDeliveryStatusView(APIView):
         if new_status != valid_flow[package.status]:
             return Response({"error": "Invalid status transition"}, status=400)
 
+        # Require delivery code if marking as delivered
         if new_status == "delivered":
-            # Deposit rider earning
-            wallet, created = RiderWallet.objects.get_or_create(rider=request.user)
+            code_input = request.data.get('delivery_code')
+            if not code_input:
+                return Response({"error": "Delivery code required"}, status=400)
+            if package.delivery_code != code_input:
+                return Response({"error": "Invalid delivery code"}, status=400)
+
+            wallet, _ = RiderWallet.objects.get_or_create(rider=request.user)
             wallet.deposit(package.rider_earning)
+
+            if package.payment_type == "receiver":
+                wallet.balance -= package.commission
+                package.is_collected = True
+
+            wallet.save()
+            package.save()
 
         package.status = new_status
         package.save()
+        PackageStatusHistory.objects.create(package=package, status=new_status)
 
-        PackageStatusHistory.objects.create(
-            package=package,
-            status=new_status
-        )
         return Response({"message": f"Package marked as {new_status}"})
+
     
+
 
 
 class RiderEarningsView(APIView):
@@ -329,31 +344,38 @@ class RiderEarningsView(APIView):
 
 import requests
 from django.conf import settings
-class InitializePaymentView(APIView):
+class InitializeReceiverPaymentView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, package_id):
+        from django.conf import settings
+
         try:
-            package = Package.objects.get(id=package_id, customer=request.user)
+            package = Package.objects.get(id=package_id)
         except Package.DoesNotExist:
             return Response({"error": "Package not found"}, status=404)
 
-        # ✅ Prevent duplicate payment
+        if package.payment_type != "receiver":
+            return Response({"error": "This package is not set for receiver payment"}, status=400)
+
         if package.is_paid:
-            return Response({"error": "Already paid"}, status=400)
+            return Response({"error": "Package already paid"}, status=400)
 
+        receiver_email = request.data.get("receiver_email") or package.receiver_email
+        if not receiver_email:
+            return Response({"error": "Receiver email is required"}, status=400)
+
+        # Paystack init
         url = "https://api.paystack.co/transaction/initialize"
-
         headers = {
             "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
             "Content-Type": "application/json"
         }
-
         data = {
-            "email": request.user.email,
+            "email": receiver_email,
             "amount": int(package.price * 100),
             "reference": f"PKG-{package.id}-{uuid.uuid4().hex[:6]}",
-            "callback_url": "https://yourdomain.com/payment-success/"
+            "callback_url": f"https://yourdomain.com/payment-success/{package.id}/"
         }
 
         response = requests.post(url, json=data, headers=headers)
@@ -363,8 +385,10 @@ class InitializePaymentView(APIView):
             package.payment_reference = res_data["data"]["reference"]
             package.save()
 
+            # Return payment URL & optional QR
             return Response({
-                "payment_url": res_data["data"]["authorization_url"]
+                "payment_url": res_data["data"]["authorization_url"],
+                "qr_code": f"https://api.qrserver.com/v1/create-qr-code/?data={res_data['data']['authorization_url']}&size=200x200"
             })
 
         return Response({"error": "Payment initialization failed"}, status=400)
@@ -479,10 +503,7 @@ class CustomerPackagesView(APIView):
         data = []
 
         for p in packages:
-            # ✅ get rider profile safely
             rider_profile = getattr(p.rider, 'riderprofile', None) if p.rider else None
-
-            # ✅ get latest tracking
             tracking = PackageTracking.objects.filter(package=p).order_by('-timestamp').first()
 
             data.append({
@@ -491,21 +512,17 @@ class CustomerPackagesView(APIView):
                 "price": float(p.price),
                 "is_paid": p.is_paid,
                 "status": p.status,
-
-                #FULL rider info using RiderProfile.rating
+                "delivery_code": p.delivery_code,  # NEW
                 "rider": {
                     "username": p.rider.username if p.rider else None,
                     "phone": rider_profile.phone_number if rider_profile else None,
                     "rating": float(rider_profile.rating) if rider_profile else None,
                     "rating_count": rider_profile.rating_count if rider_profile else 0
                 },
-
-                # LIVE location
                 "tracking": {
                     "lat": tracking.latitude if tracking else None,
                     "lng": tracking.longitude if tracking else None,
                 },
-
                 "created_at": p.created_at,
             })
 
