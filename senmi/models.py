@@ -41,9 +41,9 @@ class RiderProfile(models.Model):
     # Profile fields
     full_name = models.CharField(max_length=255, blank=True)
     phone_number = models.CharField(max_length=20, blank=True)
-    profile_picture = models.ImageField(upload_to='riders/profile/', blank=True, null=True)
-    rider_image_1 = models.ImageField(upload_to='riders/images1/', blank=True, null=True)
-    rider_image_with_vehicle = models.ImageField(upload_to='riders/vehicle_images2/', blank=True, null=True)
+    profile_picture = models.ImageField(upload_to='riders_profile/', blank=True, null=True)
+    rider_image_1 = models.ImageField(upload_to='riders_images1/', blank=True, null=True)
+    rider_image_with_vehicle = models.ImageField(upload_to='riders_vehicle_images2/', blank=True, null=True)
     vehicle_number = models.CharField(max_length=50, blank=True)
     address = models.TextField(blank=True)
     city = models.CharField(max_length=100, blank=True)
