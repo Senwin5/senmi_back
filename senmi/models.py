@@ -1,6 +1,6 @@
 # senmi/models.py
 import random
-
+from django.db.models import Q
 from django.db import models
 from django.conf import settings
 from decimal import Decimal

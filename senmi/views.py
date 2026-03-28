@@ -1,5 +1,6 @@
 import random
 
+from django.db import models
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -12,7 +13,7 @@ from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 import requests
 from senmi.models import User
-from django.db.models import Avg, Count
+from django.db.models import Q, Avg, Count
 from .serializers import RegisterSerializer, RiderProfileSerializer, CustomLoginSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 
@@ -681,6 +682,35 @@ class PackageTimelineView(APIView):
             data.append({
                 "status": h.status,
                 "time": h.timestamp
+            })
+
+        return Response(data)
+    
+
+
+class AdminUserSearchView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        query = request.GET.get('q')
+
+        # ✅ check inside the function
+        if not query:
+            return Response({"error": "Enter search query"}, status=400)
+
+        users = User.objects.filter(
+            Q(email__icontains=query) |
+            Q(username__icontains=query) |
+            Q(user_id__icontains=query)
+        )
+
+        data = []
+        for u in users:
+            data.append({
+                "user_id": u.user_id,
+                "email": u.email,
+                "role": u.role,
+                "is_active": u.is_active
             })
 
         return Response(data)
