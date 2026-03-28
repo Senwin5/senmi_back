@@ -23,12 +23,22 @@ class RiderProfileSerializer(serializers.ModelSerializer):
 
 
 class CustomLoginSerializer(TokenObtainPairSerializer):
+
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
         token['username'] = user.username
         token['role'] = user.role
         return token
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+
+        # 🔥 ADD THESE LINES HERE
+        data['user_id'] = self.user.user_id
+        data['role'] = self.user.role
+
+        return data
     
 
 class PackageSerializer(serializers.ModelSerializer):
