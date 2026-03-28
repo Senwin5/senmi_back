@@ -101,7 +101,7 @@ class Package(models.Model):
 
     pickup_address = models.TextField()
     delivery_address = models.TextField()
-
+    package_id = models.CharField(max_length=20, unique=True, blank=True)
     pickup_lat = models.FloatField(null=True, blank=True)
     pickup_lng = models.FloatField(null=True, blank=True)
     delivery_lat = models.FloatField(null=True, blank=True)
@@ -123,6 +123,10 @@ class Package(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def save(self, *args, **kwargs):
+        #package unique id
+        if not self.package_id:
+            self.package_id = f"PKG-{uuid.uuid4().hex[:8].upper()}"
+
         # Generate 4-digit code if not already set
         if not self.delivery_code:
             self.delivery_code = f"{random.randint(1000, 9999)}"
@@ -133,6 +137,7 @@ class Package(models.Model):
         self.commission = base_fee + (self.price * percentage)
         self.rider_earning = self.price - self.commission
         super().save(*args, **kwargs)
+
 
 
 

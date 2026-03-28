@@ -335,9 +335,10 @@ class CreatePackageView(APIView):
 
             return Response({
                 **serializer.data,
+                "package_id": package.package_id,
                 "delivery_code": package.delivery_code
             }, status=201)
-
+        
         return Response(serializer.errors, status=400)
     
 
@@ -542,24 +543,32 @@ class UpdateLocationView(APIView):
 class TrackPackageView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, package_id):
+    def get(self, request, package_id):  # keep name same
+
+        try:
+            # 🔥 CHANGE THIS LINE
+            package = Package.objects.get(package_id=package_id)
+        except Package.DoesNotExist:
+            return Response({"error": "Package not found"}, status=404)
+
         tracking = PackageTracking.objects.filter(
-            package_id=package_id
+            package=package
         ).order_by('-timestamp')[:1]
 
         if not tracking:
             return Response({"error": "No tracking data"})
 
         t = tracking[0]
-
+    
         return Response({
+            "package_id": package.package_id,
+            "status": package.status,
             "lat": t.latitude,
             "lng": t.longitude,
-            "timestamp": t.timestamp,
-            "status": t.package.status
-            
+            "delivery_lat": package.delivery_lat,
+            "delivery_lng": package.delivery_lng,
         })
-    
+            
 
 
 
