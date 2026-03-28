@@ -18,3 +18,5 @@ class TrackingConsumer(AsyncWebsocketConsumer):
             'lat': event['lat'],
             'lng': event['lng']
         }))
+
+

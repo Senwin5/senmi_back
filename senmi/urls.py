@@ -18,7 +18,7 @@ urlpatterns = [
     path('api/packages/<int:package_id>/pay/', InitializeReceiverPaymentView.as_view()),
     path('api/paystack/webhook/', PaystackWebhookView.as_view()),
     path('api/packages/<int:package_id>/update-location/', UpdateLocationView.as_view()),
-    path('api/packages/<int:package_id>/track/', TrackPackageView.as_view()),
+    path('api/track/<str:package_id>/', TrackPackageView.as_view()),
     path('api/rider/wallet/', RiderWalletView.as_view()),
     path('api/rider/wallet/withdraw/', RiderWithdrawView.as_view()),
     path('api/customer/packages/', CustomerPackagesView.as_view()),
