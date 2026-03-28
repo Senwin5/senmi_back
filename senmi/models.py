@@ -13,15 +13,21 @@ class User(AbstractUser):
         ('rider', 'Rider'),
     )
 
+    user_id = models.CharField(max_length=20, unique=True, editable=False, blank=True)
+
     email = models.EmailField(unique=True)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
 
+    def save(self, *args, **kwargs):
+        if not self.user_id:
+            self.user_id = f"SENMI-{uuid.uuid4().hex[:8].upper()}"
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.email
-
 
 
 
