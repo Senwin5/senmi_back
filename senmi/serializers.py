@@ -34,12 +34,35 @@ class CustomLoginSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
 
-        # 🔥 ADD THESE LINES HERE
-        data['user_id'] = self.user.user_id
-        data['role'] = self.user.role
+        user = self.user
+
+        # 🔒 BLOCK RIDERS IF NOT READY
+        if user.role == 'rider':
+            profile = getattr(user, 'riderprofile', None)
+
+            if not profile:
+                raise serializers.ValidationError({
+                    "detail": "Complete your profile before logging in."
+                })
+
+            if profile.status == 'pending':
+                raise serializers.ValidationError({
+                    "detail": "Your profile is pending admin approval."
+                })
+
+            if profile.status == 'rejected':
+                raise serializers.ValidationError({
+                    "detail": f"Profile rejected: {profile.rejection_reason}"
+                })
+
+        # ✅ keep your existing logic
+        data['user_id'] = user.user_id
+        data['role'] = user.role
 
         return data
     
+
+
 
 class PackageSerializer(serializers.ModelSerializer):
     class Meta:
