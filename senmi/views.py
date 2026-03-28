@@ -1,5 +1,4 @@
 import random
-
 from django.db import models
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -13,14 +12,18 @@ from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 import requests
 from senmi.models import User
+from rest_framework_simplejwt.tokens import RefreshToken
 from django.db.models import Q, Avg, Count
 from .serializers import RegisterSerializer, RiderProfileSerializer, CustomLoginSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
+from django.contrib.auth import authenticate
 
 
 class CustomLoginView(TokenObtainPairView):
     serializer_class = CustomLoginSerializer
 
+
+from rest_framework_simplejwt.tokens import RefreshToken
 
 class RegisterView(APIView):
     def post(self, request):
@@ -57,12 +60,45 @@ class RegisterView(APIView):
                 fail_silently=True,
             )
 
+            # ✅ Generate JWT token for auto-login
+            refresh = RefreshToken.for_user(user)
+            access_token = str(refresh.access_token)
+
             return Response({
                 "message": "User created successfully",
-                "role": user.role
+                "role": user.role,
+                "access": access_token  # <-- Flutter will use this
             }, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+class RiderLoginAPIView(APIView):
+    def post(self, request):
+        email = request.data.get("email")
+        password = request.data.get("password")
+        user = authenticate(username=email, password=password)
+
+        if user:
+            if user.role == 'rider':
+                profile = getattr(user, 'riderprofile', None)
+                if not profile:
+                    return Response({"detail": "Complete your profile before logging in."}, status=403)
+                if profile.status == 'pending':
+                    return Response({"detail": "Your profile is pending admin approval."}, status=403)
+                if profile.status == 'rejected':
+                    return Response({"detail": f"Profile rejected: {profile.rejection_reason}"}, status=403)
+
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                "access": str(refresh.access_token),
+                "role": user.role
+            })
+
+        return Response({"detail": "Invalid credentials"}, status=401)
+
+
 
 
 class RiderProfileUpdateView(APIView):
@@ -122,6 +158,8 @@ class RiderProfileUpdateView(APIView):
             }, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 
 @api_view(['POST'])
