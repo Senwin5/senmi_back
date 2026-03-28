@@ -17,14 +17,42 @@ from django.db.models import Q, Avg, Count
 from .serializers import RegisterSerializer, RiderProfileSerializer, CustomLoginSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth import authenticate
-
+from rest_framework_simplejwt.tokens import RefreshToken
+from .models import RiderProfile
 
 class CustomLoginView(TokenObtainPairView):
     serializer_class = CustomLoginSerializer
 
 
-from rest_framework_simplejwt.tokens import RefreshToken
 
+
+class AdminRidersListView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        riders = RiderProfile.objects.select_related('user').all()
+
+        data = []
+        for r in riders:
+            data.append({
+                "id": r.id,
+                "username": r.user.username,
+                "email": r.user.email,
+                "status": r.status,
+                "phone": r.phone_number,
+                "city": r.city,
+
+                # ✅ ADD IMAGES
+                "profile_picture": r.profile_picture.url if r.profile_picture else None,
+                "rider_image_1": r.rider_image_1.url if r.rider_image_1 else None,
+                "rider_image_with_vehicle": r.rider_image_with_vehicle.url if r.rider_image_with_vehicle else None,
+            })
+
+        return Response(data)
+    
+
+
+    
 class RegisterView(APIView):
     def post(self, request):
         email = request.data.get('email')
@@ -93,7 +121,8 @@ class RiderLoginAPIView(APIView):
             refresh = RefreshToken.for_user(user)
             return Response({
                 "access": str(refresh.access_token),
-                "role": user.role
+                "role": user.role,
+                "is_admin": user.is_superuser  # ✅ ADD THIS
             })
 
         return Response({"detail": "Invalid credentials"}, status=401)
