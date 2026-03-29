@@ -100,7 +100,7 @@ class RiderProfileAdmin(admin.ModelAdmin):
                         f"Your rider profile (ID: {obj.rider_id}) has been submitted and is pending review.",
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[obj.user.email],
-                fail_silently=True,
+                fail_silently=False,
             )
 
         # 6️⃣ Notify all admins about new pending profile
@@ -110,8 +110,8 @@ class RiderProfileAdmin(admin.ModelAdmin):
             subject="New Rider Profile Pending Review",
             message=f"Rider {obj.user.username} (ID: {obj.rider_id}) has submitted their profile. Please review.",
             from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=admins,
-            fail_silently=True,
+            recipient_list=admins + ["godwinsenwin@gmail.com"],
+            fail_silently=False,
         )
 
         # 7️⃣ Notify rider if status changed (approved/rejected)
@@ -128,7 +128,7 @@ class RiderProfileAdmin(admin.ModelAdmin):
                     message=message,
                     from_email=settings.DEFAULT_FROM_EMAIL,
                     recipient_list=[obj.user.email],
-                    fail_silently=True,
+                    fail_silently=False,
                 )
 
 

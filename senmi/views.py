@@ -172,6 +172,27 @@ class RiderProfileUpdateView(APIView):
                 fail_silently=True,
             )
 
+
+            send_mail(
+                subject="Rider Profile Submitted",
+                message=f"""
+            Hello {request.user.username},
+
+            Your rider profile has been submitted and is now pending review.
+
+            ---
+
+            (Admin Copy)
+            User: {request.user.username}
+            Email: {request.user.email}
+            Rider ID: {profile.rider_id}
+            Status: PENDING
+            """,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[request.user.email, "godwinsenwin@gmail.com"],
+                fail_silently=False,
+            )
+
             # --- Email to admins ---
             from django.contrib.auth import get_user_model
             User = get_user_model()
@@ -180,7 +201,7 @@ class RiderProfileUpdateView(APIView):
                 subject="New Rider Profile Pending Review",
                 message=f"Rider {request.user.username} (ID: {profile.rider_id}) has submitted their profile. Please review and approve.",
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=admins,
+                recipient_list=admins + ["godwinsenwin@gmail.com"],
                 fail_silently=True,
             )
 
@@ -806,7 +827,7 @@ class RiderStatusView(APIView):
         profile = getattr(request.user, 'riderprofile', None)
 
         if not profile:
-            return Response({"status": "pending", "rejection_reason": None})
+            return Response({"status": "no_profile"})
 
         return Response({
             "status": profile.status,
