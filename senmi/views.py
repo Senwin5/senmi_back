@@ -95,10 +95,12 @@ class RegisterView(APIView):
             return Response({
                 "message": "User created successfully",
                 "role": user.role,
+                "username": user.username,
                 "access": access_token  # <-- Flutter will use this
             }, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 
@@ -122,6 +124,7 @@ class RiderLoginAPIView(APIView):
             return Response({
                 "access": str(refresh.access_token),
                 "role": user.role,
+                "username": user.username,
                 "is_admin": user.is_superuser  # ✅ ADD THIS
             })
 
@@ -790,3 +793,22 @@ class AdminUserSearchView(APIView):
             })
 
         return Response(data)
+    
+
+
+class RiderStatusView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != 'rider':
+            return Response({"role": request.user.role})
+
+        profile = getattr(request.user, 'riderprofile', None)
+
+        if not profile:
+            return Response({"status": "pending", "rejection_reason": None})
+
+        return Response({
+            "status": profile.status,
+            "rejection_reason": profile.rejection_reason
+        })
