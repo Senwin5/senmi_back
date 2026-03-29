@@ -1,9 +1,10 @@
 from importlib.resources import Package
-
 from rest_framework import serializers
 from .models import User, RiderProfile
 from django.contrib.auth.hashers import make_password
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework.exceptions import AuthenticationFailed
+from django.contrib.auth import authenticate
 
 class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
@@ -22,6 +23,18 @@ class RiderProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ['status', 'rejection_reason', 'rider_id']  # riders cannot set these
 
 
+
+
+
+class PackageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Package
+        fields = '__all__'
+        read_only_fields = ['status', 'rider', 'commission']
+
+
+
+
 class CustomLoginSerializer(TokenObtainPairSerializer):
 
     @classmethod
@@ -32,40 +45,37 @@ class CustomLoginSerializer(TokenObtainPairSerializer):
         return token
 
     def validate(self, attrs):
-        data = super().validate(attrs)
+        # 🔥 STEP 1: authenticate user manually FIRST
+        authenticate_kwargs = {
+            self.username_field: attrs[self.username_field],
+            'password': attrs['password'],
+        }
 
-        user = self.user
+        user = authenticate(**authenticate_kwargs)
 
-        # 🔒 BLOCK RIDERS IF NOT READY
+        if user is None:
+            raise AuthenticationFailed("Invalid credentials")
+
+        # 🔒 STEP 2: BLOCK RIDERS BEFORE TOKEN CREATION
         if user.role == 'rider':
             profile = getattr(user, 'riderprofile', None)
 
             if not profile:
-                raise serializers.ValidationError({
-                    "detail": "Complete your profile before logging in."
-                })
+                raise AuthenticationFailed("Complete your profile before logging in.")
 
             if profile.status == 'pending':
-                raise serializers.ValidationError({
-                    "detail": "Your profile is pending admin approval."
-                })
+                raise AuthenticationFailed("Your profile is pending admin approval.")
 
             if profile.status == 'rejected':
-                raise serializers.ValidationError({
-                    "detail": f"Profile rejected: {profile.rejection_reason}"
-                })
+                raise AuthenticationFailed(
+                    f"Profile rejected: {profile.rejection_reason}"
+                )
 
-        # ✅ keep your existing logic
+        # ✅ STEP 3: NOW generate token safely
+        data = super().validate(attrs)
+
         data['user_id'] = user.user_id
         data['role'] = user.role
+        data['username'] = user.username
 
         return data
-    
-
-
-
-class PackageSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Package
-        fields = '__all__'
-        read_only_fields = ['status', 'rider', 'commission']
