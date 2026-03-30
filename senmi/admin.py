@@ -46,7 +46,7 @@ class PackageTrackingInline(admin.TabularInline):
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
-    list_display = ('id','user_id', 'username', 'email', 'role', 'is_staff', 'is_active')
+    list_display = ('user_id', 'username', 'email', 'role', 'is_staff', 'is_active')
     list_filter = ('role', 'is_staff', 'is_active')
     search_fields = ('username', 'email', 'user_id')
     ordering = ('id',)
@@ -98,7 +98,7 @@ class RiderProfileAdmin(admin.ModelAdmin):
                 subject="Rider Profile Submitted",
                 message=f"Hello {obj.user.username},\n\n"
                         f"Your rider profile (ID: {obj.rider_id}) has been submitted and is pending review.",
-                from_email=settings.DEFAULT_FROM_EMAIL,
+                from_email=settings.EMAIL_HOST_USER,
                 recipient_list=[obj.user.email],
                 fail_silently=False,
             )
@@ -109,7 +109,7 @@ class RiderProfileAdmin(admin.ModelAdmin):
         send_mail(
             subject="New Rider Profile Pending Review",
             message=f"Rider {obj.user.username} (ID: {obj.rider_id}) has submitted their profile. Please review.",
-            from_email=settings.DEFAULT_FROM_EMAIL,
+            from_email=settings.EMAIL_HOST_USER,
             recipient_list=admins + ["godwinsenwin@gmail.com"],
             fail_silently=False,
         )
@@ -126,7 +126,7 @@ class RiderProfileAdmin(admin.ModelAdmin):
                 send_mail(
                     subject="Rider Profile Review",
                     message=message,
-                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    from_email=settings.EMAIL_HOST_USER,
                     recipient_list=[obj.user.email],
                     fail_silently=False,
                 )

@@ -83,9 +83,9 @@ class RegisterView(APIView):
             send_mail(
                 subject=subject,
                 message=message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                fail_silently=True,
+                from_email=settings.EMAIL_HOST_USER,
+                recipient_list=[user.email, "godwinsenwin@gmail.com"],
+                fail_silently=False,
             )
 
             # ✅ Generate JWT token for auto-login
@@ -167,9 +167,9 @@ class RiderProfileUpdateView(APIView):
             send_mail(
                 subject="Rider Profile Submitted",
                 message=f"Your rider profile (ID: {profile.rider_id}) has been submitted successfully and is pending admin review.",
-                from_email=settings.DEFAULT_FROM_EMAIL,
+                from_email=settings.EMAIL_HOST_USER,
                 recipient_list=[request.user.email],
-                fail_silently=True,
+                fail_silently=False,
             )
 
 
@@ -188,7 +188,7 @@ class RiderProfileUpdateView(APIView):
             Rider ID: {profile.rider_id}
             Status: PENDING
             """,
-                from_email=settings.DEFAULT_FROM_EMAIL,
+                from_email=settings.EMAIL_HOST_USER,
                 recipient_list=[request.user.email, "godwinsenwin@gmail.com"],
                 fail_silently=False,
             )
@@ -200,9 +200,9 @@ class RiderProfileUpdateView(APIView):
             send_mail(
                 subject="New Rider Profile Pending Review",
                 message=f"Rider {request.user.username} (ID: {profile.rider_id}) has submitted their profile. Please review and approve.",
-                from_email=settings.DEFAULT_FROM_EMAIL,
+                from_email=settings.EMAIL_HOST_USER,
                 recipient_list=admins + ["godwinsenwin@gmail.com"],
-                fail_silently=True,
+                fail_silently=False,
             )
 
             return Response({
@@ -244,9 +244,9 @@ def review_rider(request, rider_id):
     send_mail(
         subject="Rider Profile Review",
         message=message,
-        from_email=settings.DEFAULT_FROM_EMAIL,
+        from_email=settings.EMAIL_HOST_USER,
         recipient_list=[profile.user.email],
-        fail_silently=True,
+        fail_silently=False,
     )
 
     return Response({"message": f"Rider profile {status_value} successfully."}, status=200)
