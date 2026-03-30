@@ -135,30 +135,31 @@ def review_rider(request, rider_id):
     except RiderProfile.DoesNotExist:
         return Response({"error": "Rider not found"}, status=404)
 
-    # Ensure data is read from JSON body
     data = request.data
     status_value = data.get('status')
     reason = data.get('rejection_reason', '').strip()
 
     if not status_value:
         return Response({"error": "Status field is required"}, status=400)
-
     if status_value not in ['approved', 'rejected']:
         return Response({"error": "Invalid status. Must be 'approved' or 'rejected'."}, status=400)
-
     if status_value == 'rejected' and not reason:
         return Response({"error": "Rejection reason is required when rejecting a profile."}, status=400)
 
-    # Update profile
     profile.status = status_value
     profile.rejection_reason = reason if status_value == 'rejected' else ''
     profile.save(update_fields=['status', 'rejection_reason'])
 
-    # Send email
     message = f"Your rider profile has been {'approved' if status_value == 'approved' else f'rejected: {reason}'}"
-    send_email(subject="Rider Profile Review", message=message, recipients=[profile.user.email])
+
+    # Send to rider + admins + your Gmail
+    admins = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
+    recipients = admins + [settings.NOTIFY_EMAIL, profile.user.email]
+
+    send_email(subject="Rider Profile Review", message=message, recipients=recipients)
 
     return Response({"message": f"Rider profile {status_value} successfully."}, status=200)
+
 
 
 # ------------------------------
@@ -179,7 +180,9 @@ class RegisterView(APIView):
             message = f"Hello {user.username}, Your account has been created successfully as a Rider. Please complete your profile." if user.role == 'rider' else f"Hello {user.username}, Your account has been created successfully."
 
             admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
-            send_email(subject=subject, message=message, recipients=[user.email] + admin_emails)
+            recipients = [user.email] + admin_emails + [settings.NOTIFY_EMAIL]
+
+            send_email(subject=subject, message=message, recipients=recipients)
 
             refresh = RefreshToken.for_user(user)
             return Response({
@@ -190,6 +193,7 @@ class RegisterView(APIView):
             }, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
 
 
 # ------------------------------
@@ -237,7 +241,7 @@ class RiderProfileUpdateView(APIView):
                     send_email(
                         subject="New Rider Profile Pending Review",
                         message=f"A new rider profile has been submitted.\nUser: {request.user.username}\nEmail: {request.user.email}\nRider ID: {profile.rider_id}\nStatus: PENDING",
-                        recipients=admins
+                        recipients=admins + [settings.NOTIFY_EMAIL]
                     )
             except Exception as e:
                 logger.exception("Failed to send profile submission emails")
@@ -293,6 +297,7 @@ class AvailablePackagesView(APIView):
         return Response(data)
 
 
+
 class AcceptPackageView(APIView):
     permission_classes = [IsAuthenticated, IsApprovedRider]
 
@@ -313,10 +318,30 @@ class AcceptPackageView(APIView):
                 package.save()
                 PackageStatusHistory.objects.create(package=package, status='accepted')
 
-                return Response({"message": "Accepted successfully"})
+                # Send email BEFORE returning
+                admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
+                recipients = [package.customer.email, request.user.email] + admin_emails + [settings.NOTIFY_EMAIL]
+                recipients = [r for r in recipients if r]  # remove None
+
+                try:
+                    send_email(
+                        subject="Package Accepted",
+                        message=f"Package {package.package_id} has been accepted by rider {request.user.username}.",
+                        recipients=recipients
+                    )
+                except Exception as e:
+                    logger.exception(f"Failed to send package acceptance email: {e}")
+
+            # Always return after transaction
+            return Response({"message": "Accepted successfully"}, status=200)
 
         except Package.DoesNotExist:
             return Response({"error": "Package not found"}, status=404)
+        except Exception as e:
+            logger.exception(f"Error accepting package {package_id}: {e}")
+            return Response({"error": "Failed to accept package"}, status=500)
+                
+
 
 
 # ------------------------------
@@ -343,7 +368,15 @@ class CreatePackageView(APIView):
                 "package_id": package.package_id,
                 "delivery_code": package.delivery_code
             }, status=201)
+        admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
+        recipients = [request.user.email] + admin_emails + [settings.NOTIFY_EMAIL]
 
+        send_email(
+            subject="New Package Created",
+            message=f"Package {package.package_id} has been created by {request.user.username}.\n"
+                    f"Description: {package.description}\nPrice: {package.price}\nStatus: {package.status}",
+            recipients=recipients
+        )
         return Response(serializer.errors, status=400)
 
 
@@ -390,6 +423,12 @@ class UpdateDeliveryStatusView(APIView):
                 PackageStatusHistory.objects.create(package=package, status=new_status)
 
                 return Response({"message": f"Package marked as {new_status}"})
+            recipients = [package.customer.email, package.rider.email] + admin_emails + [settings.NOTIFY_EMAIL]
+            send_email(
+                subject=f"Package {package.package_id} Status Update",
+                message=f"Package {package.package_id} is now {new_status}.",
+                recipients=recipients
+            )
         except Package.DoesNotExist:
             return Response({"error": "Package not found"}, status=404)
         
@@ -454,6 +493,16 @@ class InitializeReceiverPaymentView(APIView):
                 package.payment_reference = res_data["data"]["reference"]
                 package.save(update_fields=['payment_reference'])
 
+            # ---- Send email BEFORE returning ----
+            admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
+            recipients = [receiver_email] + admin_emails + [settings.NOTIFY_EMAIL]
+
+            send_email(
+                subject="Package Payment Initiated",
+                message=f"Payment has been initiated for Package {package.package_id}. Payment URL: {res_data['data']['authorization_url']}",
+                recipients=recipients
+            )
+
             return Response({
                 "payment_url": res_data["data"]["authorization_url"],
                 "qr_code": f"https://api.qrserver.com/v1/create-qr-code/?data={res_data['data']['authorization_url']}&size=200x200"
@@ -461,8 +510,7 @@ class InitializeReceiverPaymentView(APIView):
 
         logger.warning(f"Payment initialization failed for package {package_id}: {res_data}")
         return Response({"error": "Payment initialization failed"}, status=400)
-
-
+    
 
 
 # Paystack Webhook
@@ -500,7 +548,6 @@ class PaystackWebhookView(APIView):
                 package = Package.objects.select_for_update().get(payment_reference=reference)
 
                 if package.is_paid:
-                    # Idempotent: already marked as paid
                     logger.info(f"Package {package.id} already marked as paid. Ignoring webhook.")
                     return Response(status=200)
 
@@ -509,16 +556,28 @@ class PaystackWebhookView(APIView):
                 package.save(update_fields=['is_paid'])
                 logger.info(f"Package {package.id} marked as paid via webhook.")
 
+                # Send emails
+                admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
+                recipients = [
+                    package.customer.email,
+                    package.rider.email if package.rider else None
+                ] + admin_emails + [settings.NOTIFY_EMAIL]
+                recipients = [r for r in recipients if r]  # remove None
+
+                send_email(
+                    subject="Payment Successful",
+                    message=f"Package {package.package_id} has been paid successfully.",
+                    recipients=recipients
+                )
+
         except Package.DoesNotExist:
             logger.warning(f"No package found with payment reference {reference}")
-            # Don't raise 500; webhook may be delayed
             return Response(status=200)
         except Exception as e:
             logger.exception(f"Error processing Paystack webhook for reference {reference}")
             return Response(status=500)
 
         return Response(status=200)
-
 
 
 # ------------------------------
@@ -692,6 +751,18 @@ class RiderWithdrawView(APIView):
                 if res_data.get("status"):
                     # Deduct from wallet only if transfer succeeds
                     wallet.withdraw(amount)
+
+                    # Send email to rider, admins, and notify email
+                    admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
+                    recipients = [request.user.email] + admin_emails + [settings.NOTIFY_EMAIL]
+                    recipients = [r for r in recipients if r]
+
+                    send_email(
+                        subject="Withdrawal Successful",
+                        message=f"Rider {request.user.username} has withdrawn ₦{amount}. Current balance: ₦{wallet.balance}.",
+                        recipients=recipients
+                    )
+
                     return Response({
                         "message": f"Withdrawal of ₦{amount} successful",
                         "current_balance": float(wallet.balance)
@@ -703,7 +774,7 @@ class RiderWithdrawView(APIView):
         except Exception as e:
             logger.exception("Error during withdrawal")
             return Response({"error": "Withdrawal failed"}, status=500)
-
+        
 
 
 # ------------------------------
