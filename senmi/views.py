@@ -434,8 +434,6 @@ class UpdateDeliveryStatusView(APIView):
         
 
 
-
-
 class RiderEarningsView(APIView):
     permission_classes = [IsAuthenticated, IsApprovedRider]
 
