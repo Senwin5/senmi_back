@@ -30,6 +30,6 @@ urlpatterns = [
     path('api/admin/riders/', AdminRidersListView.as_view()),
     path('api/rider/status/', RiderStatusView.as_view(), name='rider-status'),
     path('api/profile/', UserProfileView.as_view()),
-    path('api/profile/', DeleteUserView.as_view(), name='delete-profile'),
-    path('api/profile/', delete_profile, name='delete-profile'),
+    path('api/profile/delete/', DeleteUserView.as_view(), name='delete-profile'),
+    path('api/profile/delete/', delete_profile, name='delete-profile'),
 ]
