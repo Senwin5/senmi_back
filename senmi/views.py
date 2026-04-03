@@ -129,7 +129,7 @@ class AdminUserSearchView(APIView):
 @api_view(['POST'])
 @permission_classes([IsAdminUser])
 def review_rider(request, rider_id):
-    """Approve or reject a rider profile"""
+    """Approve or reject a rider profile""" 
     try:
         profile = RiderProfile.objects.get(id=rider_id)
     except RiderProfile.DoesNotExist:
@@ -848,3 +848,53 @@ class RiderStatusView(APIView):
             return Response({"status": "no_profile"})
 
         return Response({"status": profile.status, "rejection_reason": profile.rejection_reason})
+    
+
+
+class UserProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        return Response({
+            "name": user.username,   # 🔥 important
+            "email": user.email,
+            "phone": "",             # you don’t store phone in User yet
+            "role": user.role,
+            "user_id": user.user_id,
+        })
+    
+
+class DeleteUserView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        user = request.user
+        user.delete()
+        return Response({"detail": "Account deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+    
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_profile(request):
+    """
+    Delete the currently authenticated user's account.
+    """
+    user = request.user
+    user.delete()
+    return Response({"detail": "Account deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+        
+
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            refresh_token = request.data.get("refresh")
+            token = RefreshToken(refresh_token)
+            token.blacklist()  # Requires SimpleJWT with blacklist enabled
+            return Response({"detail": "Logged out successfully."}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
