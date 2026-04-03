@@ -866,9 +866,9 @@ class UserProfileView(APIView):
         })
     
 
+
 class DeleteUserView(APIView):
     permission_classes = [IsAuthenticated]
-
     def delete(self, request):
         user = request.user
         user.delete()
