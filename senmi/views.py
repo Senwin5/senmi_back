@@ -190,7 +190,7 @@ class RegisterView(APIView):
                 recipients = [user.email] + admin_emails + [settings.NOTIFY_EMAIL]
                 send_email(
                     subject="Welcome to SenMi!",
-                    message=f"Hello {user.username}, Your account has been created successfully as a {user.role.capitalize()}.",
+                    message=f"Hello {user.username}, Your account has been created successfully as a {user.role.capitalize()}. Kindly complete your profile for approval by the admin",
                     recipients=recipients
                 )
             except Exception as e:
