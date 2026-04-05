@@ -11,7 +11,7 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Q, Avg, Count, Prefetch
 from django.contrib.auth import authenticate, get_user_model
 
@@ -169,23 +169,37 @@ class RegisterView(APIView):
     throttle_classes = [LoginThrottle]
 
     def post(self, request):
-        email = request.data.get('email')
-        if User.objects.filter(email=email).exists():
-            return Response({"error": "Email is already in use."}, status=status.HTTP_400_BAD_REQUEST)
-
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
-            user = serializer.save()
-            subject = "Welcome to SenMi!"
-            message = f"Hello {user.username}, Your account has been created successfully as a Rider. Please complete your profile." if user.role == 'rider' else f"Hello {user.username}, Your account has been created successfully."
+            try:
+                user = serializer.save()
+            except IntegrityError as e:
+                if 'email' in str(e).lower():
+                    return Response(
+                        {"error": "User with this email already exists."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                return Response(
+                    {"error": "Database error: " + str(e)},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
-            admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
-            recipients = [user.email] + admin_emails + [settings.NOTIFY_EMAIL]
+            # Send email notification
+            try:
+                admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
+                recipients = [user.email] + admin_emails + [settings.NOTIFY_EMAIL]
+                send_email(
+                    subject="Welcome to SenMi!",
+                    message=f"Hello {user.username}, Your account has been created successfully as a {user.role.capitalize()}.",
+                    recipients=recipients
+                )
+            except Exception as e:
+                print("Email sending failed:", e)
 
-            send_email(subject=subject, message=message, recipients=recipients)
-
+            # Return JWT
             refresh = RefreshToken.for_user(user)
             return Response({
+                "success": True,
                 "message": "User created successfully",
                 "role": user.role,
                 "username": user.username,
@@ -194,7 +208,6 @@ class RegisterView(APIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-
 
 # ------------------------------
 # Rider Profile
@@ -858,9 +871,9 @@ class UserProfileView(APIView):
         user = request.user
 
         return Response({
-            "name": user.username,   # 🔥 important
+            "username": user.username,   # 🔥 important
             "email": user.email,
-            "phone": "",             # you don’t store phone in User yet
+            "phone_number": user.phone_number,
             "role": user.role,
             "user_id": user.user_id,
         })
