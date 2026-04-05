@@ -17,6 +17,7 @@ class User(AbstractUser):
 
     email = models.EmailField(unique=True)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
+    phone_number = models.CharField(max_length=20, blank=True) 
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
@@ -55,7 +56,6 @@ class RiderProfile(models.Model):
     city = models.CharField(max_length=100, blank=True)
     rating = models.FloatField(default=0)
     rating_count = models.IntegerField(default=0) 
-
     # Status fields
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
     rejection_reason = models.TextField(blank=True)
