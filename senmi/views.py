@@ -215,6 +215,21 @@ class RegisterView(APIView):
 class RiderProfileUpdateView(APIView):
     permission_classes = [IsAuthenticated]
 
+    # ✅ ADDED (this is the missing part — DO NOT change your logic)
+    def get(self, request):
+        if request.user.role != 'rider':
+            return Response({"error": "Only riders allowed"}, status=403)
+
+        profile = getattr(request.user, 'riderprofile', None)
+
+        # If new rider (no profile yet)
+        if not profile:
+            return Response({}, status=200)
+
+        serializer = RiderProfileSerializer(profile)
+        return Response(serializer.data, status=200)
+
+    # ✅ YOUR ORIGINAL CODE (UNCHANGED)
     def put(self, request):
         if request.user.role != 'rider':
             return Response({"detail": "Only riders can edit profile."}, status=403)
@@ -262,6 +277,7 @@ class RiderProfileUpdateView(APIView):
             return Response({"message": "Profile submitted successfully and is pending admin review.", "rider_id": profile.rider_id})
 
         return Response(serializer.errors, status=400)
+    
 
 
 # ------------------------------
