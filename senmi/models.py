@@ -140,17 +140,19 @@ class Package(models.Model):
 
 
 
-
-
 class PackageTracking(models.Model):
-    package = models.ForeignKey(Package, on_delete=models.CASCADE)
+    package = models.ForeignKey(Package, on_delete=models.CASCADE, related_name='tracking_entries')
     rider = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-
     latitude = models.FloatField()
     longitude = models.FloatField()
-
     timestamp = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"Tracking: {self.package.package_id} by {self.rider.username} at {self.timestamp}"
+    
 
     
 class RiderWallet(models.Model):

@@ -33,11 +33,13 @@ class RegisterSerializer(serializers.ModelSerializer):
     
 
 
+# serializers.py
 class RiderProfileSerializer(serializers.ModelSerializer):
+    email = serializers.CharField(source='user.email', read_only=True)
+
     class Meta:
         model = RiderProfile
-        fields = '__all__'
-        read_only_fields = ['status', 'rejection_reason', 'rider_id']
+        fields = ['full_name', 'phone_number', 'vehicle_number', 'address', 'city', 'status', 'email']
 
 
 class PackageSerializer(serializers.ModelSerializer):

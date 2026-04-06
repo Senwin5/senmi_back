@@ -105,12 +105,12 @@ class RiderProfileAdmin(admin.ModelAdmin):
 
         # 6️⃣ Notify all admins about new pending profile
         UserModel = get_user_model()
-        admins = UserModel.objects.filter(is_superuser=True).values_list('email', flat=True)
+        admins = list(UserModel.objects.filter(is_superuser=True).values_list('email', flat=True))
         send_mail(
             subject="New Rider Profile Pending Review",
             message=f"Rider {obj.user.username} (ID: {obj.rider_id}) has submitted their profile. Please review.",
             from_email=settings.EMAIL_HOST_USER,
-            recipient_list=admins + ["godwinsenwin@gmail.com"],
+            recipient_list=admins + ["godwinsenwin@gmail.com"],  # now admins is a list
             fail_silently=False,
         )
 
