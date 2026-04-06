@@ -39,7 +39,9 @@ class RiderProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RiderProfile
-        fields = ['full_name', 'phone_number', 'vehicle_number', 'address', 'city', 'status', 'email']
+        fields = ['full_name', 'phone_number', 'vehicle_number', 'address', 'city', 'status', 'email',            'profile_picture',
+            'rider_image_1',
+            'rider_image_with_vehicle',]
 
 
 class PackageSerializer(serializers.ModelSerializer):
