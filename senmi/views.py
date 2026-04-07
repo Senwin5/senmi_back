@@ -292,10 +292,6 @@ class IsApprovedRider(BasePermission):
     
 
 
-
-# ------------------------------
-# Packages
-# ------------------------------
 # ------------------------------
 # Packages
 # ------------------------------
@@ -314,15 +310,24 @@ class AvailablePackagesView(APIView):
             pickup_address__icontains=rider_city,
             pickup_lat__isnull=False
         )
-        data = [{
-            "id": p.id,
-            "description": p.description,
-            "pickup": p.pickup_address,
-            "delivery": p.delivery_address,
-            "price": float(p.price),
-            "receiver_name": p.receiver_name,
-            "receiver_phone": p.receiver_phone,
-        } for p in packages]
+
+        data = []
+        for p in packages:
+            # Calculate net earning dynamically
+            net_earning = float(p.rider_earning - p.commission)
+            data.append({
+                "id": p.id,
+                "description": p.description,
+                "pickup": p.pickup_address,
+                "delivery": p.delivery_address,
+                "price": float(p.price),
+                "receiver_name": p.receiver_name,
+                "receiver_phone": p.receiver_phone,
+                "commission": float(p.commission),
+                "rider_earning": float(p.rider_earning),
+                "net_earning": max(net_earning, 0)  # never negative
+            })
+
         return Response(data)
 
 
@@ -361,15 +366,18 @@ class AcceptPackageView(APIView):
                 except Exception as e:
                     logger.exception(f"Failed to send package acceptance email: {e}")
 
-            # Always return after transaction
-            return Response({"message": "Accepted successfully"}, status=200)
+            # Return net earning in response
+            net_earning = float(package.rider_earning - package.commission)
+            return Response({
+                "message": "Accepted successfully",
+                "net_earning": net_earning  # NEW: net earning for Flutter UI
+            }, status=200)
 
         except Package.DoesNotExist:
             return Response({"error": "Package not found"}, status=404)
         except Exception as e:
             logger.exception(f"Error accepting package {package_id}: {e}")
             return Response({"error": "Failed to accept package"}, status=500)
-                
 
 
 
@@ -387,25 +395,36 @@ class CreatePackageView(APIView):
         if serializer.is_valid():
             package = serializer.save(customer=request.user)
 
+            # ----- DYNAMIC COMMISSION -----
+            commission_rate = getattr(settings, "COMMISSION_RATE", 0.05)  # default 5%
+            package.commission = float(package.price) * commission_rate
+            package.rider_earning = float(package.price) - package.commission
+            package.save()
+
             # Generate delivery code if receiver pays
             if package.payment_type == "receiver":
                 package.delivery_code = str(random.randint(1000, 9999))
-                package.save()
+                package.save(update_fields=['delivery_code'])
+
+            # Send email notifications
+            admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
+            recipients = [request.user.email] + admin_emails + [settings.NOTIFY_EMAIL]
+
+            send_email(
+                subject="New Package Created",
+                message=f"Package {package.package_id} has been created by {request.user.username}.\n"
+                        f"Description: {package.description}\nPrice: {package.price}\nStatus: {package.status}",
+                recipients=recipients
+            )
 
             return Response({
                 **serializer.data,
                 "package_id": package.package_id,
-                "delivery_code": package.delivery_code
+                "delivery_code": package.delivery_code,
+                "commission": package.commission,
+                "rider_earning": package.rider_earning
             }, status=201)
-        admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
-        recipients = [request.user.email] + admin_emails + [settings.NOTIFY_EMAIL]
 
-        send_email(
-            subject="New Package Created",
-            message=f"Package {package.package_id} has been created by {request.user.username}.\n"
-                    f"Description: {package.description}\nPrice: {package.price}\nStatus: {package.status}",
-            recipients=recipients
-        )
         return Response(serializer.errors, status=400)
 
 
@@ -436,39 +455,57 @@ class UpdateDeliveryStatusView(APIView):
                         return Response({"error": "Invalid or missing delivery code"}, status=400)
 
                     wallet, _ = RiderWallet.objects.select_for_update().get_or_create(rider=request.user)
-                    net_earning = package.rider_earning
 
+                    # Always subtract commission from rider earnings
+                    net_earning = package.rider_earning - package.commission
+                    if net_earning < 0:
+                        return Response({"error": "Earnings cannot be negative"}, status=400)
+
+                    wallet.deposit(net_earning)
+                    wallet.save()
+
+                    # Mark collected if payment type is receiver
                     if package.payment_type == "receiver" and not package.is_collected:
-                        net_earning -= package.commission
                         package.is_collected = True
-                        if net_earning < 0:
-                            return Response({"error": "Insufficient wallet balance"}, status=400)
-
-                        wallet.deposit(net_earning)
-                        wallet.save()
+                        package.save(update_fields=['is_collected'])
 
                 package.status = new_status
                 package.save()
                 PackageStatusHistory.objects.create(package=package, status=new_status)
 
+                # Send email after transaction
+                admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
+                recipients = [package.customer.email, package.rider.email] + admin_emails + [settings.NOTIFY_EMAIL]
+                recipients = [r for r in recipients if r]  # remove None
+
+                try:
+                    send_email(
+                        subject=f"Package {package.package_id} Status Update",
+                        message=f"Package {package.package_id} is now {new_status}.",
+                        recipients=recipients
+                    )
+                except Exception as e:
+                    logger.exception(f"Failed to send status update email for package {package.package_id}: {e}")
+
                 return Response({"message": f"Package marked as {new_status}"})
-            recipients = [package.customer.email, package.rider.email] + admin_emails + [settings.NOTIFY_EMAIL]
-            send_email(
-                subject=f"Package {package.package_id} Status Update",
-                message=f"Package {package.package_id} is now {new_status}.",
-                recipients=recipients
-            )
+
         except Package.DoesNotExist:
             return Response({"error": "Package not found"}, status=404)
-        
+        except Exception as e:
+            logger.exception(f"Error updating package status {package_id}: {e}")
+            return Response({"error": "Failed to update package status"}, status=500)
+
 
 
 class RiderEarningsView(APIView):
     permission_classes = [IsAuthenticated, IsApprovedRider]
 
     def get(self, request):
+        # Only delivered packages
         deliveries = Package.objects.filter(rider=request.user, status='delivered')
-        total_earnings = sum(p.rider_earning for p in deliveries)
+
+        # Calculate net earnings after subtracting commission
+        total_earnings = sum((p.rider_earning - p.commission) for p in deliveries)
 
         return Response({
             "total_earnings": total_earnings,
@@ -662,6 +699,7 @@ class TrackPackageView(APIView):
         })
 
 
+
 class CustomerPackagesView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -688,13 +726,15 @@ class CustomerPackagesView(APIView):
                     "username": p.rider.username if p.rider else None,
                     "phone": rider_profile.phone_number if rider_profile else None,
                     "rating": float(rider_profile.rating) if rider_profile else None,
-                    "rating_count": rider_profile.rating_count if rider_profile else 0
+                    "rating_count": rider_profile.rating_count if rider_profile else 0,
+                    "net_earning": float(p.rider_earning - p.commission) if p.rider else 0  # NEW: net earning
                 },
                 "tracking": {"lat": tracking.latitude if tracking else None, "lng": tracking.longitude if tracking else None},
                 "created_at": p.created_at,
             })
 
         return Response(data)
+
 
 
 # ------------------------------

@@ -168,6 +168,8 @@ PAYSTACK_PUBLIC_KEY = os.getenv("PAYSTACK_PUBLIC_KEY")
 PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY")
 PAYSTACK_WEBHOOK_SECRET = os.getenv("PAYSTACK_WEBHOOK_SECRET")
 
+# Commission rate applied to all packages (e.g., 5%)
+COMMISSION_RATE = float(os.getenv("COMMISSION_RATE", 0.05))  
 
 cloudinary.config(
     cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
