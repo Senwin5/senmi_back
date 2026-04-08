@@ -56,10 +56,17 @@ class RiderProfileSerializer(serializers.ModelSerializer):
 
 
 class PackageSerializer(serializers.ModelSerializer):
+    customer_name = serializers.CharField(source='customer.username', read_only=True)
+    customer_phone = serializers.CharField(source='customer.phone_number', read_only=True)
+
+    rider_name = serializers.CharField(source='rider.username', read_only=True)
+    rider_phone = serializers.CharField(source='rider.phone_number', read_only=True)
+
     class Meta:
         model = Package
         fields = '__all__'
         read_only_fields = ['status', 'rider', 'commission']
+        
 
 
 class CustomLoginSerializer(TokenObtainPairSerializer):

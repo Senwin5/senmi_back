@@ -309,7 +309,7 @@ class AvailablePackagesView(APIView):
             rider__isnull=True,
             pickup_address__icontains=rider_city,
             pickup_lat__isnull=False
-        )
+        ).order_by('-created_at')
 
         data = []
         for p in packages:
@@ -352,10 +352,25 @@ class AcceptPackageView(APIView):
                 package.save()
                 PackageStatusHistory.objects.create(package=package, status='accepted')
 
+                # ✅ NEW: BROADCAST PACKAGE TAKEN
+                try:
+                    channel_layer = get_channel_layer()
+                    async_to_sync(channel_layer.group_send)(
+                        "riders",
+                        {
+                            "type": "package_taken",
+                            "data": {
+                                "package_id": package.id
+                            }
+                        }
+                    )
+                except Exception as e:
+                    logger.exception(f"WebSocket broadcast failed (accept package): {e}")
+
                 # Send email BEFORE returning
                 admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
                 recipients = [package.customer.email, request.user.email] + admin_emails + [settings.NOTIFY_EMAIL]
-                recipients = [r for r in recipients if r]  # remove None
+                recipients = [r for r in recipients if r]
 
                 try:
                     send_email(
@@ -366,11 +381,10 @@ class AcceptPackageView(APIView):
                 except Exception as e:
                     logger.exception(f"Failed to send package acceptance email: {e}")
 
-            # Return net earning in response
             net_earning = float(package.rider_earning - package.commission)
             return Response({
                 "message": "Accepted successfully",
-                "net_earning": net_earning  # NEW: net earning for Flutter UI
+                "net_earning": net_earning
             }, status=200)
 
         except Package.DoesNotExist:
@@ -378,6 +392,7 @@ class AcceptPackageView(APIView):
         except Exception as e:
             logger.exception(f"Error accepting package {package_id}: {e}")
             return Response({"error": "Failed to accept package"}, status=500)
+        
 
 
 
@@ -406,6 +421,26 @@ class CreatePackageView(APIView):
                 package.delivery_code = str(random.randint(1000, 9999))
                 package.save(update_fields=['delivery_code'])
 
+            # ✅ NEW: BROADCAST TO RIDERS
+            try:
+                channel_layer = get_channel_layer()
+                async_to_sync(channel_layer.group_send)(
+                    "riders",
+                    {
+                        "type": "new_package",
+                        "data": {
+                            "id": package.id,
+                            "description": package.description,
+                            "pickup": package.pickup_address,
+                            "delivery": package.delivery_address,
+                            "price": float(package.price),
+                            "net_earning": float(package.rider_earning - package.commission),
+                        }
+                    }
+                )
+            except Exception as e:
+                logger.exception(f"WebSocket broadcast failed (create package): {e}")
+
             # Send email notifications
             admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
             recipients = [request.user.email] + admin_emails + [settings.NOTIFY_EMAIL]
@@ -426,6 +461,8 @@ class CreatePackageView(APIView):
             }, status=201)
 
         return Response(serializer.errors, status=400)
+    
+
 
 
 class UpdateDeliveryStatusView(APIView):
@@ -471,12 +508,29 @@ class UpdateDeliveryStatusView(APIView):
 
                 package.status = new_status
                 package.save()
+
+                # ✅ KEEP YOUR HISTORY (unchanged)
                 PackageStatusHistory.objects.create(package=package, status=new_status)
+
+                # ✅ NEW: BROADCAST STATUS UPDATE (correct position)
+                try:
+                    channel_layer = get_channel_layer()
+                    async_to_sync(channel_layer.group_send)(
+                        f"tracking_{package.id}",  # 👈 matches your existing consumer
+                        {
+                            "type": "send_location",  # 👈 reuse existing handler
+                            "lat": 0,  # dummy (optional)
+                            "lng": 0,
+                            "status": new_status  # 👈 NEW FIELD
+                        }
+                    )
+                except Exception as e:
+                    logger.exception(f"WebSocket broadcast failed (status update): {e}")
 
                 # Send email after transaction
                 admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
                 recipients = [package.customer.email, package.rider.email] + admin_emails + [settings.NOTIFY_EMAIL]
-                recipients = [r for r in recipients if r]  # remove None
+                recipients = [r for r in recipients if r]
 
                 try:
                     send_email(
@@ -494,7 +548,29 @@ class UpdateDeliveryStatusView(APIView):
         except Exception as e:
             logger.exception(f"Error updating package status {package_id}: {e}")
             return Response({"error": "Failed to update package status"}, status=500)
+        
 
+
+
+
+class RiderActivePackagesView(APIView):
+    permission_classes = [IsAuthenticated, IsApprovedRider]
+
+    def get(self, request):
+        packages = Package.objects.filter(rider=request.user).order_by('-created_at')
+
+        data = []
+        for p in packages:
+            data.append({
+                "id": p.id,
+                "status": p.status,
+                "pickup": p.pickup_address,
+                "delivery": p.delivery_address,
+                "net_earning": float(p.rider_earning - p.commission),
+            })
+
+        return Response(data)
+    
 
 
 class RiderEarningsView(APIView):

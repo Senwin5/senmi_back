@@ -16,7 +16,10 @@ class TrackingConsumer(AsyncWebsocketConsumer):
     async def send_location(self, event):
         await self.send(text_data=json.dumps({
             'lat': event['lat'],
-            'lng': event['lng']
+            'lng': event['lng'],
+            'status': event.get('status')
         }))
+
+  
 
 
