@@ -122,6 +122,9 @@ class Package(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def is_available(self):
+        return self.status == 'pending' and self.rider is None
+
     def save(self, *args, **kwargs):
         #package unique id
         if not self.package_id:
