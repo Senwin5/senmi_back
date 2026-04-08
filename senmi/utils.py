@@ -1,6 +1,11 @@
+# senmi/utils.py
+from math import radians, sin, cos, sqrt, atan2
 from django.core.mail import send_mail
 from django.conf import settings
+import random
 
+# ------------------------------
+# Email helper
 def send_email(subject, message, recipients):
     # Ensure admin always receives a copy
     all_recipients = list(set(recipients + [settings.EMAIL_HOST_USER]))
@@ -13,26 +18,21 @@ def send_email(subject, message, recipients):
         fail_silently=False,
     )
 
+# ------------------------------
+# Distance & price helpers
+def calculate_distance(lat1, lng1, lat2, lng2):
+    R = 6371.0  # Earth radius in km
+    dlat = radians(lat2 - lat1)
+    dlng = radians(lng2 - lng1)
+    a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlng/2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    return R * c  # distance in km
 
+def calculate_price(distance_km):
+    base_fee = 200  # flat base
+    per_km_rate = 50  # per km
+    return base_fee + (distance_km * per_km_rate)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# Optional: generate delivery code
+def generate_delivery_code():
+    return str(random.randint(1000, 9999))

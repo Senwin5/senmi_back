@@ -117,7 +117,7 @@ class Package(models.Model):
     is_paid = models.BooleanField(default=False)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
 
-    delivery_code = models.CharField(max_length=4, blank=True, null=True)  # NEW
+    delivery_code = models.CharField(max_length=6, blank=True, null=True)  # NEW
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
