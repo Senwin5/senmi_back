@@ -28,11 +28,10 @@ def calculate_distance(lat1, lng1, lat2, lng2):
     c = 2 * atan2(sqrt(a), sqrt(1 - a))
     return R * c  # distance in km
 
-def calculate_price(distance_km):
-    base_fee = 200  # flat base
-    per_km_rate = 50  # per km
-    return base_fee + (distance_km * per_km_rate)
 
-# Optional: generate delivery code
-def generate_delivery_code():
-    return str(random.randint(1000, 9999))
+def calculate_price(distance_km):
+    base_fee = settings.BASE_FEE
+    per_km_rate = settings.PER_KM_RATE
+    multiplier = settings.FUEL_MULTIPLIER
+    return (base_fee + (distance_km * per_km_rate)) * multiplier
+
