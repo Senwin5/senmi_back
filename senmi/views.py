@@ -14,7 +14,7 @@ from django.utils.decorators import method_decorator
 from django.db import IntegrityError, transaction
 from django.db.models import Q, Avg, Count, Prefetch
 from django.contrib.auth import authenticate, get_user_model
-
+from .utils import send_email, calculate_distance, calculate_price, generate_delivery_code
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -23,7 +23,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.throttling import UserRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
-
+from .utils import calculate_distance, calculate_price
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 
@@ -37,6 +37,7 @@ from .serializers import (
 )
 from senmi.models import User
 from senmi.utils import send_email
+
 
 
 # ------------------------------
@@ -406,22 +407,34 @@ class CreatePackageView(APIView):
         if request.user.role != 'customer':
             return Response({"error": "Only customers can create packages"}, status=403)
 
-        serializer = PackageSerializer(data=request.data)
+        # Get coordinates from request
+        try:
+            pickup_lat = float(request.data.get('pickup_lat'))
+            pickup_lng = float(request.data.get('pickup_lng'))
+            delivery_lat = float(request.data.get('delivery_lat'))
+            delivery_lng = float(request.data.get('delivery_lng'))
+        except (TypeError, ValueError):
+            return Response({"error": "Invalid or missing coordinates"}, status=400)
+
+        # Calculate distance and dynamic price
+        distance = calculate_distance(pickup_lat, pickup_lng, delivery_lat, delivery_lng)
+        dynamic_price = calculate_price(distance)
+
+        # Override price in request data
+        data = request.data.copy()
+        data['price'] = dynamic_price
+
+        serializer = PackageSerializer(data=data)
         if serializer.is_valid():
             package = serializer.save(customer=request.user)
-
-            # ----- DYNAMIC COMMISSION -----
-            commission_rate = getattr(settings, "COMMISSION_RATE", 0.05)  # default 5%
-            package.commission = float(package.price) * commission_rate
-            package.rider_earning = float(package.price) - package.commission
-            package.save()
+            # Commission and rider_earning already handled in Package.save()
 
             # Generate delivery code if receiver pays
-            if package.payment_type == "receiver":
+            if package.payment_type == "receiver" and not package.delivery_code:
                 package.delivery_code = str(random.randint(1000, 9999))
                 package.save(update_fields=['delivery_code'])
 
-            # ✅ NEW: BROADCAST TO RIDERS
+            # Broadcast to riders
             try:
                 channel_layer = get_channel_layer()
                 async_to_sync(channel_layer.group_send)(
@@ -434,21 +447,22 @@ class CreatePackageView(APIView):
                             "pickup": package.pickup_address,
                             "delivery": package.delivery_address,
                             "price": float(package.price),
-                            "net_earning": float(package.rider_earning - package.commission),
+                            "net_earning": float(package.rider_earning),
                         }
                     }
                 )
             except Exception as e:
                 logger.exception(f"WebSocket broadcast failed (create package): {e}")
 
-            # Send email notifications
+            # Send emails
             admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
             recipients = [request.user.email] + admin_emails + [settings.NOTIFY_EMAIL]
-
             send_email(
-                subject="New Package Created",
-                message=f"Package {package.package_id} has been created by {request.user.username}.\n"
-                        f"Description: {package.description}\nPrice: {package.price}\nStatus: {package.status}",
+                subject=f"New Package Created",
+                message=(
+                    f"Package {package.package_id} has been created by {request.user.username}.\n"
+                    f"Description: {package.description}\nPrice: {package.price}\nStatus: {package.status}"
+                ),
                 recipients=recipients
             )
 
