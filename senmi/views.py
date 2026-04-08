@@ -13,8 +13,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.db import IntegrityError, transaction
 from django.db.models import Q, Avg, Count, Prefetch
-from django.contrib.auth import authenticate, get_user_model
-from .utils import send_email, calculate_distance, calculate_price, generate_delivery_code
+from django.contrib.auth import authenticate
+from .utils import send_email, calculate_distance
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -431,7 +431,7 @@ class CreatePackageView(APIView):
 
             # Generate delivery code if receiver pays
             if package.payment_type == "receiver" and not package.delivery_code:
-                package.delivery_code = str(random.randint(1000, 9999))
+                package.delivery_code = str(random.randint(100000, 999999))
                 package.save(update_fields=['delivery_code'])
 
             # Broadcast to riders
