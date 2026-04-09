@@ -672,6 +672,7 @@ class InitializeReceiverPaymentView(APIView):
         logger.warning(f"Payment initialization failed for package {package_id}: {res_data}")
         return Response({"error": "Payment initialization failed"}, status=400)
     
+    
 
 
 # Paystack Webhook
