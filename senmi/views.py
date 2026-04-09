@@ -427,13 +427,7 @@ class CreatePackageView(APIView):
         serializer = PackageSerializer(data=data)
         if serializer.is_valid():
             package = serializer.save(customer=request.user)
-            # Commission and rider_earning already handled in Package.save()
-
-            # Generate delivery code if receiver pays
-            if package.payment_type == "receiver" and not package.delivery_code:
-                package.delivery_code = str(random.randint(100000, 999999))
-                package.save(update_fields=['delivery_code'])
-
+        
             # Broadcast to riders
             try:
                 channel_layer = get_channel_layer()
@@ -462,6 +456,9 @@ class CreatePackageView(APIView):
                 message=(
                     f"Package {package.package_id} has been created by {request.user.username}.\n"
                     f"Description: {package.description}\nPrice: {package.price}\nStatus: {package.status}"
+                    f"Price: {package.price}\n"
+                    f"Delivery Code: {package.delivery_code}\n"
+                    f"Status: {package.status}"
                 ),
                 recipients=recipients
             )
@@ -502,6 +499,12 @@ class UpdateDeliveryStatusView(APIView):
                 # Final delivery handling
                 if new_status == "delivered":
                     code_input = request.data.get('delivery_code')
+
+                    # ✅ ADDED: prevent reuse first
+                    if package.delivery_code is None:
+                        return Response({"error": "Delivery code already used"}, status=400)
+
+                    # ✅ EXISTING CHECK (unchanged)
                     if not code_input or package.delivery_code != code_input:
                         return Response({"error": "Invalid or missing delivery code"}, status=400)
 
@@ -520,6 +523,10 @@ class UpdateDeliveryStatusView(APIView):
                         package.is_collected = True
                         package.save(update_fields=['is_collected'])
 
+                    # ✅ ADDED: expire code immediately after successful use
+                    package.delivery_code = None
+                    package.save(update_fields=['delivery_code'])
+
                 package.status = new_status
                 package.save()
 
@@ -530,12 +537,12 @@ class UpdateDeliveryStatusView(APIView):
                 try:
                     channel_layer = get_channel_layer()
                     async_to_sync(channel_layer.group_send)(
-                        f"tracking_{package.id}",  # 👈 matches your existing consumer
+                        f"tracking_{package.id}",
                         {
-                            "type": "send_location",  # 👈 reuse existing handler
-                            "lat": 0,  # dummy (optional)
+                            "type": "send_location",
+                            "lat": 0,
                             "lng": 0,
-                            "status": new_status  # 👈 NEW FIELD
+                            "status": new_status
                         }
                     )
                 except Exception as e:

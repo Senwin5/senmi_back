@@ -117,7 +117,7 @@ class Package(models.Model):
     is_paid = models.BooleanField(default=False)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
 
-    delivery_code = models.CharField(max_length=6, blank=True, null=True)  # NEW
+    delivery_code = models.CharField(max_length=6, blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -125,14 +125,24 @@ class Package(models.Model):
     def is_available(self):
         return self.status == 'pending' and self.rider is None
 
+    # ✅ NEW: helper method (no change to your logic, just added)
+    def generate_unique_delivery_code(self):
+        while True:
+            code = f"{random.randint(0, 999999):06d}"
+            if not Package.objects.filter(
+                delivery_code=code,
+                status__in=['pending', 'accepted', 'picked_up']
+            ).exists():
+                return code
+
     def save(self, *args, **kwargs):
-        #package unique id
+        # package unique id
         if not self.package_id:
             self.package_id = f"PKG-{uuid.uuid4().hex[:8].upper()}"
 
-        # Generate 4-digit code if not already set
+        # Generate unique delivery code (only change here)
         if not self.delivery_code:
-            self.delivery_code = f"{random.randint(1000, 9999)}"
+            self.delivery_code = self.generate_unique_delivery_code()
 
         base_fee = Decimal('200')
         percentage = Decimal('0.10')
@@ -141,7 +151,7 @@ class Package(models.Model):
         self.rider_earning = self.price - self.commission
         super().save(*args, **kwargs)
 
-
+        
 
 class PackageTracking(models.Model):
     package = models.ForeignKey(Package, on_delete=models.CASCADE, related_name='tracking_entries')
