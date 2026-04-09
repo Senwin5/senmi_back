@@ -64,8 +64,53 @@ class PackageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Package
-        fields = '__all__'
-        read_only_fields = ['status', 'rider', 'commission']
+
+        # ✅ IMPORTANT: DO NOT USE '__all__'
+        fields = [
+            'id',
+            'package_id',
+
+            'sender_name',
+            'sender_phone',
+            'receiver_name',
+            'receiver_phone',
+
+            'description',
+            'pickup_address',
+            'delivery_address',
+
+            'pickup_lat',
+            'pickup_lng',
+            'delivery_lat',
+            'delivery_lng',
+
+            'price',
+            'status',
+            'commission',
+            'rider_earning',
+
+            'customer',
+            'rider',
+
+            'customer_name',
+            'customer_phone',
+            'rider_name',
+            'rider_phone',
+
+            'delivery_code',
+        ]
+
+        # ✅ VERY IMPORTANT FIX
+        read_only_fields = [
+            'status',
+            'rider',
+            'commission',
+            'customer',
+            'price',
+            'package_id',
+            'delivery_code',
+            'rider_earning',
+        ]
         
 
 
