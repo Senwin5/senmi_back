@@ -422,7 +422,21 @@ class CreatePackageView(APIView):
 
         # Override price in request data
         data = request.data.copy()
-        data['price'] = dynamic_price
+
+        try:
+            data['price'] = round(float(dynamic_price), 2)
+        except Exception:
+            return Response({"error": "Invalid price calculation"}, status=400)
+
+        # safety check for decimal limit
+        if data['price'] > 99999999.99:
+            return Response({"error": "Price too large"}, status=400)
+
+        #ADD THIS (VERY IMPORTANT)
+        data['pickup_lat'] = pickup_lat
+        data['pickup_lng'] = pickup_lng
+        data['delivery_lat'] = delivery_lat
+        data['delivery_lng'] = delivery_lng
 
         serializer = PackageSerializer(data=data)
         if serializer.is_valid():
