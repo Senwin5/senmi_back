@@ -416,6 +416,16 @@ class CreatePackageView(APIView):
         except (TypeError, ValueError):
             return Response({"error": "Invalid or missing coordinates"}, status=400)
 
+        # Validate required package fields (IMPORTANT FIX)
+        required_fields = ['description', 'pickup_address', 'delivery_address', 'receiver_name', 'receiver_phone']
+        missing_fields = [f for f in required_fields if not request.data.get(f)]
+
+        if missing_fields:
+            return Response(
+                {"error": f"Missing required fields: {', '.join(missing_fields)}"},
+                status=400
+            )
+
         # Calculate distance and dynamic price
         distance = calculate_distance(pickup_lat, pickup_lng, delivery_lat, delivery_lng)
         dynamic_price = calculate_price(distance)
@@ -432,16 +442,21 @@ class CreatePackageView(APIView):
         if data['price'] > 99999999.99:
             return Response({"error": "Price too large"}, status=400)
 
-        #ADD THIS (VERY IMPORTANT)
+        # ADD COORDINATES BACK INTO DATA
         data['pickup_lat'] = pickup_lat
         data['pickup_lng'] = pickup_lng
         data['delivery_lat'] = delivery_lat
         data['delivery_lng'] = delivery_lng
 
+        # ENSURE CUSTOMER INFO IS ALWAYS FROM AUTH USER (IMPORTANT FIX)
+        data['customer_name'] = request.user.username
+        data['customer_phone'] = getattr(request.user, 'phone_number', None)
+        data['customer_email'] = request.user.email
+
         serializer = PackageSerializer(data=data)
         if serializer.is_valid():
             package = serializer.save(customer=request.user)
-        
+
             # Broadcast to riders
             try:
                 channel_layer = get_channel_layer()
@@ -462,17 +477,22 @@ class CreatePackageView(APIView):
             except Exception as e:
                 logger.exception(f"WebSocket broadcast failed (create package): {e}")
 
-            # Send emails
+            # Send emails (CLEANED + FIXED DUPLICATION)
             admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
             recipients = [request.user.email] + admin_emails + [settings.NOTIFY_EMAIL]
+
             send_email(
-                subject=f"New Package Created",
+                subject="New Package Created",
                 message=(
                     f"Package {package.package_id} has been created by {request.user.username}.\n"
-                    f"Description: {package.description}\nPrice: {package.price}\nStatus: {package.status}"
+                    f"Sender Name: {request.user.username}\n"
+                    f"Sender Phone: {getattr(request.user, 'phone_number', 'N/A')}\n\n"
+                    f"Description: {package.description}\n"
+                    f"Pickup: {package.pickup_address}\n"
+                    f"Delivery: {package.delivery_address}\n"
                     f"Price: {package.price}\n"
-                    f"Delivery Code: {package.delivery_code}\n"
-                    f"Status: {package.status}"
+                    f"Status: {package.status}\n"
+                    f"Delivery Code: {package.delivery_code}"
                 ),
                 recipients=recipients
             )
@@ -486,7 +506,6 @@ class CreatePackageView(APIView):
             }, status=201)
 
         return Response(serializer.errors, status=400)
-    
 
 
 
