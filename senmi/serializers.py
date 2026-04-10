@@ -56,24 +56,17 @@ class RiderProfileSerializer(serializers.ModelSerializer):
 
 
 class PackageSerializer(serializers.ModelSerializer):
-    customer_name = serializers.CharField(source='customer.username', read_only=True)
-    customer_phone = serializers.CharField(source='customer.phone_number', read_only=True)
+    sender_name = serializers.CharField(source='customer.username', read_only=True)
+    sender_phone = serializers.CharField(source='customer.phone_number', read_only=True)
 
     rider_name = serializers.CharField(source='rider.username', read_only=True)
     rider_phone = serializers.CharField(source='rider.phone_number', read_only=True)
 
     class Meta:
         model = Package
-
-        # ✅ IMPORTANT: DO NOT USE '__all__'
         fields = [
             'id',
             'package_id',
-
-            'sender_name',
-            'sender_phone',
-            'receiver_name',
-            'receiver_phone',
 
             'description',
             'pickup_address',
@@ -86,30 +79,30 @@ class PackageSerializer(serializers.ModelSerializer):
 
             'price',
             'status',
+
+            'receiver_name',
+            'receiver_phone',
+
+            'payment_type',
+            'is_paid',
+
             'commission',
             'rider_earning',
 
-            'customer',
-            'rider',
+            'delivery_code',
 
-            'customer_name',
-            'customer_phone',
+            # computed fields (safe)
+            'sender_name',
+            'sender_phone',
             'rider_name',
             'rider_phone',
-
-            'delivery_code',
         ]
-
-        # ✅ VERY IMPORTANT FIX
         read_only_fields = [
-            'status',
-            'rider',
-            'commission',
-            'customer',
             'price',
-            'package_id',
-            'delivery_code',
+            'status',
+            'commission',
             'rider_earning',
+            'delivery_code',
         ]
         
 
