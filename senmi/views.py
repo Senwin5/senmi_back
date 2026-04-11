@@ -7,6 +7,7 @@ import logging
 import requests
 from decimal import Decimal, InvalidOperation
 import re
+from rest_framework.parsers import JSONParser
 from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -407,57 +408,57 @@ class CreatePackageView(APIView):
         if request.user.role != 'customer':
             return Response({"error": "Only customers can create packages"}, status=403)
 
-        # Get coordinates from request
-        try:
-            pickup_lat = float(request.data.get('pickup_lat'))
-            pickup_lng = float(request.data.get('pickup_lng'))
-            delivery_lat = float(request.data.get('delivery_lat'))
-            delivery_lng = float(request.data.get('delivery_lng'))
-        except (TypeError, ValueError):
-            return Response({"error": "Invalid or missing coordinates"}, status=400)
+        data = request.data.copy()
 
-        # Validate required package fields (IMPORTANT FIX)
-        required_fields = ['description', 'pickup_address', 'delivery_address', 'receiver_name', 'receiver_phone']
-        missing_fields = [f for f in required_fields if not request.data.get(f)]
+        # Validate required fields
+        required_fields = [
+            'description',
+            'pickup_address',
+            'delivery_address',
+            'receiver_name',
+            'receiver_phone'
+        ]
 
-        if missing_fields:
+        missing = [f for f in required_fields if not data.get(f)]
+        if missing:
             return Response(
-                {"error": f"Missing required fields: {', '.join(missing_fields)}"},
+                {"error": f"Missing fields: {', '.join(missing)}"},
                 status=400
             )
 
-        # Calculate distance and dynamic price
-        distance = calculate_distance(pickup_lat, pickup_lng, delivery_lat, delivery_lng)
-        dynamic_price = calculate_price(distance)
-
-        # Override price in request data
-        data = request.data.copy()
-
+        # Validate coordinates safely
         try:
-            data['price'] = round(float(dynamic_price), 2)
-        except Exception:
-            return Response({"error": "Invalid price calculation"}, status=400)
+            pickup_lat = float(data.get('pickup_lat'))
+            pickup_lng = float(data.get('pickup_lng'))
+            delivery_lat = float(data.get('delivery_lat'))
+            delivery_lng = float(data.get('delivery_lng'))
+        except (TypeError, ValueError):
+            return Response({"error": "Invalid coordinates"}, status=400)
 
-        # safety check for decimal limit
-        if data['price'] > 99999999.99:
-            return Response({"error": "Price too large"}, status=400)
+        # Price calculation
+        try:
+            distance = calculate_distance(pickup_lat, pickup_lng, delivery_lat, delivery_lng)
+            dynamic_price = calculate_price(distance)
+            data['price'] = str(Decimal(dynamic_price).quantize(Decimal("0.01")))
+        except Exception as e:
+            return Response({"error": f"Price calculation failed: {str(e)}"}, status=400)
 
-        # ADD COORDINATES BACK INTO DATA
+        # attach coordinates back
         data['pickup_lat'] = pickup_lat
         data['pickup_lng'] = pickup_lng
         data['delivery_lat'] = delivery_lat
         data['delivery_lng'] = delivery_lng
 
-        # ENSURE CUSTOMER INFO IS ALWAYS FROM AUTH USER (IMPORTANT FIX)
-        data['customer_name'] = request.user.username
-        data['customer_phone'] = getattr(request.user, 'phone_number', None)
-        data['customer_email'] = request.user.email
+        data['status'] = 'pending'
+        data['payment_type'] = 'sender'
+        data['is_paid'] = False
 
         serializer = PackageSerializer(data=data)
+
         if serializer.is_valid():
             package = serializer.save(customer=request.user)
 
-            # Broadcast to riders
+            # WebSocket broadcast
             try:
                 channel_layer = get_channel_layer()
                 async_to_sync(channel_layer.group_send)(
@@ -475,37 +476,19 @@ class CreatePackageView(APIView):
                     }
                 )
             except Exception as e:
-                logger.exception(f"WebSocket broadcast failed (create package): {e}")
-
-            # Send emails (CLEANED + FIXED DUPLICATION)
-            admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
-            recipients = [request.user.email] + admin_emails + [settings.NOTIFY_EMAIL]
-
-            send_email(
-                subject="New Package Created",
-                message=(
-                    f"Package {package.package_id} has been created by {request.user.username}.\n"
-                    f"Sender Name: {request.user.username}\n"
-                    f"Sender Phone: {getattr(request.user, 'phone_number', 'N/A')}\n\n"
-                    f"Description: {package.description}\n"
-                    f"Pickup: {package.pickup_address}\n"
-                    f"Delivery: {package.delivery_address}\n"
-                    f"Price: {package.price}\n"
-                    f"Status: {package.status}\n"
-                    f"Delivery Code: {package.delivery_code}"
-                ),
-                recipients=recipients
-            )
+                logger.exception(e)
 
             return Response({
-                **serializer.data,
                 "package_id": package.package_id,
                 "delivery_code": package.delivery_code,
                 "commission": package.commission,
                 "rider_earning": package.rider_earning
             }, status=201)
 
+        # 🔥 IMPORTANT: show real error
+        logger.error(serializer.errors)
         return Response(serializer.errors, status=400)
+    
 
 
 
@@ -816,10 +799,21 @@ class TrackPackageView(APIView):
         if request.user not in [package.customer, package.rider]:
             return Response({"error": "Unauthorized"}, status=403)
 
-        tracking = PackageTracking.objects.filter(package=package).order_by('-timestamp').first()
-        if not tracking:
-            return Response({"error": "No tracking data"}, status=404)
 
+        tracking = PackageTracking.objects.filter(package=package).order_by('-timestamp').first()
+
+        # ✅ FIX: Don't return 404 if no tracking yet
+        if not tracking:
+            return Response({
+                "package_id": package.package_id,
+                "status": package.status,
+                "lat": None,
+                "lng": None,
+                "delivery_lat": package.delivery_lat,
+                "delivery_lng": package.delivery_lng,
+            })
+
+        # ✅ If tracking exists
         return Response({
             "package_id": package.package_id,
             "status": package.status,
@@ -1098,3 +1092,24 @@ class LogoutView(APIView):
             return Response({"detail": "Logged out successfully."}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_price_view(request):
+    try:
+        pickup_lat = float(request.data.get('pickup_lat'))
+        pickup_lng = float(request.data.get('pickup_lng'))
+        delivery_lat = float(request.data.get('delivery_lat'))
+        delivery_lng = float(request.data.get('delivery_lng'))
+
+        distance = calculate_distance(pickup_lat, pickup_lng, delivery_lat, delivery_lng)
+        price = calculate_price(distance)
+
+        return Response({
+            "distance_km": round(distance, 2),
+            "price": float(price)
+        })
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=400)

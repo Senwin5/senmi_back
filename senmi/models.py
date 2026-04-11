@@ -143,6 +143,7 @@ class Package(models.Model):
         # Generate unique delivery code (only change here)
         if not self.delivery_code:
             self.delivery_code = self.generate_unique_delivery_code()
+            self.rider_earning = max(self.price - self.commission, Decimal('0'))
 
         base_fee = Decimal('200')
         percentage = Decimal('0.10')

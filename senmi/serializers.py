@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth import authenticate
@@ -55,6 +57,7 @@ class RiderProfileSerializer(serializers.ModelSerializer):
         ]
 
 
+
 class PackageSerializer(serializers.ModelSerializer):
     sender_name = serializers.CharField(source='customer.username', read_only=True)
     sender_phone = serializers.CharField(source='customer.phone_number', read_only=True)
@@ -67,44 +70,46 @@ class PackageSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'package_id',
-
             'description',
             'pickup_address',
             'delivery_address',
-
             'pickup_lat',
             'pickup_lng',
             'delivery_lat',
             'delivery_lng',
-
             'price',
             'status',
-
             'receiver_name',
             'receiver_phone',
-
             'payment_type',
             'is_paid',
-
             'commission',
             'rider_earning',
-
             'delivery_code',
-
-            # computed fields (safe)
             'sender_name',
             'sender_phone',
             'rider_name',
             'rider_phone',
         ]
+
         read_only_fields = [
-            'price',
             'status',
             'commission',
             'rider_earning',
             'delivery_code',
+            'package_id',
+            'is_paid'
         ]
-        
+
+    def create(self, validated_data):
+        # ✅ Accept price from view (distance logic)
+        price = self.initial_data.get('price')
+
+        if price:
+            validated_data['price'] = Decimal(price)
+
+        return super().create(validated_data)
+
 
 
 class CustomLoginSerializer(TokenObtainPairSerializer):
@@ -143,3 +148,6 @@ class CustomLoginSerializer(TokenObtainPairSerializer):
         data['role'] = user.role
         data['username'] = user.username
         return data
+    
+
+    
