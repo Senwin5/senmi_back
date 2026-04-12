@@ -136,11 +136,11 @@ class RiderProfileAdmin(admin.ModelAdmin):
 # Package, RiderWallet, PackageTracking, PackageStatusHistory admins
 @admin.register(Package)
 class PackageAdmin(admin.ModelAdmin):
-    list_display = ('id', 'customer', 'rider', 'description', 'status', 'price', 'commission', 'created_at')
+    list_display = ('package_id', 'customer', 'rider', 'description', 'status', 'price', 'commission', 'created_at')
     list_filter = ('status', 'rider')
     search_fields = ('customer__email', 'rider__email', 'description')
     readonly_fields = ('commission', 'created_at', 'updated_at')
-    ordering = ('id',)
+    ordering = ('package_id',)
 
 @admin.register(RiderWallet)
 class RiderWalletAdmin(admin.ModelAdmin):

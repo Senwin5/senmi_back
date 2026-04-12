@@ -799,10 +799,11 @@ class TrackPackageView(APIView):
         if request.user not in [package.customer, package.rider]:
             return Response({"error": "Unauthorized"}, status=403)
 
-
         tracking = PackageTracking.objects.filter(package=package).order_by('-timestamp').first()
 
-        # ✅ FIX: Don't return 404 if no tracking yet
+        # =========================
+        # NO TRACKING YET
+        # =========================
         if not tracking:
             return Response({
                 "package_id": package.package_id,
@@ -811,18 +812,48 @@ class TrackPackageView(APIView):
                 "lng": None,
                 "delivery_lat": package.delivery_lat,
                 "delivery_lng": package.delivery_lng,
+
+                # 🔥 ADDED (to fix N/A in Flutter)
+                "price": package.price,
+                "description": package.description,
+
+                "sender_name": package.customer.username,
+                "sender_phone": package.customer.phone_number,
+
+                "receiver_name": package.receiver_name,
+                "receiver_phone": package.receiver_phone,
+
+                "pickup_address": package.pickup_address,
+                "delivery_address": package.delivery_address,
             })
 
-        # ✅ If tracking exists
+        # =========================
+        # TRACKING EXISTS
+        # =========================
         return Response({
             "package_id": package.package_id,
+
+            "description": package.description,
+            "price": package.price,
+
+            "sender_name": package.customer.username,
+            "sender_phone": package.customer.phone_number,
+
+            "receiver_name": package.receiver_name,
+            "receiver_phone": package.receiver_phone,
+
+            "pickup_address": package.pickup_address,
+            "delivery_address": package.delivery_address,
+
             "status": package.status,
+
             "lat": tracking.latitude,
             "lng": tracking.longitude,
+
             "delivery_lat": package.delivery_lat,
             "delivery_lng": package.delivery_lng,
         })
-
+    
 
 
 class CustomerPackagesView(APIView):

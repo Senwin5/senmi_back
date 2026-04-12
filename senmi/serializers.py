@@ -65,11 +65,14 @@ class PackageSerializer(serializers.ModelSerializer):
     rider_name = serializers.CharField(source='rider.username', read_only=True)
     rider_phone = serializers.CharField(source='rider.phone_number', read_only=True)
 
+    # ✅ ADD THIS
+    package_id = serializers.CharField(read_only=True)
+
     class Meta:
         model = Package
         fields = [
             'id',
-            'package_id',
+            'package_id',   # 🔥 now guaranteed
             'description',
             'pickup_address',
             'delivery_address',
