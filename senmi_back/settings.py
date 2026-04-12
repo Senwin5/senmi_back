@@ -172,9 +172,9 @@ PAYSTACK_WEBHOOK_SECRET = os.getenv("PAYSTACK_WEBHOOK_SECRET")
 COMMISSION_RATE = float(os.getenv("COMMISSION_RATE", 0.05))  
 
 # settings.py
-BASE_FEE = 500          # starting price (adjust anytime)
-PER_KM_RATE = 120       # cost per km (fuel dependent)
-FUEL_MULTIPLIER = 1.0   # can increase during fuel hike
+BASE_FEE = 1000          # starting price (adjust anytime)
+PER_KM_RATE = 200       # cost per km (fuel dependent)
+FUEL_MULTIPLIER = 1.3   # can increase during fuel hike
 
 cloudinary.config(
     cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),

@@ -830,9 +830,9 @@ class TrackPackageView(APIView):
         # =========================
         # TRACKING EXISTS
         # =========================
+
         return Response({
             "package_id": package.package_id,
-
             "description": package.description,
             "price": package.price,
 
@@ -847,8 +847,8 @@ class TrackPackageView(APIView):
 
             "status": package.status,
 
-            "lat": tracking.latitude,
-            "lng": tracking.longitude,
+            "lat": tracking.latitude if tracking else None,
+            "lng": tracking.longitude if tracking else None,
 
             "delivery_lat": package.delivery_lat,
             "delivery_lng": package.delivery_lng,
@@ -863,7 +863,7 @@ class CustomerPackagesView(APIView):
         latest_tracking = PackageTracking.objects.order_by('-timestamp')
         packages = Package.objects.filter(customer=request.user).select_related('rider').prefetch_related(
             Prefetch('rider__riderprofile'),
-            Prefetch('packagetracking_set', queryset=latest_tracking, to_attr='latest_tracking')
+            Prefetch('tracking_entries', queryset=latest_tracking, to_attr='latest_tracking')
         )
 
         data = []
