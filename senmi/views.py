@@ -813,7 +813,6 @@ class TrackPackageView(APIView):
                 "delivery_lat": package.delivery_lat,
                 "delivery_lng": package.delivery_lng,
 
-                # 🔥 ADDED (to fix N/A in Flutter)
                 "price": package.price,
                 "description": package.description,
 
@@ -825,12 +824,14 @@ class TrackPackageView(APIView):
 
                 "pickup_address": package.pickup_address,
                 "delivery_address": package.delivery_address,
+
+                # ✅ delivery code included
+                "delivery_code": package.delivery_code,
             })
 
         # =========================
         # TRACKING EXISTS
         # =========================
-
         return Response({
             "package_id": package.package_id,
             "description": package.description,
@@ -852,7 +853,46 @@ class TrackPackageView(APIView):
 
             "delivery_lat": package.delivery_lat,
             "delivery_lng": package.delivery_lng,
+
+            # ✅ delivery code included
+            "delivery_code": package.delivery_code,
         })
+    
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def confirm_delivery_code(request, package_id):
+    try:
+        with transaction.atomic():  # 🔥 ADDED SAFETY LAYER
+            try:
+                package = Package.objects.select_for_update().get(package_id=package_id)
+            except Package.DoesNotExist:
+                return Response({"error": "Package not found"}, status=404)
+
+            code = request.data.get("delivery_code", "").strip()
+
+            if not code:
+                return Response({"error": "Code required"}, status=400)
+
+            # 🔥 extra safety check
+            if package.status == "delivered":
+                return Response({"error": "Already delivered"}, status=400)
+
+            if package.delivery_code != code:
+                return Response({"error": "Invalid code"}, status=400)
+
+            # mark delivered
+            package.status = "delivered"
+            package.delivery_code = None
+            package.save()
+
+            return Response({
+                "success": True,
+                "message": "Delivery confirmed"
+            })
+
+    except Exception:
+        return Response({"error": "Something went wrong"}, status=500)
     
 
 
