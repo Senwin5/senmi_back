@@ -88,7 +88,7 @@ class PackageSerializer(serializers.ModelSerializer):
             'is_paid',
             'commission',
             'rider_earning',
-            'delivery_code',
+            #'delivery_code',
             'sender_name',
             'sender_phone',
             'rider_name',
@@ -99,7 +99,7 @@ class PackageSerializer(serializers.ModelSerializer):
             'status',
             'commission',
             'rider_earning',
-            'delivery_code',
+            #'delivery_code',
             'package_id',
             'is_paid'
         ]
