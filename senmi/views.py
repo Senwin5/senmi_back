@@ -24,6 +24,7 @@ from rest_framework.throttling import UserRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from channels.layers import get_channel_layer
+from rest_framework.pagination import PageNumberPagination
 from asgiref.sync import async_to_sync
 from .utils import send_email, calculate_distance, calculate_price
 from .models import (
@@ -35,8 +36,12 @@ from .serializers import (
     PackageSerializer
 )
 from senmi.models import User
-from senmi.utils import send_email
 
+
+class StandardPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 
 # ------------------------------
@@ -107,7 +112,10 @@ class AdminRidersListView(APIView):
             "rider_image_1": r.rider_image_1.url if r.rider_image_1 else None,
             "rider_image_with_vehicle": r.rider_image_with_vehicle.url if r.rider_image_with_vehicle else None,
         } for r in riders]
-        return Response(data)
+
+        paginator = StandardPagination()
+        result = paginator.paginate_queryset(data, request)
+        return paginator.get_paginated_response(result)
 
 
 class AdminUserSearchView(APIView):
@@ -328,7 +336,10 @@ class AvailablePackagesView(APIView):
                 "net_earning": max(net_earning, 0)  # never negative
             })
 
-        return Response(data)
+        paginator = StandardPagination()
+        result = paginator.paginate_queryset(data, request)
+        return paginator.get_paginated_response(result)
+
 
 
 
@@ -950,7 +961,10 @@ class CustomerPackagesView(APIView):
                 "created_at": p.created_at,
             })
 
-        return Response(data)
+    
+        paginator = StandardPagination()
+        result = paginator.paginate_queryset(data, request)
+        return paginator.get_paginated_response(result)
 
 
 
