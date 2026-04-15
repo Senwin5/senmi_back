@@ -15,7 +15,6 @@ from django.utils.decorators import method_decorator
 from django.db import IntegrityError, transaction
 from django.db.models import Q, Avg, Count, Prefetch
 from django.contrib.auth import authenticate
-from .utils import send_email, calculate_distance
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -24,10 +23,9 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.throttling import UserRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .utils import calculate_distance, calculate_price
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
-
+from .utils import send_email, calculate_distance, calculate_price
 from .models import (
     Package, PackageStatusHistory, PackageTracking,
     RiderRating, RiderWallet, RiderProfile
@@ -318,10 +316,10 @@ class AvailablePackagesView(APIView):
             # Calculate net earning dynamically
             net_earning = float(p.rider_earning - p.commission)
             data.append({
-                "id": p.id,
+                "package_id": p.package_id,
                 "description": p.description,
                 "pickup": p.pickup_address,
-                "delivery": p.delivery_address,
+                #"delivery": p.delivery_address,
                 "price": float(p.price),
                 "receiver_name": p.receiver_name,
                 "receiver_phone": p.receiver_phone,
@@ -342,19 +340,24 @@ class AcceptPackageView(APIView):
             with transaction.atomic():
                 package = Package.objects.select_for_update().get(id=package_id)
 
+                # validate FIRST
                 if request.user.role != 'rider':
                     return Response({"error": "Only riders can accept"}, status=403)
+
                 if package.payment_type == "sender" and not package.is_paid:
                     return Response({"error": "Sender has not paid"}, status=400)
+
                 if package.status != 'pending':
                     return Response({"error": "Package not available"}, status=400)
 
+                # update
                 package.rider = request.user
                 package.status = 'accepted'
                 package.save()
+
                 PackageStatusHistory.objects.create(package=package, status='accepted')
 
-                # ✅ NEW: BROADCAST PACKAGE TAKEN
+                # WebSocket broadcast
                 try:
                     channel_layer = get_channel_layer()
                     async_to_sync(channel_layer.group_send)(
@@ -369,12 +372,18 @@ class AcceptPackageView(APIView):
                 except Exception as e:
                     logger.exception(f"WebSocket broadcast failed (accept package): {e}")
 
-                # Send email BEFORE returning
-                admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
-                recipients = [package.customer.email, request.user.email] + admin_emails + [settings.NOTIFY_EMAIL]
-                recipients = [r for r in recipients if r]
-
+                # Email notifications
                 try:
+                    admin_emails = list(
+                        User.objects.filter(is_superuser=True).values_list('email', flat=True)
+                    )
+                    recipients = [
+                        package.customer.email,
+                        request.user.email
+                    ] + admin_emails + [settings.NOTIFY_EMAIL]
+
+                    recipients = [r for r in recipients if r]
+
                     send_email(
                         subject="Package Accepted",
                         message=f"Package {package.package_id} has been accepted by rider {request.user.username}.",
@@ -383,14 +392,16 @@ class AcceptPackageView(APIView):
                 except Exception as e:
                     logger.exception(f"Failed to send package acceptance email: {e}")
 
-            net_earning = float(package.rider_earning - package.commission)
-            return Response({
-                "message": "Accepted successfully",
-                "net_earning": net_earning
-            }, status=200)
+                net_earning = float(package.rider_earning - package.commission)
+
+                return Response({
+                    "message": "Accepted successfully",
+                    "net_earning": net_earning
+                }, status=200)
 
         except Package.DoesNotExist:
             return Response({"error": "Package not found"}, status=404)
+
         except Exception as e:
             logger.exception(f"Error accepting package {package_id}: {e}")
             return Response({"error": "Failed to accept package"}, status=500)
@@ -516,9 +527,6 @@ class UpdateDeliveryStatusView(APIView):
                 if new_status == "delivered":
                     code_input = request.data.get('delivery_code')
 
-                    # ✅ ADDED: prevent reuse first
-                    if package.delivery_code is None:
-                        return Response({"error": "Delivery code already used"}, status=400)
 
                     # ✅ EXISTING CHECK (unchanged)
                     if not code_input or package.delivery_code != code_input:
@@ -606,8 +614,8 @@ class RiderActivePackagesView(APIView):
                 "net_earning": float(p.rider_earning - p.commission),
             })
 
-        return Response(data)
-    
+        return Response({"data": data})
+      
 
 
 class RiderEarningsView(APIView):
@@ -826,7 +834,7 @@ class TrackPackageView(APIView):
                 "delivery_address": package.delivery_address,
 
                 # ✅ delivery code included
-                "delivery_code": package.delivery_code,
+                #"delivery_code": package.delivery_code,
             })
 
         # =========================
@@ -855,7 +863,7 @@ class TrackPackageView(APIView):
             "delivery_lng": package.delivery_lng,
 
             # ✅ delivery code included
-            "delivery_code": package.delivery_code,
+            #"delivery_code": package.delivery_code,
         })
     
 
@@ -911,21 +919,34 @@ class CustomerPackagesView(APIView):
             rider_profile = getattr(p.rider, 'riderprofile', None) if p.rider else None
             tracking = p.latest_tracking[0] if getattr(p, 'latest_tracking', []) else None
 
+            # ✅ FIX: proper delivery_code logic (moved OUT of dict)
+            delivery_code = None
+            if request.user.role == "customer" and request.user == p.customer:
+                delivery_code = p.delivery_code
+
             data.append({
                 "id": p.id,
                 "description": p.description,
                 "price": float(p.price),
                 "is_paid": p.is_paid,
                 "status": p.status,
-                "delivery_code": p.delivery_code,
+
+                # ✅ SAFE + CLEAN
+                "delivery_code": delivery_code,
+
                 "rider": {
                     "username": p.rider.username if p.rider else None,
                     "phone": rider_profile.phone_number if rider_profile else None,
                     "rating": float(rider_profile.rating) if rider_profile else None,
                     "rating_count": rider_profile.rating_count if rider_profile else 0,
-                    "net_earning": float(p.rider_earning - p.commission) if p.rider else 0  # NEW: net earning
+                    "net_earning": float(p.rider_earning - p.commission) if p.rider else 0
                 },
-                "tracking": {"lat": tracking.latitude if tracking else None, "lng": tracking.longitude if tracking else None},
+
+                "tracking": {
+                    "lat": tracking.latitude if tracking else None,
+                    "lng": tracking.longitude if tracking else None
+                },
+
                 "created_at": p.created_at,
             })
 

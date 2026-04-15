@@ -125,7 +125,7 @@ class Package(models.Model):
     def is_available(self):
         return self.status == 'pending' and self.rider is None
 
-    # ✅ NEW: helper method (no change to your logic, just added)
+    # ✅ helper method
     def generate_unique_delivery_code(self):
         while True:
             code = f"{random.randint(0, 999999):06d}"
@@ -135,23 +135,36 @@ class Package(models.Model):
             ).exists():
                 return code
 
+    # ✅ FIXED SAVE METHOD (your logic unchanged)
     def save(self, *args, **kwargs):
-        # package unique id
         if not self.package_id:
             self.package_id = f"PKG-{uuid.uuid4().hex[:8].upper()}"
 
-        # Generate unique delivery code (only change here)
-        if not self.delivery_code:
-            self.delivery_code = self.generate_unique_delivery_code()
-            self.rider_earning = max(self.price - self.commission, Decimal('0'))
-
+        # commission first (important for correct earning calculation)
         base_fee = Decimal('200')
         percentage = Decimal('0.10')
-
         self.commission = base_fee + (self.price * percentage)
+
+        # rider earning
         self.rider_earning = self.price - self.commission
+
+        # delivery code
+        if not self.delivery_code:
+            self.delivery_code = self.generate_unique_delivery_code()
+
         super().save(*args, **kwargs)
 
+    # ✅ FIXED: now properly OUTSIDE save()
+    def hide_delivery_code(self, user):
+        if user.role != "customer":
+            return None
+        return self.delivery_code
+
+    # ✅ FIXED: properly OUTSIDE save()
+    def get_delivery_code_for_user(self, user):
+        if user.role == "customer" and self.customer_id == user.id:
+            return self.delivery_code
+        return None
         
 
 class PackageTracking(models.Model):
