@@ -140,7 +140,7 @@ class PackageAdmin(admin.ModelAdmin):
     list_filter = ('status', 'rider')
     search_fields = ('customer__email', 'rider__email', 'description')
     readonly_fields = ('commission', 'created_at', 'updated_at')
-    ordering = ('package_id',)
+    ordering = ('-created_at',)
 
 @admin.register(RiderWallet)
 class RiderWalletAdmin(admin.ModelAdmin):

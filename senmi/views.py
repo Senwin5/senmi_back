@@ -480,6 +480,19 @@ class CreatePackageView(APIView):
         if serializer.is_valid():
             package = serializer.save(customer=request.user)
 
+            # ✅ ADDED EMAIL NOTIFICATION (NO STRUCTURE CHANGED)
+            try:
+                admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
+                recipients = [request.user.email] + admin_emails + [settings.NOTIFY_EMAIL]
+
+                send_email(
+                    subject="Package Created Successfully",
+                    message=f"Your package {package.package_id} has been created successfully.",
+                    recipients=recipients
+                )
+            except Exception as e:
+                logger.exception(f"Failed to send package creation email: {e}")
+
             # WebSocket broadcast
             try:
                 channel_layer = get_channel_layer()
@@ -511,7 +524,6 @@ class CreatePackageView(APIView):
         logger.error(serializer.errors)
         return Response(serializer.errors, status=400)
     
-
 
 
 class UpdateDeliveryStatusView(APIView):
