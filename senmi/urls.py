@@ -1,10 +1,11 @@
 # senmi/urls.py
 from django.urls import path
-from .views import AdminRidersListView, AdminUserSearchView, CreatePackageView, CustomerPackagesView, LogoutView, calculate_price_view, delete_profile
+from .views import AdminRidersListView, AdminUserSearchView, CreatePackageView, CustomerPackagesView, LogoutView, PackageDetailView, calculate_price_view, delete_profile
 from .views import AcceptPackageView,UpdateDeliveryStatusView,CustomLoginView,RegisterView
 from .views import AvailablePackagesView,PaystackWebhookView,RiderEarningsView,RiderStatusView
 from .views import RiderProfileUpdateView, RiderWalletView, RiderWithdrawView,RateRiderView,  TrackPackageView
 from .views import UpdateLocationView, UserProfileView, review_rider, DeleteUserView, InitializeReceiverPaymentView
+from senmi import views
 
 
 urlpatterns = [
@@ -18,6 +19,7 @@ urlpatterns = [
     path('api/create-package/', CreatePackageView.as_view()),
     path('api/packages/<str:package_id>/update-status/', UpdateDeliveryStatusView.as_view()),
     path('api/rider-earnings/', RiderEarningsView.as_view()),
+    path('api/my-orders/', views.my_orders),
     path('api/packages/<str:package_id>/pay/', InitializeReceiverPaymentView.as_view()),
     path('api/paystack/webhook/', PaystackWebhookView.as_view()),
     path('api/packages/<str:package_id>/update-location/', UpdateLocationView.as_view()),
@@ -25,6 +27,7 @@ urlpatterns = [
     path('api/rider/wallet/', RiderWalletView.as_view()),
     path('api/rider/wallet/withdraw/', RiderWithdrawView.as_view()),
     path('api/customer/packages/', CustomerPackagesView.as_view()),
+    path('api/packages/<str:package_id>/', PackageDetailView.as_view()),
     path('api/packages/<str:package_id>/rate/', RateRiderView.as_view()),
     path('api/search-users/', AdminUserSearchView.as_view()),
     path('api/admin/riders/', AdminRidersListView.as_view()),
