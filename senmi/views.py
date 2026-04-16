@@ -349,7 +349,7 @@ class AcceptPackageView(APIView):
     def post(self, request, package_id):
         try:
             with transaction.atomic():
-                package = Package.objects.select_for_update().get(id=package_id)
+                package = Package.objects.select_for_update().get(package_id=package_id)
 
                 # validate FIRST
                 if request.user.role != 'rider':
@@ -532,7 +532,7 @@ class UpdateDeliveryStatusView(APIView):
     def post(self, request, package_id):
         try:
             with transaction.atomic():
-                package = Package.objects.select_for_update().get(id=package_id)
+                package = Package.objects.select_for_update().get(package_id=package_id)
 
                 if package.rider != request.user:
                     return Response({"error": "Not your package"}, status=403)
@@ -618,9 +618,6 @@ class UpdateDeliveryStatusView(APIView):
             return Response({"error": "Failed to update package status"}, status=500)
         
 
-
-
-
 class RiderActivePackagesView(APIView):
     permission_classes = [IsAuthenticated, IsApprovedRider]
 
@@ -666,7 +663,7 @@ class InitializeReceiverPaymentView(APIView):
 
     def post(self, request, package_id):
         try:
-            package = Package.objects.select_for_update().get(id=package_id)
+            package = Package.objects.select_for_update().get(package_id=package_id)
         except Package.DoesNotExist:
             return Response({"error": "Package not found"}, status=404)
 
@@ -972,7 +969,6 @@ class CustomerPackagesView(APIView):
 
                 "created_at": p.created_at,
             })
-
     
         paginator = StandardPagination()
         result = paginator.paginate_queryset(data, request)
@@ -980,6 +976,28 @@ class CustomerPackagesView(APIView):
 
 
 
+
+class PackageDetailView(APIView):
+    def get(self, request, package_id):
+        try:
+            Package.objects.get(package_id=package_id)
+        except Package.DoesNotExist:
+            return Response({"error": "Package not found"}, status=404)
+
+        serializer = PackageSerializer(Package)
+        return Response(serializer.data)
+
+    
+class PackageDetailView(APIView):
+    def get(self, request, package_id):
+        try:
+            package = Package.objects.get(package_id=package_id)
+        except Package.DoesNotExist:
+            return Response({"error": "Package not found"}, status=404)
+
+        serializer = PackageSerializer(package)
+        return Response(serializer.data)
+    
 # ------------------------------
 # Rider Wallet & Withdrawal
 # ------------------------------
@@ -1231,3 +1249,16 @@ def calculate_price_view(request):
 
     except Exception as e:
         return Response({"error": str(e)}, status=400)
+    
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_orders(request):
+    packages = Package.objects.filter(
+        customer=request.user,
+        status__in=["pending", "paid", "delivered"]
+    ).order_by('-created_at')
+
+    serializer = PackageSerializer(packages, many=True)
+    return Response(serializer.data)
