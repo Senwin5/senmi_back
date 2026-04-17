@@ -1267,3 +1267,13 @@ def my_orders(request):
 
     serializer = PackageSerializer(packages, many=True)
     return Response(serializer.data)
+
+
+class PaymentCallbackView(APIView):
+    def get(self, request):
+        reference = request.GET.get("reference")
+
+        return Response({
+            "message": "Payment completed",
+            "reference": reference
+        })

@@ -171,7 +171,8 @@ PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY")
 PAYSTACK_WEBHOOK_SECRET = os.getenv("PAYSTACK_WEBHOOK_SECRET")
 
 #PAYMENT_CALLBACK_URL = "http://192.168.1.129:8001/api/paystack/webhook/"
-PAYMENT_CALLBACK_URL = "http://192.168.8.252:8001/api/paystack/webhook/"
+#PAYMENT_CALLBACK_URL = "http://192.168.8.252:8001/api/paystack/webhook/"
+PAYMENT_CALLBACK_URL = "https://cottage-molar-unguarded.ngrok-free.dev/api/payment/callback/"
 
 
 SIMPLE_JWT = {
