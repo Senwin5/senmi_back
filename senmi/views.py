@@ -350,7 +350,7 @@ class AcceptPackageView(APIView):
         try:
             with transaction.atomic():
                 package = Package.objects.select_for_update().get(package_id=package_id)
-
+        except Package.DoesNotExist:
                 # validate FIRST
                 if request.user.role != 'rider':
                     return Response({"error": "Only riders can accept"}, status=403)
@@ -663,7 +663,9 @@ class InitializeReceiverPaymentView(APIView):
 
     def post(self, request, package_id):
         try:
-            package = Package.objects.select_for_update().get(package_id=package_id)
+            # ✅ LOCK to prevent race condition
+            with transaction.atomic():
+                package = Package.objects.select_for_update().get(package_id=package_id)
         except Package.DoesNotExist:
             return Response({"error": "Package not found"}, status=404)
 
@@ -671,22 +673,14 @@ class InitializeReceiverPaymentView(APIView):
         payer = request.data.get("payer")
 
         # =========================
-        # SENDER PAYMENT
+        # BOTH CAN PAY (FIXED)
         # =========================
-        if payer == "sender":
+        if payer in ["sender", "receiver"]:
             email = request.user.email
-
-        # =========================
-        # RECEIVER PAYMENT (FIXED)
-        # =========================
-        elif payer == "receiver":
-            # no receiver email needed — fallback to customer email
-            email = package.customer.email
-
         else:
             return Response({"error": "Invalid payment attempt"}, status=400)
 
-        # 🔥 keep your existing logic
+        # 🔥 already paid
         if package.is_paid:
             return Response({"message": "Package already paid"}, status=200)
 
@@ -696,25 +690,57 @@ class InitializeReceiverPaymentView(APIView):
             "Content-Type": "application/json"
         }
 
+        # ✅ SAFE PRICE
+        try:
+            amount = int(Decimal(str(package.price)) * 100)
+        except Exception:
+            logger.exception(f"Invalid price for package {package_id}")
+            return Response({"error": "Invalid package price"}, status=400)
+
+        # =========================
+        # 🔥 FIXED: ALWAYS UNIQUE REFERENCE
+        # =========================
+        reference = f"PKG-{package.package_id}-{uuid.uuid4().hex[:12]}-{uuid.uuid4().hex[:4]}"
+
         data = {
             "email": email,
-            "amount": int(Decimal(package.price) * 100),
-            "reference": package.payment_reference or f"PKG-{package.id}-{uuid.uuid4().hex[:6]}",
+            "amount": amount,
+            "reference": reference,
             "callback_url": settings.PAYMENT_CALLBACK_URL
         }
 
         try:
-            res_data = requests.post(url, json=data, headers=headers, timeout=10).json()
-        except (requests.exceptions.RequestException, ValueError):
-            logger.exception(f"Payment init failed for package {package_id}")
-            return Response({"error": "Payment gateway unavailable"}, status=500)
+            res = requests.post(url, json=data, headers=headers, timeout=10)
 
+            # ✅ HANDLE HTTP ERRORS
+            if res.status_code != 200:
+                logger.error(f"Paystack HTTP Error: {res.status_code} - {res.text}")
+                return Response({
+                    "error": "Payment gateway error",
+                    "body": res.text
+                }, status=500)
+
+            # ✅ SAFE JSON PARSE
+            try:
+                res_data = res.json()
+            except Exception:
+                logger.error(f"Invalid JSON from Paystack: {res.text}")
+                return Response({"error": "Invalid response from payment gateway"}, status=500)
+
+        except requests.exceptions.RequestException:
+            logger.exception("Paystack request failed")
+            return Response({"error": "Payment request failed"}, status=500)
+
+        # =========================
+        # SUCCESS
+        # =========================
         if res_data.get("status"):
-            if not package.payment_reference:
-                package.payment_reference = res_data["data"]["reference"]
-                package.save(update_fields=['payment_reference'])
 
-            # 🔥 KEEP your email logic unchanged
+            # 🔥 FIXED: always overwrite old reference safely
+            package.payment_reference = res_data["data"]["reference"]
+            package.save(update_fields=['payment_reference'])
+
+            # 🔥 EMAIL (UNCHANGED)
             admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
             recipients = [email] + admin_emails + [settings.NOTIFY_EMAIL]
 
@@ -729,11 +755,11 @@ class InitializeReceiverPaymentView(APIView):
                 "qr_code": f"https://api.qrserver.com/v1/create-qr-code/?data={res_data['data']['authorization_url']}&size=200x200"
             })
 
+        # ❌ FAILURE
         logger.warning(f"Payment initialization failed for package {package_id}: {res_data}")
         return Response({"error": "Payment initialization failed"}, status=400)
     
-
-
+    
 # Paystack Webhook
 # ------------------------------
 @method_decorator(csrf_exempt, name='dispatch')
