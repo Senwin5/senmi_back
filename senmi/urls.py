@@ -1,6 +1,6 @@
 # senmi/urls.py
 from django.urls import path
-from .views import AdminRidersListView, AdminUserSearchView, CreatePackageView, CustomerPackagesView, LogoutView, PackageDetailView, calculate_price_view
+from .views import AdminRidersListView, AdminUserSearchView, CreatePackageView, CustomerPackagesView, LogoutView, PackageDetailView, PaymentCallbackView, calculate_price_view
 from .views import AcceptPackageView,UpdateDeliveryStatusView,CustomLoginView,RegisterView
 from .views import AvailablePackagesView,PaystackWebhookView,RiderEarningsView,RiderStatusView
 from .views import RiderProfileUpdateView, RiderWalletView, RiderWithdrawView,RateRiderView,  TrackPackageView
@@ -22,6 +22,7 @@ urlpatterns = [
     path('api/my-orders/', views.my_orders),
     path('api/packages/<str:package_id>/pay/', InitializeReceiverPaymentView.as_view()),
     path('api/paystack/webhook/', PaystackWebhookView.as_view()),
+    path('api/payment/callback/', PaymentCallbackView.as_view()),
     path('api/packages/<str:package_id>/update-location/', UpdateLocationView.as_view()),
     path('api/track/<str:package_id>/', TrackPackageView.as_view()),
     path('api/rider/wallet/', RiderWalletView.as_view()),
@@ -35,4 +36,5 @@ urlpatterns = [
     path('api/profile/', UserProfileView.as_view()),
     path('api/profile/delete/', DeleteUserView.as_view(), name='delete-profile'),
     path('api/calculate-price/', calculate_price_view),
+    
 ]
