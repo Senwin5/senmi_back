@@ -667,20 +667,37 @@ class InitializeReceiverPaymentView(APIView):
         except Package.DoesNotExist:
             return Response({"error": "Package not found"}, status=404)
 
-        if package.payment_type != "receiver":
+        # 🔥 detect payer (UNCHANGED)
+        payer = request.data.get("payer")
+
+        # =========================
+        # SENDER PAYMENT
+        # =========================
+        if payer == "sender":
+            email = request.user.email
+
+        # =========================
+        # RECEIVER PAYMENT (FIXED)
+        # =========================
+        elif payer == "receiver":
+            # no receiver email needed — fallback to customer email
+            email = package.customer.email
+
+        else:
             return Response({"error": "Invalid payment attempt"}, status=400)
 
+        # 🔥 keep your existing logic
         if package.is_paid:
             return Response({"message": "Package already paid"}, status=200)
 
-        receiver_email = request.data.get("receiver_email") or package.receiver_email
-        if not receiver_email or not re.fullmatch(r"[^@]+@[^@]+\.[^@]+", receiver_email):
-            return Response({"error": "Valid receiver email required"}, status=400)
-
         url = "https://api.paystack.co/transaction/initialize"
-        headers = {"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}", "Content-Type": "application/json"}
+        headers = {
+            "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
+            "Content-Type": "application/json"
+        }
+
         data = {
-            "email": receiver_email,
+            "email": email,
             "amount": int(Decimal(package.price) * 100),
             "reference": package.payment_reference or f"PKG-{package.id}-{uuid.uuid4().hex[:6]}",
             "callback_url": settings.PAYMENT_CALLBACK_URL
@@ -693,14 +710,13 @@ class InitializeReceiverPaymentView(APIView):
             return Response({"error": "Payment gateway unavailable"}, status=500)
 
         if res_data.get("status"):
-            # Only save reference if not already set
             if not package.payment_reference:
                 package.payment_reference = res_data["data"]["reference"]
                 package.save(update_fields=['payment_reference'])
 
-            # ---- Send email BEFORE returning ----
+            # 🔥 KEEP your email logic unchanged
             admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
-            recipients = [receiver_email] + admin_emails + [settings.NOTIFY_EMAIL]
+            recipients = [email] + admin_emails + [settings.NOTIFY_EMAIL]
 
             send_email(
                 subject="Package Payment Initiated",
@@ -715,7 +731,6 @@ class InitializeReceiverPaymentView(APIView):
 
         logger.warning(f"Payment initialization failed for package {package_id}: {res_data}")
         return Response({"error": "Payment initialization failed"}, status=400)
-    
     
 
 
@@ -885,42 +900,6 @@ class TrackPackageView(APIView):
             # ✅ delivery code included
             #"delivery_code": package.delivery_code,
         })
-    
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def confirm_delivery_code(request, package_id):
-    try:
-        with transaction.atomic():  # 🔥 ADDED SAFETY LAYER
-            try:
-                package = Package.objects.select_for_update().get(package_id=package_id)
-            except Package.DoesNotExist:
-                return Response({"error": "Package not found"}, status=404)
-
-            code = request.data.get("delivery_code", "").strip()
-
-            if not code:
-                return Response({"error": "Code required"}, status=400)
-
-            # 🔥 extra safety check
-            if package.status == "delivered":
-                return Response({"error": "Already delivered"}, status=400)
-
-            if package.delivery_code != code:
-                return Response({"error": "Invalid code"}, status=400)
-
-            # mark delivered
-            package.status = "delivered"
-            package.delivery_code = None
-            package.save()
-
-            return Response({
-                "success": True,
-                "message": "Delivery confirmed"
-            })
-
-    except Exception:
-        return Response({"error": "Something went wrong"}, status=500)
     
 
 
