@@ -23,8 +23,8 @@ SECRET_KEY = 'django-insecure-u54pm32n%2byih$1sp6ppqzkx_fzt=%=y4ckqjljt7_sj(yq$a
 DEBUG = True
 #DEBUG = False
 
-#ALLOWED_HOSTS = ["*","192.168.8.254"]
-ALLOWED_HOSTS = ["*","192.168.1.129"]
+ALLOWED_HOSTS = ["*","192.168.8.254"]
+#ALLOWED_HOSTS = ["*","192.168.1.129"]
 
 AUTH_USER_MODEL = 'senmi.User'
 
@@ -170,7 +170,8 @@ PAYSTACK_PUBLIC_KEY = os.getenv("PAYSTACK_PUBLIC_KEY")
 PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY")
 PAYSTACK_WEBHOOK_SECRET = os.getenv("PAYSTACK_WEBHOOK_SECRET")
 
-PAYMENT_CALLBACK_URL = "http://192.168.1.129:8001/api/paystack/webhook/"
+#PAYMENT_CALLBACK_URL = "http://192.168.1.129:8001/api/paystack/webhook/"
+PAYMENT_CALLBACK_URL = "http://192.168.8.252:8001/api/paystack/webhook/"
 
 
 SIMPLE_JWT = {
