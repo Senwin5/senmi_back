@@ -909,6 +909,8 @@ class TrackPackageView(APIView):
 
                 # ✅ delivery code included
                 #"delivery_code": package.delivery_code,
+                "delivery_code": package.delivery_code if request.user == package.customer else None,
+                
             })
 
         # =========================
@@ -1002,7 +1004,8 @@ class PackageDetailView(APIView):
         except Package.DoesNotExist:
             return Response({"error": "Package not found"}, status=404)
 
-        serializer = PackageSerializer(Package)
+        #serializer = PackageSerializer(Package)
+        serializer = PackageSerializer(Package, context={'request': request})
         return Response(serializer.data)
 
     
@@ -1013,7 +1016,8 @@ class PackageDetailView(APIView):
         except Package.DoesNotExist:
             return Response({"error": "Package not found"}, status=404)
 
-        serializer = PackageSerializer(package)
+        #serializer = PackageSerializer(package)
+        serializer = PackageSerializer(package, context={'request': request})
         return Response(serializer.data)
     
 # ------------------------------

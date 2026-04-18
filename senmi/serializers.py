@@ -65,14 +65,17 @@ class PackageSerializer(serializers.ModelSerializer):
     rider_name = serializers.CharField(source='rider.username', read_only=True)
     rider_phone = serializers.CharField(source='rider.phone_number', read_only=True)
 
-    # ✅ ADD THIS
+    # ✅ already there
     package_id = serializers.CharField(read_only=True)
+
+    # ✅ ADD THIS (only change)
+    delivery_code = serializers.SerializerMethodField()
 
     class Meta:
         model = Package
         fields = [
             'id',
-            'package_id',   # 🔥 now guaranteed
+            'package_id',
             'description',
             'pickup_address',
             'delivery_address',
@@ -88,7 +91,9 @@ class PackageSerializer(serializers.ModelSerializer):
             'is_paid',
             'commission',
             'rider_earning',
-            #'delivery_code',
+
+            'delivery_code',   # ✅ ADD THIS BACK
+
             'sender_name',
             'sender_phone',
             'rider_name',
@@ -99,13 +104,20 @@ class PackageSerializer(serializers.ModelSerializer):
             'status',
             'commission',
             'rider_earning',
-            #'delivery_code',
             'package_id',
             'is_paid'
         ]
 
+    # ✅ ADD THIS METHOD (core fix)
+    def get_delivery_code(self, obj):
+        request = self.context.get('request')
+
+        if request and request.user == obj.customer:
+            return obj.delivery_code  # ✅ ONLY customer sees
+
+        return None  # ❌ rider sees null
+
     def create(self, validated_data):
-        # ✅ Accept price from view (distance logic)
         price = self.initial_data.get('price')
 
         if price:
