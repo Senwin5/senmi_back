@@ -550,6 +550,8 @@ class UpdateDeliveryStatusView(APIView):
                 if new_status == "delivered":
                     code_input = request.data.get('delivery_code')
 
+                    if package.status == "delivered":
+                        return Response({"error": "Package already delivered"}, status=400)
 
                     # ✅ EXISTING CHECK (unchanged)
                     if not code_input or package.delivery_code != code_input:
@@ -682,7 +684,8 @@ class InitializeReceiverPaymentView(APIView):
 
         # 🔥 already paid
         if package.is_paid:
-            return Response({"message": "Package already paid"}, status=200)
+            #return Response({"message": "Package already paid"}, status=200)
+            return Response({"already_paid": True,"message": "Package already paid"}, status=200)
 
         url = "https://api.paystack.co/transaction/initialize"
         headers = {
@@ -808,7 +811,8 @@ class PaystackWebhookView(APIView):
                     return Response(status=200)
 
                 package.is_paid = True
-                package.save(update_fields=['is_paid'])
+                package.status = "paid" 
+                package.save(update_fields=['is_paid','status'])
                 logger.info(f"Package {package.id} marked as paid via webhook.")
 
                 admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
