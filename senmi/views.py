@@ -1294,3 +1294,31 @@ class PaymentCallbackView(APIView):
             "message": "Payment completed",
             "reference": reference
         })
+    
+
+def search_package(request):
+    query = request.GET.get("q", "").strip()
+
+    if not query:
+        return JsonResponse({"error": "No search query provided"}, status=400)
+
+    package = Package.objects.filter(
+        Q(package_id__icontains=query) |
+        Q(payment_reference__icontains=query)
+    ).first()
+
+    if not package:
+        return JsonResponse({
+            "error": "Package not found",
+            "debug_query": query
+        }, status=404)
+
+    return JsonResponse({
+        "success": True,
+        "id": package.id,
+        "package_id": package.package_id,
+        "status": package.status,
+        "delivery_code": package.delivery_code,
+        "is_paid": package.is_paid,
+        "price": str(package.price),
+    })
