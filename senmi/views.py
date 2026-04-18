@@ -769,14 +769,24 @@ class PaystackWebhookView(APIView):
         secret = settings.PAYSTACK_SECRET_KEY
         signature = request.headers.get('x-paystack-signature')
 
-        # Verify webhook signature
-        expected_hash = hmac.new(secret.encode(), request.body, hashlib.sha512).hexdigest()
-        if not hmac.compare_digest(signature or '', expected_hash):
+        # =========================
+        # FIX 1: safer signature check (correct Paystack standard)
+        # =========================
+        expected_hash = hmac.new(
+            secret.encode('utf-8'),
+            request.body,
+            hashlib.sha512
+        ).hexdigest()
+
+        if not signature or not hmac.compare_digest(signature, expected_hash):
             logger.warning("Paystack webhook signature mismatch")
             return Response(status=400)
 
         try:
-            payload = json.loads(request.body)
+            # =========================
+            # FIX 2: safe JSON decode
+            # =========================
+            payload = json.loads(request.body.decode('utf-8'))
         except json.JSONDecodeError:
             logger.error("Invalid JSON received in Paystack webhook")
             return Response(status=400)
@@ -790,7 +800,6 @@ class PaystackWebhookView(APIView):
             return Response(status=200)
 
         try:
-            # Use select_for_update to prevent race conditions
             with transaction.atomic():
                 package = Package.objects.select_for_update().get(payment_reference=reference)
 
@@ -798,18 +807,17 @@ class PaystackWebhookView(APIView):
                     logger.info(f"Package {package.id} already marked as paid. Ignoring webhook.")
                     return Response(status=200)
 
-                # Mark package as paid
                 package.is_paid = True
                 package.save(update_fields=['is_paid'])
                 logger.info(f"Package {package.id} marked as paid via webhook.")
 
-                # Send emails
                 admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
                 recipients = [
                     package.customer.email,
                     package.rider.email if package.rider else None
                 ] + admin_emails + [settings.NOTIFY_EMAIL]
-                recipients = [r for r in recipients if r]  # remove None
+
+                recipients = [r for r in recipients if r]
 
                 send_email(
                     subject="Payment Successful",
@@ -820,12 +828,13 @@ class PaystackWebhookView(APIView):
         except Package.DoesNotExist:
             logger.warning(f"No package found with payment reference {reference}")
             return Response(status=200)
+
         except Exception as e:
             logger.exception(f"Error processing Paystack webhook for reference {reference}")
             return Response(status=500)
 
         return Response(status=200)
-
+    
 
 # ------------------------------
 # Package Tracking Views

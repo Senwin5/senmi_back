@@ -23,8 +23,13 @@ SECRET_KEY = 'django-insecure-u54pm32n%2byih$1sp6ppqzkx_fzt=%=y4ckqjljt7_sj(yq$a
 DEBUG = True
 #DEBUG = False
 
-ALLOWED_HOSTS = ["*","192.168.8.254"]
+#ALLOWED_HOSTS = ["*","192.168.8.254"]
 #ALLOWED_HOSTS = ["*","192.168.1.129"]
+ALLOWED_HOSTS = [
+    "127.0.0.1",
+    "localhost",
+    "cottage-molar-unguarded.ngrok-free.dev",
+]
 
 AUTH_USER_MODEL = 'senmi.User'
 
@@ -43,6 +48,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware', 
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -50,7 +56,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
@@ -148,11 +153,15 @@ REST_FRAMEWORK = {
     ),
 }
 
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
-    'AUTH_HEADER_TYPES': ('Bearer',),
-}
 
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+}
 
 # Email configuration
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -174,13 +183,12 @@ PAYSTACK_WEBHOOK_SECRET = os.getenv("PAYSTACK_WEBHOOK_SECRET")
 #PAYMENT_CALLBACK_URL = "http://192.168.8.252:8001/api/paystack/webhook/"
 PAYMENT_CALLBACK_URL = "https://cottage-molar-unguarded.ngrok-free.dev/api/payment/callback/"
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://cottage-molar-unguarded.ngrok-free.dev",
+]
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
-    "ROTATE_REFRESH_TOKENS": True,
-    "BLACKLIST_AFTER_ROTATION": True,
-}
+
 
 # Commission rate applied to all packages (e.g., 5%)
 COMMISSION_RATE = float(os.getenv("COMMISSION_RATE", 0.05))  
