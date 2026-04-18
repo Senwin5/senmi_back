@@ -76,6 +76,7 @@ class RiderProfile(models.Model):
 class Package(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
+        ('paid', 'Paid'),
         ('accepted', 'Accepted'),
         ('picked_up', 'Picked Up'),
         ('delivered', 'Delivered'),
@@ -162,6 +163,9 @@ class Package(models.Model):
         # delivery code
         if not self.delivery_code:
             self.delivery_code = self.generate_unique_delivery_code()
+        
+        if self.is_paid and self.status == "pending":
+            self.status = "paid"
 
         super().save(*args, **kwargs)
 
