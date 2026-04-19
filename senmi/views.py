@@ -1322,3 +1322,29 @@ def search_package(request):
         "is_paid": package.is_paid,
         "price": str(package.price),
     })
+
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_package(request, package_id):
+    try:
+        package = Package.objects.get(package_id=package_id)
+
+        # 🔒 Only owner can delete
+        if package.customer != request.user:
+            return Response({"error": "Not allowed"}, status=403)
+
+        # ❌ optional safety: block deletion if already delivered
+        if package.status == "delivered":
+            return Response({"error": "Cannot delete delivered package"}, status=400)
+
+        package.delete()
+
+        return Response({
+            "success": True,
+            "message": "Package deleted successfully"
+        }, status=200)
+
+    except Package.DoesNotExist:
+        return Response({"error": "Package not found"}, status=404)
