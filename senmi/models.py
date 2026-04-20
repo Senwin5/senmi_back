@@ -6,6 +6,38 @@ from django.conf import settings
 from decimal import Decimal
 from django.contrib.auth.models import AbstractUser
 import uuid
+from io import BytesIO
+from PIL import Image
+from cloudinary.models import CloudinaryField
+from django.core.files.uploadedfile import InMemoryUploadedFile
+import sys
+
+
+def compress_image(image, max_size=(1024, 1024), quality=70):
+    try:
+        img = Image.open(image)
+
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+
+        img.thumbnail(max_size)
+
+        buffer = BytesIO()
+        img.save(buffer, format='JPEG', quality=quality)
+        buffer.seek(0)
+
+        return InMemoryUploadedFile(
+            buffer,
+            'ImageField',
+            image.name.split('.')[0] + ".jpg",
+            'image/jpeg',
+            sys.getsizeof(buffer),
+            None
+        )
+    except Exception:
+        return image
+    
+
 
 class User(AbstractUser):
     ROLE_CHOICES = (
@@ -44,13 +76,13 @@ class RiderProfile(models.Model):
     
     # Unique Rider Tracking ID
     rider_id = models.CharField(max_length=20, unique=True, blank=True, editable=False)
-
+    
     # Profile fields
     full_name = models.CharField(max_length=255, blank=True)
     phone_number = models.CharField(max_length=20, blank=True)
-    profile_picture = models.ImageField(upload_to='riders_profile/', blank=True, null=True)
-    rider_image_1 = models.ImageField(upload_to='riders_images1/', blank=True, null=True)
-    rider_image_with_vehicle = models.ImageField(upload_to='riders_vehicle_images2/', blank=True, null=True)
+    profile_picture = CloudinaryField(folder ='riders_profile/', blank=True, null=True)
+    rider_image_1 = CloudinaryField(folder ='riders_images1/', blank=True, null=True)
+    rider_image_with_vehicle = CloudinaryField(folder ='riders_vehicle_images2/', blank=True, null=True)
     vehicle_number = models.CharField(max_length=50, blank=True)
     address = models.TextField(blank=True)
     city = models.CharField(max_length=100, blank=True)
