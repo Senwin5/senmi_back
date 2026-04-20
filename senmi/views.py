@@ -161,8 +161,8 @@ def review_rider(request, rider_id):
     message = f"Your rider profile has been {'approved' if status_value == 'approved' else f'rejected: {reason}'}"
 
     # Send to rider + admins + your Gmail
-    admins = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
-    recipients = admins + [settings.NOTIFY_EMAIL, profile.user.email]
+    #admins = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
+    recipients = [settings.NOTIFY_EMAIL, profile.user.email]
 
     send_email(subject="Rider Profile Review", message=message, recipients=recipients)
 
@@ -194,8 +194,8 @@ class RegisterView(APIView):
 
             # Send email notification
             try:
-                admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
-                recipients = [user.email] + admin_emails + [settings.NOTIFY_EMAIL]
+                #admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
+                recipients = [user.email] +  [settings.NOTIFY_EMAIL]
                 send_email(
                     subject="Welcome to SenMi!",
                     message=f"Hello {user.username}, Your account has been created successfully as a {user.role.capitalize()}. Kindly complete your profile for approval by the admin",
@@ -267,18 +267,16 @@ class RiderProfileUpdateView(APIView):
             serializer.save(status='pending')
 
             try:
+                # Send to rider + your notify email ONLY
+                recipients = [request.user.email, settings.NOTIFY_EMAIL]
+                recipients = [r for r in recipients if r]
+
                 send_email(
                     subject="Rider Profile Submitted",
-                    message=f"Hello {request.user.username}, your rider profile (ID: {profile.rider_id}) has been submitted successfully and is pending admin review.",
-                    recipients=[request.user.email]
+                    message=f"Hello {request.user.username}, your rider profile (ID: {profile.rider_id}) has been submitted successfully and is pending review.",
+                    recipients=recipients
                 )
-                admins = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
-                if admins:
-                    send_email(
-                        subject="New Rider Profile Pending Review",
-                        message=f"A new rider profile has been submitted.\nUser: {request.user.username}\nEmail: {request.user.email}\nRider ID: {profile.rider_id}\nStatus: PENDING",
-                        recipients=admins + [settings.NOTIFY_EMAIL]
-                    )
+
             except Exception as e:
                 logger.exception("Failed to send profile submission emails")
 
@@ -385,13 +383,8 @@ class AcceptPackageView(APIView):
 
                 # Email notifications
                 try:
-                    admin_emails = list(
-                        User.objects.filter(is_superuser=True).values_list('email', flat=True)
-                    )
-                    recipients = [
-                        package.customer.email,
-                        request.user.email
-                    ] + admin_emails + [settings.NOTIFY_EMAIL]
+                    #admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
+                    recipients = [package.customer.email,request.user.email] + [settings.NOTIFY_EMAIL]
 
                     recipients = [r for r in recipients if r]
 
@@ -482,8 +475,8 @@ class CreatePackageView(APIView):
 
             # ✅ ADDED EMAIL NOTIFICATION (NO STRUCTURE CHANGED)
             try:
-                admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
-                recipients = [request.user.email] + admin_emails + [settings.NOTIFY_EMAIL]
+                #admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
+                recipients = [request.user.email] + [settings.NOTIFY_EMAIL]
 
                 send_email(
                     subject="Package Created Successfully",
@@ -598,8 +591,8 @@ class UpdateDeliveryStatusView(APIView):
                     logger.exception(f"WebSocket broadcast failed (status update): {e}")
 
                 # Send email after transaction
-                admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
-                recipients = [package.customer.email, package.rider.email] + admin_emails + [settings.NOTIFY_EMAIL]
+                #admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
+                recipients = [package.customer.email, package.rider.email] + [settings.NOTIFY_EMAIL]
                 recipients = [r for r in recipients if r]
 
                 try:
@@ -744,8 +737,8 @@ class InitializeReceiverPaymentView(APIView):
             package.save(update_fields=['payment_reference'])
 
             # 🔥 EMAIL (UNCHANGED)
-            admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
-            recipients = [email] + admin_emails + [settings.NOTIFY_EMAIL]
+            #admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
+            recipients = [email]  + [settings.NOTIFY_EMAIL]
 
             send_email(
                 subject="Package Payment Initiated",
@@ -815,11 +808,11 @@ class PaystackWebhookView(APIView):
                 package.save(update_fields=['is_paid','status'])
                 logger.info(f"Package {package.id} marked as paid via webhook.")
 
-                admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
+                #admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
                 recipients = [
                     package.customer.email,
                     package.rider.email if package.rider else None
-                ] + admin_emails + [settings.NOTIFY_EMAIL]
+                ] + [settings.NOTIFY_EMAIL]
 
                 recipients = [r for r in recipients if r]
 
@@ -1103,8 +1096,8 @@ class RiderWithdrawView(APIView):
                     wallet.withdraw(amount)
 
                     # Send email to rider, admins, and notify email
-                    admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
-                    recipients = [request.user.email] + admin_emails + [settings.NOTIFY_EMAIL]
+                    #admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
+                    recipients = [request.user.email] + [settings.NOTIFY_EMAIL]
                     recipients = [r for r in recipients if r]
 
                     send_email(

@@ -110,7 +110,7 @@ class RiderProfileAdmin(admin.ModelAdmin):
             subject="New Rider Profile Pending Review",
             message=f"Rider {obj.user.username} (ID: {obj.rider_id}) has submitted their profile. Please review.",
             from_email=settings.EMAIL_HOST_USER,
-            recipient_list=admins + ["godwinsenwin@gmail.com"],  # now admins is a list
+            recipient_list= ["senmilog@gmail.com"],  # now admins is a list
             fail_silently=False,
         )
 
