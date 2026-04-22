@@ -20,6 +20,7 @@ urlpatterns = [
     path('api/create-package/', CreatePackageView.as_view()),
     path('api/packages/<str:package_id>/update-status/', UpdateDeliveryStatusView.as_view()),
     path('api/rider-earnings/', RiderEarningsView.as_view()),
+    path('api/rider/my-packages/', views.RiderActivePackagesView.as_view()),
     path('api/my-orders/', views.my_orders),
     path('api/packages/<str:package_id>/pay/', InitializeReceiverPaymentView.as_view()),
     path('api/paystack/webhook/', PaystackWebhookView.as_view()),
