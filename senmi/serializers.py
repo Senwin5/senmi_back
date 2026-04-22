@@ -35,6 +35,12 @@ class RegisterSerializer(serializers.ModelSerializer):
     
 
 
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'phone_number', 'role']
+        
+
 # serializers.py
 class RiderProfileSerializer(serializers.ModelSerializer):
     email = serializers.CharField(source='user.email', read_only=True)

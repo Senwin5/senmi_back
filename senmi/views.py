@@ -310,8 +310,10 @@ class AvailablePackagesView(APIView):
             return Response({"error": "Rider profile not found"}, status=404)
 
         rider_city = rider_profile.city.strip().lower()
+
         packages = Package.objects.filter(
-            status='pending',
+            status='paid',          # 🔥 ONLY PAID PACKAGES
+            is_paid=True,           # 🔥 DOUBLE SAFETY CHECK
             rider__isnull=True,
             pickup_address__icontains=rider_city,
             pickup_lat__isnull=False
@@ -319,19 +321,18 @@ class AvailablePackagesView(APIView):
 
         data = []
         for p in packages:
-            # Calculate net earning dynamically
             net_earning = float(p.rider_earning - p.commission)
+
             data.append({
                 "package_id": p.package_id,
                 "description": p.description,
                 "pickup": p.pickup_address,
-                #"delivery": p.delivery_address,
                 "price": float(p.price),
                 "receiver_name": p.receiver_name,
                 "receiver_phone": p.receiver_phone,
                 "commission": float(p.commission),
                 "rider_earning": float(p.rider_earning),
-                "net_earning": max(net_earning, 0)  # never negative
+                "net_earning": max(net_earning, 0)
             })
 
         paginator = StandardPagination()
@@ -340,33 +341,48 @@ class AvailablePackagesView(APIView):
 
 
 
-
 class AcceptPackageView(APIView):
     permission_classes = [IsAuthenticated, IsApprovedRider]
 
     def post(self, request, package_id):
+
         try:
             with transaction.atomic():
+
+                # 🔥 LOCK package to avoid 2 riders accepting same job
                 package = Package.objects.select_for_update().get(package_id=package_id)
-        except Package.DoesNotExist:
-                # validate FIRST
+
+                # =========================
+                # ✅ VALIDATION MUST BE FIRST
+                # =========================
+
+                # 🚫 only riders allowed
                 if request.user.role != 'rider':
                     return Response({"error": "Only riders can accept"}, status=403)
 
-                if package.payment_type == "sender" and not package.is_paid:
-                    return Response({"error": "Sender has not paid"}, status=400)
+                # 💰 MUST be paid BEFORE acceptance
+                if not package.is_paid:
+                    return Response({"error": "This package has not been paid for"}, status=400)
 
-                if package.status != 'pending':
-                    return Response({"error": "Package not available"}, status=400)
+                # 🚫 already taken
+                if package.rider is not None:
+                    return Response({"error": "Package already taken"}, status=400)
 
-                # update
+                # =========================
+                # ✅ ASSIGN RIDER
+                # =========================
                 package.rider = request.user
                 package.status = 'accepted'
                 package.save()
 
-                PackageStatusHistory.objects.create(package=package, status='accepted')
+                PackageStatusHistory.objects.create(
+                    package=package,
+                    status='accepted'
+                )
 
-                # WebSocket broadcast
+                # =========================
+                # 🔔 NOTIFY OTHER RIDERS
+                # =========================
                 try:
                     channel_layer = get_channel_layer()
                     async_to_sync(channel_layer.group_send)(
@@ -379,23 +395,26 @@ class AcceptPackageView(APIView):
                         }
                     )
                 except Exception as e:
-                    logger.exception(f"WebSocket broadcast failed (accept package): {e}")
+                    logger.exception(f"WebSocket error: {e}")
 
-                # Email notifications
-                try:
-                    #admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
-                    recipients = [package.customer.email,request.user.email] + [settings.NOTIFY_EMAIL]
+                # =========================
+                # 📧 EMAIL NOTIFICATION
+                # =========================
+                recipients = [
+                    package.customer.email,
+                    request.user.email,
+                    settings.NOTIFY_EMAIL
+                ]
 
-                    recipients = [r for r in recipients if r]
+                send_email(
+                    subject="Package Accepted",
+                    message=f"{package.package_id} accepted by {request.user.username}",
+                    recipients=[r for r in recipients if r]
+                )
 
-                    send_email(
-                        subject="Package Accepted",
-                        message=f"Package {package.package_id} has been accepted by rider {request.user.username}.",
-                        recipients=recipients
-                    )
-                except Exception as e:
-                    logger.exception(f"Failed to send package acceptance email: {e}")
-
+                # =========================
+                # 💰 RESPONSE
+                # =========================
                 net_earning = float(package.rider_earning - package.commission)
 
                 return Response({
@@ -407,9 +426,8 @@ class AcceptPackageView(APIView):
             return Response({"error": "Package not found"}, status=404)
 
         except Exception as e:
-            logger.exception(f"Error accepting package {package_id}: {e}")
-            return Response({"error": "Failed to accept package"}, status=500)
-        
+            logger.exception(e)
+            return Response({"error": "Server error"}, status=500)     
 
 
 
@@ -1196,7 +1214,7 @@ class RiderStatusView(APIView):
     
 
 
-class UserProfileView(APIView):
+'''class UserProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -1208,29 +1226,55 @@ class UserProfileView(APIView):
             "phone_number": user.phone_number,
             "role": user.role,
             "user_id": user.user_id,
-        })
-    
+        })'''
 
 
-class DeleteUserView(APIView):
+from .serializers import UserSerializer
+class UserProfileView(APIView):
     permission_classes = [IsAuthenticated]
-    def delete(self, request):
-        user = request.user
-        user.delete()
-        return Response({"detail": "Account deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+    def get(self, request):
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data)
     
 
-@api_view(['DELETE'])
-@permission_classes([IsAuthenticated])
-def delete_profile(request):
-    """
-    Delete the currently authenticated user's account.
-    """
-    user = request.user
-    user.delete()
-    return Response({"detail": "Account deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+class HardDeleteUserView(APIView):
+    permission_classes = [IsAuthenticated]
 
-        
+    def delete(self, request):
+        print("🔥 HARD DELETE HIT")
+
+        user = request.user
+
+        try:
+            with transaction.atomic():
+
+                if user.role == "rider":
+                    Package.objects.filter(rider=user).update(rider=None)
+                    PackageTracking.objects.filter(rider=user).delete()
+                    RiderRating.objects.filter(rider=user).delete()
+                    RiderWallet.objects.filter(rider=user).delete()
+                    RiderProfile.objects.filter(user=user).delete()
+
+                elif user.role == "customer":
+                    RiderRating.objects.filter(customer=user).delete()
+                    Package.objects.filter(customer=user).delete()
+
+                email = user.email
+
+                user.delete()
+
+            print("✅ USER DELETED:", email)
+
+            return Response({
+                "success": True,
+                "message": "Account deleted"
+            }, status=200)
+
+        except Exception as e:
+            logger.exception("Hard delete failed")
+            return Response({"error": str(e)}, status=500)
+
 
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
