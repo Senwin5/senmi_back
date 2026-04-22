@@ -635,19 +635,38 @@ class RiderActivePackagesView(APIView):
     permission_classes = [IsAuthenticated, IsApprovedRider]
 
     def get(self, request):
-        packages = Package.objects.filter(rider=request.user).order_by('-created_at')
+        packages = Package.objects.filter(
+            rider=request.user
+        ).order_by('-created_at')
 
-        data = []
+        data = {
+            "accepted": [],
+            "in_transit": [],
+            "delivered": []
+        }
+
         for p in packages:
-            data.append({
+            status = (p.status or "").strip().lower()
+
+            item = {
                 "id": p.id,
-                "status": p.status,
+                "package_id": p.package_id,
+                "status": status,
                 "pickup": p.pickup_address,
                 "delivery": p.delivery_address,
                 "net_earning": float(p.rider_earning - p.commission),
-            })
+            }
 
-        return Response({"data": data})
+            if status == "accepted":
+                data["accepted"].append(item)
+
+            elif status in ["picked_up", "in_transit"]:
+                data["in_transit"].append(item)
+
+            elif status == "delivered":
+                data["delivered"].append(item)
+
+        return Response(data)
       
 
 
@@ -1005,19 +1024,6 @@ class CustomerPackagesView(APIView):
         result = paginator.paginate_queryset(data, request)
         return paginator.get_paginated_response(result)
 
-
-
-
-class PackageDetailView(APIView):
-    def get(self, request, package_id):
-        try:
-            Package.objects.get(package_id=package_id)
-        except Package.DoesNotExist:
-            return Response({"error": "Package not found"}, status=404)
-
-        #serializer = PackageSerializer(Package)
-        serializer = PackageSerializer(Package, context={'request': request})
-        return Response(serializer.data)
 
     
 class PackageDetailView(APIView):

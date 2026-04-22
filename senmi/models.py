@@ -104,7 +104,6 @@ class RiderProfile(models.Model):
     
 
 
-
 #Customer(vendor)package order
 class Package(models.Model):
     STATUS_CHOICES = [
