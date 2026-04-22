@@ -91,6 +91,7 @@ class RiderProfile(models.Model):
     # Status fields
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
     rejection_reason = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
 
     def save(self, *args, **kwargs):
         # Generate a unique rider ID if it doesn't exist

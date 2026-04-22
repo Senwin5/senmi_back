@@ -1,10 +1,10 @@
 # senmi/urls.py
 from django.urls import path
-from .views import AdminRidersListView, AdminUserSearchView, CreatePackageView, CustomerPackagesView, LogoutView, PackageDetailView, PaymentCallbackView, calculate_price_view, delete_package, search_package
+from .views import AdminRidersListView, AdminUserSearchView, CreatePackageView, CustomerPackagesView, HardDeleteUserView, LogoutView, PackageDetailView, PaymentCallbackView, calculate_price_view, delete_package, search_package
 from .views import AcceptPackageView,UpdateDeliveryStatusView,CustomLoginView,RegisterView
 from .views import AvailablePackagesView,PaystackWebhookView,RiderEarningsView,RiderStatusView
 from .views import RiderProfileUpdateView, RiderWalletView, RiderWithdrawView,RateRiderView,  TrackPackageView
-from .views import UpdateLocationView, UserProfileView, review_rider, DeleteUserView, InitializeReceiverPaymentView
+from .views import UpdateLocationView, UserProfileView, review_rider, InitializeReceiverPaymentView
 from senmi import views
 
 
@@ -35,7 +35,7 @@ urlpatterns = [
     path('api/admin/riders/', AdminRidersListView.as_view()),
     path('api/rider/status/', RiderStatusView.as_view(), name='rider-status'),
     path('api/profile/', UserProfileView.as_view()),
-    path('api/profile/delete/', DeleteUserView.as_view(), name='delete-profile'),
+    path('api/profile/hard-delete/', HardDeleteUserView.as_view()),
     path('api/calculate-price/', calculate_price_view),
     path('api/packages/<str:package_id>/delete/', delete_package),
     

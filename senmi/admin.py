@@ -64,7 +64,7 @@ class RiderProfileAdmin(admin.ModelAdmin):
     list_filter = ('status',)
     search_fields = ('user__email', 'full_name', 'phone_number')
     readonly_fields = ('id', 'rider_id')
-    ordering = ('id',)
+    ordering = ('-created_at',)
 
     def save_model(self, request, obj, form, change):
         # 0️⃣ Ensure rider_id exists
