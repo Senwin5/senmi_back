@@ -1,3 +1,4 @@
+from gc import get_stats
 import random
 import uuid
 import hashlib
@@ -367,6 +368,17 @@ class AcceptPackageView(APIView):
                 # 🚫 already taken
                 if package.rider is not None:
                     return Response({"error": "Package already taken"}, status=400)
+                
+                # 🚫 Rider must not have active package
+                active_package_exists = Package.objects.filter(
+                    rider=request.user,
+                    status__in=['accepted', 'picked_up']
+                ).exists()
+
+                if active_package_exists:
+                    return Response({
+                        "error": "You already have an active delivery. Complete it first."
+                    }, status=400)
 
                 # =========================
                 # ✅ ASSIGN RIDER
@@ -565,8 +577,21 @@ class UpdateDeliveryStatusView(APIView):
                         return Response({"error": "Package already delivered"}, status=400)
 
                     # ✅ EXISTING CHECK (unchanged)
+                    #if not code_input or package.delivery_code != code_input:
+                        #return Response({"error": "Invalid or missing delivery code"}, status=400)
+                    # ✅ already delivered → return success (prevents false "invalid code")
+                    if package.status == "delivered":
+                        return Response({
+                            "success": True,
+                            "message": "Package already delivered"
+                        }, status=200)
+
+                    # ✅ validate code only if not delivered
                     if not code_input or package.delivery_code != code_input:
-                        return Response({"error": "Invalid or missing delivery code"}, status=400)
+                        return Response({
+                            "success": False,
+                            "error": "Invalid or missing delivery code"
+                        }, status=400)
 
                     wallet, _ = RiderWallet.objects.select_for_update().get_or_create(rider=request.user)
 
@@ -597,11 +622,9 @@ class UpdateDeliveryStatusView(APIView):
                 try:
                     channel_layer = get_channel_layer()
                     async_to_sync(channel_layer.group_send)(
-                        f"tracking_{package.id}",
+                        f"tracking_{package.package_id}",
                         {
                             "type": "send_location",
-                            "lat": 0,
-                            "lng": 0,
                             "status": new_status
                         }
                     )
@@ -622,7 +645,8 @@ class UpdateDeliveryStatusView(APIView):
                 except Exception as e:
                     logger.exception(f"Failed to send status update email for package {package.package_id}: {e}")
 
-                return Response({"message": f"Package marked as {new_status}"})
+                #return Response({"message": f"Package marked as {new_status}"})
+                return Response({"success": True,"message": f"Package marked as {new_status}"})
 
         except Package.DoesNotExist:
             return Response({"error": "Package not found"}, status=404)
@@ -884,7 +908,8 @@ class UpdateLocationView(APIView):
             return Response({"error": "Invalid coordinates"}, status=400)
 
         try:
-            package = Package.objects.get(id=package_id, rider=request.user)
+            #package = Package.objects.get(id=package_id, rider=request.user)
+            package = Package.objects.get(package_id=package_id, rider=request.user)
         except Package.DoesNotExist:
             return Response({"error": "Not your package"}, status=403)
 
@@ -892,10 +917,14 @@ class UpdateLocationView(APIView):
 
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
-            f"tracking_{package.id}",
-            {"type": "send_location", "lat": lat, "lng": lng}
+            f"tracking_{package.package_id}",  # ✅ FIXED
+            {
+                "type": "send_location",
+                "lat": lat,
+                "lng": lng,
+                "status": package.status,  # ✅ also add this
+            }
         )
-
         return Response({"message": "Location updated"})
 
 
@@ -1322,7 +1351,8 @@ def calculate_price_view(request):
 def my_orders(request):
     packages = Package.objects.filter(
         customer=request.user,
-        status__in=["pending", "paid", "delivered"]
+       # status__in=["pending", "paid", "delivered"]
+        status__in=["pending", "paid", "accepted", "picked_up", "delivered"]
     ).order_by('-created_at')
 
     serializer = PackageSerializer(packages, many=True)
