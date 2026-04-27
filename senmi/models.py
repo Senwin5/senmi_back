@@ -127,6 +127,7 @@ class Package(models.Model):
     )
 
     is_collected = models.BooleanField(default=False)
+    is_credited = models.BooleanField(default=False)
     customer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='orders')
     rider = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='deliveries')
 

@@ -560,7 +560,75 @@ class UpdateDeliveryStatusView(APIView):
                 if package.rider != request.user:
                     return Response({"error": "Not your package"}, status=403)
 
-                new_status = request.data.get('status')
+                #new_status = request.data.get('status')
+                new_status = (request.data.get('status') or "").lower().strip()
+
+                # ✅ ADDED CANCEL (NOT CHANGING ANYTHING ELSE)
+                if new_status == "cancelled":
+
+                    if package.status != "accepted":
+                        return Response({
+                            "error": "You can only cancel before pickup"
+                        }, status=400)
+
+                    # ✅ SAVE RIDER INFO BEFORE REMOVING
+                    rider_user = request.user
+                    rider_profile = getattr(rider_user, 'riderprofile', None)
+                    rider_id = rider_profile.rider_id if rider_profile else "N/A"
+
+                    # ✅ UPDATE PACKAGE
+                    package.status = "paid"
+                    package.rider = None
+                    package.save()
+
+                    # 🔥 EMAIL NOTIFICATION
+                    try:
+                        recipients = [
+                            package.customer.email,
+                            settings.NOTIFY_EMAIL
+                        ]
+
+                        send_email(
+                            subject="🚫 Delivery Cancelled by Rider",
+                            message=(
+                                f"Hello {package.customer.username},\n\n"
+                                f"Your package {package.package_id} was cancelled by the rider.\n\n"
+                                f"Rider Name: {rider_user.username}\n"
+                                f"Rider ID: {rider_id}\n\n"
+                                f"The package is now available for another rider to accept.\n\n"
+                                f"Thank you for using SenMi."
+                            ),
+                            recipients=[r for r in recipients if r]
+                        )
+
+                    except Exception as e:
+                        logger.exception("Cancel email failed")
+
+                    # 🔥 BROADCAST (keep yours)
+                    try:
+                        channel_layer = get_channel_layer()
+                        async_to_sync(channel_layer.group_send)(
+                            "riders",
+                            {
+                                "type": "new_package",
+                                "data": {
+                                    "id": package.id,
+                                    "description": package.description,
+                                    "pickup": package.pickup_address,
+                                    "delivery": package.delivery_address,
+                                    "price": float(package.price),
+                                    "net_earning": float(package.rider_earning),
+                                }
+                            }
+                        )
+                    except Exception as e:
+                        logger.exception(e)
+
+                    return Response({
+                        "success": True,
+                        "message": "Cancelled"
+                    })
+
                 valid_flow = {'accepted': 'picked_up', 'picked_up': 'delivered'}
 
                 if package.status not in valid_flow:
@@ -573,13 +641,6 @@ class UpdateDeliveryStatusView(APIView):
                 if new_status == "delivered":
                     code_input = request.data.get('delivery_code')
 
-                    if package.status == "delivered":
-                        return Response({"error": "Package already delivered"}, status=400)
-
-                    # ✅ EXISTING CHECK (unchanged)
-                    #if not code_input or package.delivery_code != code_input:
-                        #return Response({"error": "Invalid or missing delivery code"}, status=400)
-                    # ✅ already delivered → return success (prevents false "invalid code")
                     if package.status == "delivered":
                         return Response({
                             "success": True,
@@ -632,7 +693,6 @@ class UpdateDeliveryStatusView(APIView):
                     logger.exception(f"WebSocket broadcast failed (status update): {e}")
 
                 # Send email after transaction
-                #admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
                 recipients = [package.customer.email, package.rider.email] + [settings.NOTIFY_EMAIL]
                 recipients = [r for r in recipients if r]
 
@@ -645,7 +705,6 @@ class UpdateDeliveryStatusView(APIView):
                 except Exception as e:
                     logger.exception(f"Failed to send status update email for package {package.package_id}: {e}")
 
-                #return Response({"message": f"Package marked as {new_status}"})
                 return Response({"success": True,"message": f"Package marked as {new_status}"})
 
         except Package.DoesNotExist:
@@ -653,6 +712,7 @@ class UpdateDeliveryStatusView(APIView):
         except Exception as e:
             logger.exception(f"Error updating package status {package_id}: {e}")
             return Response({"error": "Failed to update package status"}, status=500)
+        
         
 
 class RiderActivePackagesView(APIView):
