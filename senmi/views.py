@@ -159,10 +159,15 @@ def review_rider(request, rider_id):
     profile.rejection_reason = reason if status_value == 'rejected' else ''
     profile.save(update_fields=['status', 'rejection_reason'])
 
-    message = f"Your rider profile has been {'approved' if status_value == 'approved' else f'rejected: {reason}'}"
+    #message = f"Your rider profile has been {'approved' if status_value == 'approved' else f'rejected: {reason}'}"
+    message = (
+        f"Hello {profile.user.username},\n\n"
+        f"Your rider profile has been "
+        f"{'approved 🎉' if status_value == 'approved' else f'rejected ❌.\nReason: {reason}'}.\n\n"
+        f"{'You can now start accepting deliveries.' if status_value == 'approved' else 'Please update your profile and try again.'}\n\n"
+        f"Thank you for using SenMi."
+    )
 
-    # Send to rider + admins + your Gmail
-    #admins = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
     recipients = [settings.NOTIFY_EMAIL, profile.user.email]
 
     send_email(subject="Rider Profile Review", message=message, recipients=recipients)
@@ -272,9 +277,21 @@ class RiderProfileUpdateView(APIView):
                 recipients = [request.user.email, settings.NOTIFY_EMAIL]
                 recipients = [r for r in recipients if r]
 
-                send_email(
+                '''send_email(
                     subject="Rider Profile Submitted",
                     message=f"Hello {request.user.username}, your rider profile (ID: {profile.rider_id}) has been submitted successfully and is pending review.",
+                    recipients=recipients
+                )'''
+
+
+                send_email(
+                    subject="🚴 Rider Profile Submitted",
+                    message=(
+                        f"Hello {request.user.username},\n\n"
+                        f"Your rider profile (ID: {profile.rider_id}) has been submitted successfully.\n\n"
+                        f"Our team will review your application and notify you shortly.\n\n"
+                        f"Thank you for joining SenMi."
+                    ),
                     recipients=recipients
                 )
 
@@ -418,9 +435,22 @@ class AcceptPackageView(APIView):
                     settings.NOTIFY_EMAIL
                 ]
 
-                send_email(
+                '''send_email(
                     subject="Package Accepted",
                     message=f"{package.package_id} accepted by {request.user.username}",
+                    recipients=[r for r in recipients if r]
+                )'''
+
+                send_email(
+                    subject="📦 Package Accepted",
+                    message=(
+                        f"Hello {package.customer.username},\n\n"
+                        f"Your package {package.package_id} has been accepted by a rider.\n\n"
+                        f"Rider Name: {request.user.username}\n"
+                        f"Rider Phone: {request.user.phone_number}\n\n"
+                        f"The rider will proceed to pick up your package shortly.\n\n"
+                        f"Thank you for using SenMi."
+                    ),
                     recipients=[r for r in recipients if r]
                 )
 
@@ -430,7 +460,7 @@ class AcceptPackageView(APIView):
                 net_earning = float(package.rider_earning - package.commission)
 
                 return Response({
-                    "message": "Accepted successfully",
+                    "message": "Your package has been accepted successfully",
                     "net_earning": net_earning
                 }, status=200)
 
@@ -508,9 +538,20 @@ class CreatePackageView(APIView):
                 #admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
                 recipients = [request.user.email] + [settings.NOTIFY_EMAIL]
 
-                send_email(
+                '''send_email(
                     subject="Package Created Successfully",
                     message=f"Your package {package.package_id} has been created successfully.",
+                    recipients=recipients
+                )'''
+
+                send_email(
+                    subject="📦 Package Created",
+                    message=(
+                        f"Hello {request.user.username},\n\n"
+                        f"Your package {package.package_id} has been created successfully.\n\n"
+                        f"Please proceed to payment so a rider can accept your delivery.\n\n"
+                        f"Thank you for using SenMi."
+                    ),
                     recipients=recipients
                 )
             except Exception as e:
@@ -697,11 +738,41 @@ class UpdateDeliveryStatusView(APIView):
                 recipients = [r for r in recipients if r]
 
                 try:
-                    send_email(
+                    '''send_email(
                         subject=f"Package {package.package_id} Status Update",
                         message=f"Package {package.package_id} is now {new_status}.",
                         recipients=recipients
+                    )'''
+
+                    # Choose message based on status (NO LOGIC CHANGE)
+                    if new_status == "picked_up":
+                        message = (
+                            f"Hello {package.customer.username},\n\n"
+                            f"Your package {package.package_id} has been picked up.\n\n"
+                            f"Rider: {request.user.username}\n\n"
+                            f"Your delivery is now in progress.\n\n"
+                            f"Thank you for using SenMi."
+                        )
+
+                    elif new_status == "delivered":
+                        message = (
+                            f"Hello {package.customer.username},\n\n"
+                            f"Your package {package.package_id} has been successfully delivered.\n\n"
+                            f"We hope you had a great experience.\n\n"
+                            f"Thank you for using SenMi."
+                        )
+
+                    else:
+                        # fallback (keeps your original behavior)
+                        message = f"Package {package.package_id} is now {new_status}."
+
+                    # Send email (unchanged behavior)
+                    send_email(
+                        subject=f"📦 Package Update - {package.package_id}",
+                        message=message,
+                        recipients=recipients
                     )
+
                 except Exception as e:
                     logger.exception(f"Failed to send status update email for package {package.package_id}: {e}")
 
@@ -861,9 +932,21 @@ class InitializeReceiverPaymentView(APIView):
             #admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
             recipients = [email]  + [settings.NOTIFY_EMAIL]
 
-            send_email(
+            '''send_email(
                 subject="Package Payment Initiated",
                 message=f"Payment has been initiated for Package {package.package_id}. Payment URL: {res_data['data']['authorization_url']}",
+                recipients=recipients
+            )'''
+
+            send_email(
+                subject="💳 Payment Initiated",
+                message=(
+                    f"Hello,\n\n"
+                    f"Payment has been initiated for package {package.package_id}.\n\n"
+                    f"Click the link below to complete your payment:\n"
+                    f"{res_data['data']['authorization_url']}\n\n"
+                    f"Thank you for using SenMi."
+                ),
                 recipients=recipients
             )
 
@@ -937,9 +1020,20 @@ class PaystackWebhookView(APIView):
 
                 recipients = [r for r in recipients if r]
 
-                send_email(
+                '''send_email(
                     subject="Payment Successful",
                     message=f"Package {package.package_id} has been paid successfully.",
+                    recipients=recipients
+                )'''
+
+                send_email(
+                    subject="✅ Payment Successful",
+                    message=(
+                        f"Hello {package.customer.username},\n\n"
+                        f"Your payment for package {package.package_id} was successful.\n\n"
+                        f"Your package is now available for riders to accept.\n\n"
+                        f"Thank you for using SenMi."
+                    ),
                     recipients=recipients
                 )
 
@@ -1208,19 +1302,28 @@ class RiderWithdrawView(APIView):
                     # Deduct from wallet only if transfer succeeds
                     wallet.withdraw(amount)
 
-                    # Send email to rider, admins, and notify email
-                    #admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
                     recipients = [request.user.email] + [settings.NOTIFY_EMAIL]
                     recipients = [r for r in recipients if r]
 
-                    send_email(
+                    '''send_email(
                         subject="Withdrawal Successful",
                         message=f"Rider {request.user.username} has withdrawn ₦{amount}. Current balance: ₦{wallet.balance}.",
+                        recipients=recipients
+                    )'''
+
+                    send_email(
+                        subject="💰 Withdrawal Successful",
+                        message=(
+                            f"Hello {request.user.username},\n\n"
+                            f"You have successfully withdrawn ₦{amount} from your wallet.\n\n"
+                            f"Current Balance: ₦{wallet.balance}\n\n"
+                            f"Thank you for using SenMi."
+                        ),
                         recipients=recipients
                     )
 
                     return Response({
-                        "message": f"Withdrawal of ₦{amount} successful",
+                        "message": f"Withdrawal of ₦{amount} Successful",
                         "current_balance": float(wallet.balance)
                     })
 
