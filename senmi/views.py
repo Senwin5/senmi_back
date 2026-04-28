@@ -431,15 +431,9 @@ class AcceptPackageView(APIView):
                 # =========================
                 recipients = [
                     package.customer.email,
-                    request.user.email,
+                    #request.user.email,
                     settings.NOTIFY_EMAIL
                 ]
-
-                '''send_email(
-                    subject="Package Accepted",
-                    message=f"{package.package_id} accepted by {request.user.username}",
-                    recipients=[r for r in recipients if r]
-                )'''
 
                 send_email(
                     subject="📦 Package Accepted",
@@ -1226,7 +1220,7 @@ class RiderWalletView(APIView):
         return Response({"balance": float(wallet.balance), "total_earned": float(wallet.total_earned)})
 
 
-class RiderWithdrawView(APIView):
+"""class RiderWithdrawView(APIView):
     throttle_classes = [LoginThrottle]
     permission_classes = [IsAuthenticated, IsApprovedRider]
 
@@ -1327,8 +1321,133 @@ class RiderWithdrawView(APIView):
 
         except Exception as e:
             logger.exception("Error during withdrawal")
-            return Response({"error": "Withdrawal failed"}, status=500)
+            return Response({"error": "Withdrawal failed"}, status=500)"""
+
+
+class RiderWithdrawView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            amount = Decimal(request.data.get('amount'))
+            if amount <= 0:
+                raise InvalidOperation()
+        except:
+            return Response({"error": "Invalid amount"}, status=400)
+
+        bank_account = request.data.get('bank_account')
+        bank_code = request.data.get('bank_code')
+
+        if not bank_account or not bank_code:
+            return Response({"error": "Bank details required"}, status=400)
+
+        headers = {
+            "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
+            "Content-Type": "application/json"
+        }
+
+        # ✅ STEP 1: VERIFY ACCOUNT FIRST
+        verify_url = f"https://api.paystack.co/bank/resolve?account_number={bank_account}&bank_code={bank_code}"
+
+        try:
+            verify_res = requests.get(verify_url, headers=headers).json()
+        except Exception:
+            return Response({"error": "Verification failed"}, status=500)
+
+        if not verify_res.get("status"):
+            return Response({
+                "error": "Invalid bank details",
+                "details": verify_res
+            }, status=400)
+
+        account_name = verify_res["data"]["account_name"]
+
+        # ✅ STEP 2: CREATE RECIPIENT
+        recipient_data = {
+            "type": "nuban",
+            "name": account_name,
+            "account_number": bank_account,
+            "bank_code": bank_code,
+            "currency": "NGN"
+        }
+
+        recipient_res = requests.post(
+            "https://api.paystack.co/transferrecipient",
+            json=recipient_data,
+            headers=headers
+        ).json()
+
+        if not recipient_res.get("status"):
+            return Response({
+                "error": "Recipient creation failed",
+                "details": recipient_res
+            }, status=400)
+
+        recipient_code = recipient_res["data"]["recipient_code"]
+
+        # ✅ STEP 3: TRANSFER
+        transfer_data = {
+            "source": "balance",
+            "amount": int(amount * 100),
+            "recipient": recipient_code,
+            "reason": "Rider payout"
+        }
+
+        transfer_res = requests.post(
+            "https://api.paystack.co/transfer",
+            json=transfer_data,
+            headers=headers
+        ).json()
+
+        if not transfer_res.get("status"):
+            return Response({
+                "error": "Transfer failed",
+                "details": transfer_res
+            }, status=400)
+
+        return Response({
+            "message": "Withdrawal successful"
+        })
         
+
+class BankListView(APIView):
+    def get(self, request):
+        headers = {
+            "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"
+        }
+
+        res = requests.get("https://api.paystack.co/bank", headers=headers)
+
+        return Response(res.json())
+    
+
+class ResolveAccountView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        account_number = request.data.get("account_number")
+        bank_code = request.data.get("bank_code")
+
+        if not account_number or not bank_code:
+            return Response({"error": "Missing details"}, status=400)
+
+        headers = {
+            "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"
+        }
+
+        url = f"https://api.paystack.co/bank/resolve?account_number={account_number}&bank_code={bank_code}"
+
+        try:
+            res = requests.get(url, headers=headers).json()
+        except Exception:
+            return Response({"error": "Verification failed"}, status=500)
+
+        if res.get("status"):
+            return Response({
+                "account_name": res["data"]["account_name"]
+            })
+
+        return Response({"error": res.get("message")}, status=400)
 
 
 # ------------------------------
