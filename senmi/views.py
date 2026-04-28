@@ -941,7 +941,7 @@ class InitializeReceiverPaymentView(APIView):
             send_email(
                 subject="💳 Payment Initiated",
                 message=(
-                    f"Hello,\n\n"
+                    f"Hello {package.customer.username},\n\n"
                     f"Payment has been initiated for package {package.package_id}.\n\n"
                     f"Click the link below to complete your payment:\n"
                     f"{res_data['data']['authorization_url']}\n\n"
@@ -1012,7 +1012,6 @@ class PaystackWebhookView(APIView):
                 package.save(update_fields=['is_paid','status'])
                 logger.info(f"Package {package.id} marked as paid via webhook.")
 
-                #admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
                 recipients = [
                     package.customer.email,
                     package.rider.email if package.rider else None
@@ -1020,17 +1019,13 @@ class PaystackWebhookView(APIView):
 
                 recipients = [r for r in recipients if r]
 
-                '''send_email(
-                    subject="Payment Successful",
-                    message=f"Package {package.package_id} has been paid successfully.",
-                    recipients=recipients
-                )'''
-
                 send_email(
-                    subject="✅ Payment Successful",
+                    subject="Payment Successful",
                     message=(
                         f"Hello {package.customer.username},\n\n"
                         f"Your payment for package {package.package_id} was successful.\n\n"
+                        f"📦 Delivery Code: {package.delivery_code}\n\n"
+                        f"⚠️ Please share this code ONLY with the rider upon delivery.\n\n"
                         f"Your package is now available for riders to accept.\n\n"
                         f"Thank you for using SenMi."
                     ),
