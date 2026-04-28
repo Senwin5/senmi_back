@@ -1,6 +1,6 @@
 # senmi/urls.py
 from django.urls import path
-from .views import AdminRidersListView, AdminUserSearchView, CreatePackageView, CustomerPackagesView, HardDeleteUserView, LogoutView, PackageDetailView, PaymentCallbackView, calculate_price_view, delete_package, search_package
+from .views import AdminRidersListView, AdminUserSearchView, BankListView, CreatePackageView, CustomerPackagesView, HardDeleteUserView, LogoutView, PackageDetailView, PaymentCallbackView, ResolveAccountView, calculate_price_view, delete_package, search_package
 from .views import AcceptPackageView,UpdateDeliveryStatusView,CustomLoginView,RegisterView
 from .views import AvailablePackagesView,PaystackWebhookView,RiderEarningsView,RiderStatusView
 from .views import RiderProfileUpdateView, RiderWalletView, RiderWithdrawView,RateRiderView,  TrackPackageView
@@ -29,6 +29,8 @@ urlpatterns = [
     path('api/track/<str:package_id>/', TrackPackageView.as_view()),
     path('api/rider/wallet/', RiderWalletView.as_view()),
     path('api/rider/wallet/withdraw/', RiderWithdrawView.as_view()),
+    path('api/banks/', BankListView.as_view()),
+    path('rider/resolve-account/', ResolveAccountView.as_view()),
     path('api/customer/packages/', CustomerPackagesView.as_view()),
     path('api/packages/<str:package_id>/', PackageDetailView.as_view()),
     path('api/packages/<str:package_id>/rate/', RateRiderView.as_view()),
