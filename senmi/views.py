@@ -165,7 +165,7 @@ def review_rider(request, rider_id):
         f"Your rider profile has been "
         f"{'approved 🎉' if status_value == 'approved' else f'rejected ❌.\nReason: {reason}'}.\n\n"
         f"{'You can now start accepting deliveries.' if status_value == 'approved' else 'Please update your profile and try again.'}\n\n"
-        f"Thank you for using SenMi."
+        f"Thank you for using Senmi."
     )
 
     recipients = [settings.NOTIFY_EMAIL, profile.user.email]
@@ -203,7 +203,7 @@ class RegisterView(APIView):
                 #admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
                 recipients = [user.email] +  [settings.NOTIFY_EMAIL]
                 send_email(
-                    subject="Welcome to SenMi!",
+                    subject="Welcome to Senmi!",
                     message=f"Hello {user.username}, Your account has been created successfully as a {user.role.capitalize()}. Kindly complete your profile for approval by the admin",
                     recipients=recipients
                 )
@@ -218,6 +218,7 @@ class RegisterView(APIView):
                 "role": user.role,
                 "username": user.username,
                 "access": str(refresh.access_token)
+                
             }, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -290,7 +291,7 @@ class RiderProfileUpdateView(APIView):
                         f"Hello {request.user.username},\n\n"
                         f"Your rider profile (ID: {profile.rider_id}) has been submitted successfully.\n\n"
                         f"Our team will review your application and notify you shortly.\n\n"
-                        f"Thank you for joining SenMi."
+                        f"Thank you for joining Senmi."
                     ),
                     recipients=recipients
                 )
@@ -443,7 +444,7 @@ class AcceptPackageView(APIView):
                         f"Rider Name: {request.user.username}\n"
                         f"Rider Phone: {request.user.phone_number}\n\n"
                         f"The rider will proceed to pick up your package shortly.\n\n"
-                        f"Thank you for using SenMi."
+                        f"Thank you for using Senmi."
                     ),
                     recipients=[r for r in recipients if r]
                 )
@@ -544,7 +545,7 @@ class CreatePackageView(APIView):
                         f"Hello {request.user.username},\n\n"
                         f"Your package {package.package_id} has been created successfully.\n\n"
                         f"Please proceed to payment so a rider can accept your delivery.\n\n"
-                        f"Thank you for using SenMi."
+                        f"Thank you for using Senmi."
                     ),
                     recipients=recipients
                 )
@@ -631,7 +632,7 @@ class UpdateDeliveryStatusView(APIView):
                                 f"Rider Name: {rider_user.username}\n"
                                 f"Rider ID: {rider_id}\n\n"
                                 f"The package is now available for another rider to accept.\n\n"
-                                f"Thank you for using SenMi."
+                                f"Thank you for using Senmi."
                             ),
                             recipients=[r for r in recipients if r]
                         )
@@ -745,7 +746,7 @@ class UpdateDeliveryStatusView(APIView):
                             f"Your package {package.package_id} has been picked up.\n\n"
                             f"Rider: {request.user.username}\n\n"
                             f"Your delivery is now in progress.\n\n"
-                            f"Thank you for using SenMi."
+                            f"Thank you for using Senmi."
                         )
 
                     elif new_status == "delivered":
@@ -753,7 +754,7 @@ class UpdateDeliveryStatusView(APIView):
                             f"Hello {package.customer.username},\n\n"
                             f"Your package {package.package_id} has been successfully delivered.\n\n"
                             f"We hope you had a great experience.\n\n"
-                            f"Thank you for using SenMi."
+                            f"Thank you for using Senmi."
                         )
 
                     else:
@@ -939,7 +940,7 @@ class InitializeReceiverPaymentView(APIView):
                     f"Payment has been initiated for package {package.package_id}.\n\n"
                     f"Click the link below to complete your payment:\n"
                     f"{res_data['data']['authorization_url']}\n\n"
-                    f"Thank you for using SenMi."
+                    f"Thank you for using Senmi."
                 ),
                 recipients=recipients
             )
@@ -1021,7 +1022,7 @@ class PaystackWebhookView(APIView):
                         f"📦 Delivery Code: {package.delivery_code}\n\n"
                         f"⚠️ Please share this code ONLY with the rider upon delivery.\n\n"
                         f"Your package is now available for riders to accept.\n\n"
-                        f"Thank you for using SenMi."
+                        f"Thank you for using Senmi."
                     ),
                     recipients=recipients
                 )
@@ -1306,7 +1307,7 @@ class RiderWalletView(APIView):
                             f"Hello {request.user.username},\n\n"
                             f"You have successfully withdrawn ₦{amount} from your wallet.\n\n"
                             f"Current Balance: ₦{wallet.balance}\n\n"
-                            f"Thank you for using SenMi."
+                            f"Thank you for using Senmi."
                         ),
                         recipients=recipients
                     )
@@ -1350,17 +1351,23 @@ class RiderWithdrawView(APIView):
         verify_url = f"https://api.paystack.co/bank/resolve?account_number={bank_account}&bank_code={bank_code}"
 
         try:
-            verify_res = requests.get(verify_url, headers=headers).json()
-        except Exception:
-            return Response({"error": "Verification failed"}, status=500)
+            verify_res = requests.get(verify_url, headers=headers)
+            verify_json = verify_res.json()
+            print("VERIFY RESPONSE:", verify_json)  # 👈 IMPORTANT
+        except Exception as e:
+            return Response({
+                "error": "Verification request failed",
+                "details": str(e)
+            }, status=500)
 
-        if not verify_res.get("status"):
+        if not verify_json.get("status"):
             return Response({
                 "error": "Invalid bank details",
-                "details": verify_res
+                "paystack_message": verify_json.get("message"),
+                "full_response": verify_json
             }, status=400)
 
-        account_name = verify_res["data"]["account_name"]
+        account_name = verify_json["data"]["account_name"]
 
         # ✅ STEP 2: CREATE RECIPIENT
         recipient_data = {
@@ -1377,13 +1384,19 @@ class RiderWithdrawView(APIView):
             headers=headers
         ).json()
 
-        if not recipient_res.get("status"):
-            return Response({
-                "error": "Recipient creation failed",
-                "details": recipient_res
-            }, status=400)
+        print("RECIPIENT RESPONSE:", recipient_res)  # 👈 IMPORTANT
 
-        recipient_code = recipient_res["data"]["recipient_code"]
+        if not recipient_res.get("status"):
+            # 🔁 Try to extract existing recipient
+            if "recipient_code" in str(recipient_res):
+                recipient_code = recipient_res["data"].get("recipient_code")
+            else:
+                return Response({
+                    "error": "Recipient creation failed",
+                    "details": recipient_res
+                }, status=400)
+        else:
+            recipient_code = recipient_res["data"]["recipient_code"]
 
         # ✅ STEP 3: TRANSFER
         transfer_data = {
@@ -1399,9 +1412,12 @@ class RiderWithdrawView(APIView):
             headers=headers
         ).json()
 
+        print("TRANSFER RESPONSE:", transfer_res)  # 👈 IMPORTANT
+
         if not transfer_res.get("status"):
             return Response({
                 "error": "Transfer failed",
+                "paystack_message": transfer_res.get("message"),
                 "details": transfer_res
             }, status=400)
 
