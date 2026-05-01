@@ -140,6 +140,7 @@ class CustomLoginSerializer(TokenObtainPairSerializer):
         token = super().get_token(user)
         token['username'] = user.username
         token['role'] = user.role
+        token['is_admin'] = user.is_superuser or user.is_staff
         return token
 
     def validate(self, attrs):
@@ -168,6 +169,8 @@ class CustomLoginSerializer(TokenObtainPairSerializer):
         data['user_id'] = user.user_id
         data['role'] = user.role
         data['username'] = user.username
+
+        data['is_admin'] = user.is_superuser or user.is_staff
         return data
     
 
