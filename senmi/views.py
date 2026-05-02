@@ -88,6 +88,7 @@ class RiderLoginAPIView(APIView):
         refresh = RefreshToken.for_user(user)
         return Response({
             "access": str(refresh.access_token),
+            "refresh": str(refresh),
             "role": user.role,
             "username": user.username,
             "is_admin": user.is_superuser
@@ -217,7 +218,8 @@ class RegisterView(APIView):
                 "message": "User created successfully",
                 "role": user.role,
                 "username": user.username,
-                "access": str(refresh.access_token)
+                "access": str(refresh.access_token),
+                "refresh": str(refresh)
                 
             }, status=status.HTTP_201_CREATED)
 
@@ -924,26 +926,7 @@ class InitializeReceiverPaymentView(APIView):
             package.save(update_fields=['payment_reference'])
 
             # 🔥 EMAIL (UNCHANGED)
-            #admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
-            recipients = [email]  + [settings.NOTIFY_EMAIL]
-
-            '''send_email(
-                subject="Package Payment Initiated",
-                message=f"Payment has been initiated for Package {package.package_id}. Payment URL: {res_data['data']['authorization_url']}",
-                recipients=recipients
-            )'''
-
-            send_email(
-                subject="💳 Payment Initiated",
-                message=(
-                    f"Hello {package.customer.username},\n\n"
-                    f"Payment has been initiated for package {package.package_id}.\n\n"
-                    f"Click the link below to complete your payment:\n"
-                    f"{res_data['data']['authorization_url']}\n\n"
-                    f"Thank you for using Senmi."
-                ),
-                recipients=recipients
-            )
+           
 
             return Response({
                 "payment_url": res_data["data"]["authorization_url"],
