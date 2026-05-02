@@ -446,6 +446,7 @@ class AcceptPackageView(APIView):
                         f"Rider Name: {request.user.username}\n"
                         f"Rider Phone: {request.user.phone_number}\n\n"
                         f"The rider will proceed to pick up your package shortly.\n\n"
+                        f"After picking up the package rider will start delivery.\n\n"
                         f"Thank you for using Senmi."
                     ),
                     recipients=[r for r in recipients if r]
