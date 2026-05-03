@@ -1501,7 +1501,8 @@ class RateRiderView(APIView):
 
     def post(self, request, package_id):
         try:
-            package = Package.objects.get(id=package_id, customer=request.user, status='delivered')
+            #package = Package.objects.get(id=package_id, customer=request.user, status='delivered')
+            package = Package.objects.get(package_id=package_id,customer=request.user,status='delivered')
         except Package.DoesNotExist:
             return Response({"error": "Invalid package"}, status=404)
 

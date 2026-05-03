@@ -92,58 +92,25 @@ class RiderProfileAdmin(admin.ModelAdmin):
         # 4️⃣ Save the object
         super().save_model(request, obj, form, change)
 
-        # 5️⃣ Notify the rider on new submission or pending updates
-        '''if not change or obj.status == 'pending':
-            send_mail(
-                subject="Rider Profile Submitted",
-                message=f"Hello {obj.user.username},\n\n"
-                        f"Your rider profile (ID: {obj.rider_id}) has been submitted and is pending review.",
-                from_email=settings.EMAIL_HOST_USER,
-                recipient_list=[obj.user.email],
-                fail_silently=False,
-            )
-
-        # 6️⃣ Notify all admins about new pending profile
-        UserModel = get_user_model()
-        admins = list(UserModel.objects.filter(is_superuser=True).values_list('email', flat=True))
-        send_mail(
-            subject="New Rider Profile Pending Review",
-            message=f"Hello team. Rider {obj.user.username} (ID: {obj.rider_id}) has submitted their profile. Please review.",
-            from_email=settings.EMAIL_HOST_USER,
-            recipient_list= ["senmilog@gmail.com"],  # now admins is a list
-            fail_silently=False,
-        )'''
-
-
         if not change or obj.status == 'pending':
             send_mail(
-                subject="Your Rider Profile Has Been Successfully Submitted",
-                message=f"""
-        Hello {obj.user.username},
-
-        Thank you for completing and submitting your rider profile for Senmi.
-
-        We are pleased to inform you that your application has been successfully received and is now under review by our verification team.
-
-        Your Rider Profile ID: {obj.rider_id}
-
-        What happens next?
-        • Our team will carefully review the information and documents you submitted.
-        • This process helps us ensure the safety, reliability, and quality of our delivery network.
-        • Once the review is complete, you will receive another email notifying you whether your profile has been approved or if additional updates are required.
-
-        Please note:
-        Approval times may vary depending on application volume and verification requirements.
-
-        We appreciate your patience during this process.
-
-        Thank you for choosing to partner with Senmi and for taking the first step toward becoming part of our trusted rider community.
-
-        We look forward to having you deliver with us soon.
-
-        Best regards,
-        Senmi Rider Verification Team
-        """,
+                subject="Your Rider Profile Successfully Submitted",
+                message = (
+                    f"Hello {obj.user.username},\n\n"
+                    "Thank you for submitting your rider profile for Senmi.\n\n"
+                    "Your application has been received and is now under review.\n\n"
+                    f"Rider Profile ID: {obj.rider_id}\n\n"
+                    "What happens next:\n"
+                    "• Our team will review your details and documents\n"
+                    "• We will verify your information for safety and quality\n"
+                    "• You will receive an update once review is complete\n\n"
+                    "Please note:\n"
+                    "Review time may vary depending on application volume.\n\n"
+                    "Thank you for joining Senmi.\n"
+                    "We look forward to having you as a rider.\n\n"
+                    "Best regards,\n"
+                    "Senmi Rider Team"
+                ),
                 from_email=settings.EMAIL_HOST_USER,
                 recipient_list=[obj.user.email],
                 fail_silently=False,
@@ -158,23 +125,17 @@ class RiderProfileAdmin(admin.ModelAdmin):
 
         send_mail(
             subject="New Rider Profile Awaiting Review",
-            message=f"""
-        Hello Admin Team,
-
-        A new rider profile has just been submitted and is currently awaiting review.
-
-        Rider Details
-        Username: {obj.user.username}
-        Profile ID: {obj.rider_id}
-        Current Status: Pending Review
-
-        Please log in to the admin dashboard to verify the submitted information and take the appropriate action.
-
-        Timely review helps maintain an efficient onboarding experience for new riders.
-
-        Regards,
-        Senmi Automated Notification System
-        """,
+            message = (
+                "Hello Admin Team,\n\n"
+                "A new rider profile has been submitted for review.\n\n"
+                "Rider Details:\n"
+                f"Username: {obj.user.username}\n"
+                f"Profile ID: {obj.rider_id}\n"
+                "Status: Pending Review\n\n"
+                "Please log in to the dashboard to verify and take action.\n\n"
+                "Regards,\n"
+                "Senmi System"
+            ),
             from_email=settings.EMAIL_HOST_USER,
             recipient_list=["senmilog@gmail.com"],
             fail_silently=False,
@@ -203,19 +164,16 @@ class RiderProfileAdmin(admin.ModelAdmin):
         """
 
             elif obj.status == 'rejected':
-                message = f"""
-        Hello {obj.user.username},
-
-        Your rider profile (ID: {obj.rider_id}) has been rejected.
-
-        Reason:
-        {obj.rejection_reason}
-
-        Please review and update your details.
-
-        Best regards,
-        Senmi Team
-        """
+                message = (
+                    f"Hello {obj.user.username},\n\n"
+                    "We regret to inform you that your rider profile was not approved.\n\n"
+                    f"Rider ID: {obj.rider_id}\n\n"
+                    "Reason:\n"
+                    f"{obj.rejection_reason}\n\n"
+                    "Please review and update your information if needed.\n\n"
+                    "Best regards,\n"
+                    "Senmi Team"
+                ),
 
             if message:
                 send_mail(
