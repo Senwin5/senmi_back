@@ -162,12 +162,55 @@ def review_rider(request, rider_id):
 
     #message = f"Your rider profile has been {'approved' if status_value == 'approved' else f'rejected: {reason}'}"
     message = (
-        f"Hello {profile.user.username},\n\n"
-        f"Your rider profile has been "
-        f"{'approved 🎉' if status_value == 'approved' else f'rejected ❌.\nReason: {reason}'}.\n\n"
-        f"{'You can now start accepting deliveries.' if status_value == 'approved' else 'Please update your profile and try again.'}\n\n"
-        f"Thank you for using Senmi."
-    )
+            f"""
+        Hello {profile.user.username},
+
+        """
+            + (
+                f"""
+        Congratulations!
+
+        We are pleased to inform you that your rider profile has been officially approved by the Senmi Verification Team.
+
+        Your application has successfully passed our review process, and your rider account is now fully activated.
+
+        You can now start accepting delivery requests, completing deliveries, and earning through the Senmi platform.
+
+        As an approved rider, please ensure that you:
+        • Follow all Senmi Terms and Conditions
+        • Maintain professionalism when interacting with customers
+        • Handle deliveries with care and responsibility
+        • Keep your rider profile information updated
+
+        We are excited to have you as part of the Senmi rider community and look forward to your success on the platform.
+
+        Thank you for choosing Senmi.
+
+        Ride safely and deliver confidently.
+
+        Best regards,
+        Senmi Rider Verification Team
+        """
+                if status_value == "approved"
+                else f"""
+        We regret to inform you that your rider profile was not approved during our review process.
+
+        Reason for rejection:
+        {reason}
+
+        This decision may have resulted from incomplete information, incorrect details, or verification requirements that were not fully met.
+
+        Please review your submitted profile carefully, make the necessary corrections, and resubmit your application for another review.
+
+        We encourage you to try again, and our team will be happy to reassess your updated submission.
+
+        Thank you for your interest in becoming a Senmi rider.
+
+        Best regards,
+        Senmi Rider Verification Team
+        """
+            )
+        )
 
     recipients = [settings.NOTIFY_EMAIL, profile.user.email]
 
