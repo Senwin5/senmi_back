@@ -197,8 +197,8 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 COMMISSION_RATE = float(os.getenv("COMMISSION_RATE", 0.05))  
 # settings.py
 BASE_FEE = 1000          # starting price (adjust anytime)
-PER_KM_RATE = 200       # cost per km (fuel dependent)
-FUEL_MULTIPLIER = 1.3   # can increase during fuel hike
+PER_KM_RATE = 205       # cost per km (fuel dependent)
+FUEL_MULTIPLIER = 1.39   # can increase during fuel hike
 
 
 STATIC_URL = 'static/'
