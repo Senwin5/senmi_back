@@ -27,6 +27,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from channels.layers import get_channel_layer
 from rest_framework.pagination import PageNumberPagination
 from asgiref.sync import async_to_sync
+from .serializers import UserSerializer
 from .utils import send_email, calculate_distance, calculate_price
 from .models import (
     Package, PackageStatusHistory, PackageTracking,
@@ -39,11 +40,16 @@ from .serializers import (
 from senmi.models import User
 
 
+# ------------------------------
+# Authentication / Login
+# ------------------------------
+class CustomLoginView(TokenObtainPairView):
+    serializer_class = CustomLoginSerializer
+
 class StandardPagination(PageNumberPagination):
-    page_size = 20
+    page_size = 30
     page_size_query_param = 'page_size'
     max_page_size = 100
-
 
 # ------------------------------
 # Logging
@@ -56,13 +62,6 @@ logger = logging.getLogger(__name__)
 # ------------------------------
 class LoginThrottle(UserRateThrottle):
     rate = '5/min'
-
-
-# ------------------------------
-# Authentication / Login
-# ------------------------------
-class CustomLoginView(TokenObtainPairView):
-    serializer_class = CustomLoginSerializer
 
 
 class RiderLoginAPIView(APIView):
@@ -95,6 +94,12 @@ class RiderLoginAPIView(APIView):
         })
 
 
+class UserProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data)
 # ------------------------------
 # Admin Views
 # ------------------------------
@@ -1568,30 +1573,6 @@ class RiderStatusView(APIView):
 
         return Response({"status": profile.status, "rejection_reason": profile.rejection_reason})
     
-
-
-'''class UserProfileView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        user = request.user
-
-        return Response({
-            "username": user.username,   # 🔥 important
-            "email": user.email,
-            "phone_number": user.phone_number,
-            "role": user.role,
-            "user_id": user.user_id,
-        })'''
-
-
-from .serializers import UserSerializer
-class UserProfileView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        serializer = UserSerializer(request.user)
-        return Response(serializer.data)
     
 
 class HardDeleteUserView(APIView):

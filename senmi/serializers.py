@@ -77,6 +77,9 @@ class PackageSerializer(serializers.ModelSerializer):
     # ✅ ADD THIS (only change)
     delivery_code = serializers.SerializerMethodField()
 
+    rider_profile_picture = serializers.SerializerMethodField()
+    vehicle_number = serializers.SerializerMethodField()
+
     class Meta:
         model = Package
         fields = [
@@ -104,6 +107,9 @@ class PackageSerializer(serializers.ModelSerializer):
             'sender_phone',
             'rider_name',
             'rider_phone',
+             # extra info
+            'rider_profile_picture',
+            'vehicle_number',
         ]
 
         read_only_fields = [
@@ -130,6 +136,24 @@ class PackageSerializer(serializers.ModelSerializer):
             validated_data['price'] = Decimal(price)
 
         return super().create(validated_data)
+    
+    def get_rider_profile_picture(self, obj):
+        if obj.rider and hasattr(obj.rider, 'riderprofile'):
+
+            request = self.context.get('request')
+            image = obj.rider.riderprofile.profile_picture
+
+            if image and request:
+                return request.build_absolute_uri(image.url)
+
+        return None
+    
+    
+    def get_vehicle_number(self, obj):
+        if obj.rider and hasattr(obj.rider, 'riderprofile'):
+            return obj.rider.riderprofile.vehicle_number
+
+        return None
 
 
 
