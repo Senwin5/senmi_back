@@ -390,7 +390,8 @@ class AvailablePackagesView(APIView):
 
         data = []
         for p in packages:
-            net_earning = float(p.rider_earning - p.commission)
+            #net_earning = float(p.rider_earning - p.commission)
+            net_earning = float(p.rider_earning)
 
             data.append({
                 "package_id": p.package_id,
@@ -503,7 +504,8 @@ class AcceptPackageView(APIView):
                 # =========================
                 # 💰 RESPONSE
                 # =========================
-                net_earning = float(package.rider_earning - package.commission)
+                #net_earning = float(package.rider_earning - package.commission)
+                net_earning = float(package.rider_earning)
 
                 return Response({
                     "message": "Your package has been accepted successfully",
@@ -744,12 +746,17 @@ class UpdateDeliveryStatusView(APIView):
                     wallet, _ = RiderWallet.objects.select_for_update().get_or_create(rider=request.user)
 
                     # Always subtract commission from rider earnings
-                    net_earning = package.rider_earning - package.commission
+                    #net_earning = package.rider_earning - package.commission
+                    net_earning = package.rider_earning
                     if net_earning < 0:
                         return Response({"error": "Earnings cannot be negative"}, status=400)
 
-                    wallet.deposit(net_earning)
-                    wallet.save()
+                    #wallet.deposit(net_earning)
+                    #wallet.save()
+                    wallet.balance += net_earning
+                    wallet.total_earned += net_earning
+                    wallet.save(update_fields=['balance', 'total_earned'])
+                    
 
                     # Mark collected if payment type is receiver
                     if package.payment_type == "receiver" and not package.is_collected:
@@ -855,7 +862,8 @@ class RiderActivePackagesView(APIView):
                 "status": status,
                 "pickup": p.pickup_address,
                 "delivery": p.delivery_address,
-                "net_earning": float(p.rider_earning - p.commission),
+                #"net_earning": float(p.rider_earning - p.commission),
+                "net_earning": float(p.rider_earning),
             }
 
             if status == "accepted":
@@ -879,7 +887,8 @@ class RiderEarningsView(APIView):
         deliveries = Package.objects.filter(rider=request.user, status='delivered')
 
         # Calculate net earnings after subtracting commission
-        total_earnings = sum((p.rider_earning - p.commission) for p in deliveries)
+        #total_earnings = sum((p.rider_earning - p.commission) for p in deliveries)
+        total_earnings = sum(p.rider_earning for p in deliveries)
 
         return Response({
             "total_earnings": total_earnings,
@@ -1214,7 +1223,7 @@ class CustomerPackagesView(APIView):
                     "phone": rider_profile.phone_number if rider_profile else None,
                     "rating": float(rider_profile.rating) if rider_profile else None,
                     "rating_count": rider_profile.rating_count if rider_profile else 0,
-                    "net_earning": float(p.rider_earning - p.commission) if p.rider else 0
+                    "net_earning": float(p.rider_earning) if p.rider else 0
                 },
 
                 "tracking": {
@@ -1250,113 +1259,16 @@ class RiderWalletView(APIView):
 
     def get(self, request):
         wallet, _ = RiderWallet.objects.get_or_create(rider=request.user)
-        return Response({"balance": float(wallet.balance), "total_earned": float(wallet.total_earned)})
+
+        return Response({
+            "balance": float(wallet.balance or 0),
+            "total_earned": float(wallet.total_earned or 0),
+        })
 
 
-"""class RiderWithdrawView(APIView):
-    throttle_classes = [LoginThrottle]
-    permission_classes = [IsAuthenticated, IsApprovedRider]
-
-    def post(self, request):
-        try:
-            amount = Decimal(request.data.get('amount'))
-            if amount <= 0:
-                raise InvalidOperation()
-        except (TypeError, InvalidOperation):
-            return Response({"error": "Invalid amount"}, status=400)
-
-        bank_account = request.data.get('bank_account')
-        bank_code = request.data.get('bank_code')
-        if not bank_account or not bank_code:
-            return Response({"error": "Bank account and code are required"}, status=400)
-
-        try:
-            with transaction.atomic():
-                wallet, _ = RiderWallet.objects.select_for_update().get_or_create(rider=request.user)
-
-                if amount > wallet.balance:
-                    return Response({"error": "Insufficient funds"}, status=400)
-
-                headers = {"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}", "Content-Type": "application/json"}
-                recipient_data = {
-                    "type": "nuban",
-                    "name": request.user.username,
-                    "account_number": bank_account,
-                    "bank_code": bank_code,
-                    "currency": "NGN"
-                }
-
-                # Create recipient
-                try:
-                    recipient_res = requests.post(
-                        "https://api.paystack.co/transferrecipient",
-                        json=recipient_data,
-                        headers=headers,
-                        timeout=10
-                    ).json()
-                except (requests.exceptions.RequestException, ValueError):
-                    logger.exception("Paystack transfer recipient creation failed")
-                    return Response({"error": "Paystack unavailable"}, status=500)
-
-                if not recipient_res.get("status"):
-                    return Response({"error": "Recipient creation failed", "details": recipient_res}, status=400)
-
-                transfer_data = {
-                    "source": "balance",
-                    "amount": int(amount * 100),
-                    "recipient": recipient_res["data"]["recipient_code"],
-                    "reason": "Rider Payout"
-                }
-
-                # Execute transfer
-                try:
-                    res_data = requests.post(
-                        "https://api.paystack.co/transfer",
-                        json=transfer_data,
-                        headers=headers,
-                        timeout=10
-                    ).json()
-                except (requests.exceptions.RequestException, ValueError):
-                    logger.exception("Paystack transfer failed")
-                    return Response({"error": "Paystack unavailable"}, status=500)
-
-                if res_data.get("status"):
-                    # Deduct from wallet only if transfer succeeds
-                    wallet.withdraw(amount)
-
-                    recipients = [request.user.email] + [settings.NOTIFY_EMAIL]
-                    recipients = [r for r in recipients if r]
-
-                    '''send_email(
-                        subject="Withdrawal Successful",
-                        message=f"Rider {request.user.username} has withdrawn ₦{amount}. Current balance: ₦{wallet.balance}.",
-                        recipients=recipients
-                    )'''
-
-                    send_email(
-                        subject="💰 Withdrawal Successful",
-                        message=(
-                            f"Hello {request.user.username},\n\n"
-                            f"You have successfully withdrawn ₦{amount} from your wallet.\n\n"
-                            f"Current Balance: ₦{wallet.balance}\n\n"
-                            f"Thank you for using Senmi."
-                        ),
-                        recipients=recipients
-                    )
-
-                    return Response({
-                        "message": f"Withdrawal of ₦{amount} Successful",
-                        "current_balance": float(wallet.balance)
-                    })
-
-                logger.warning(f"Paystack transfer failed: {res_data}")
-                return Response({"error": "Paystack transfer failed", "details": res_data}, status=400)
-
-        except Exception as e:
-            logger.exception("Error during withdrawal")
-            return Response({"error": "Withdrawal failed"}, status=500)"""
-
-
+# ------------------------------
+# Rider RidermWithdraw
+# ------------------------------
 class RiderWithdrawView(APIView):
     permission_classes = [IsAuthenticated]
 
