@@ -729,6 +729,7 @@ class UpdateDeliveryStatusView(APIView):
                 # Final delivery handling
                 if new_status == "delivered":
                     code_input = request.data.get('delivery_code')
+                    
 
                     if package.status == "delivered":
                         return Response({
@@ -756,7 +757,7 @@ class UpdateDeliveryStatusView(APIView):
                     wallet.balance += net_earning
                     wallet.total_earned += net_earning
                     wallet.save(update_fields=['balance', 'total_earned'])
-                    
+
 
                     # Mark collected if payment type is receiver
                     if package.payment_type == "receiver" and not package.is_collected:
@@ -878,20 +879,20 @@ class RiderActivePackagesView(APIView):
         return Response(data)
       
 
-
+    
 class RiderEarningsView(APIView):
     permission_classes = [IsAuthenticated, IsApprovedRider]
 
     def get(self, request):
-        # Only delivered packages
-        deliveries = Package.objects.filter(rider=request.user, status='delivered')
+        wallet = RiderWallet.objects.get(rider=request.user)
 
-        # Calculate net earnings after subtracting commission
-        #total_earnings = sum((p.rider_earning - p.commission) for p in deliveries)
-        total_earnings = sum(p.rider_earning for p in deliveries)
+        deliveries = Package.objects.filter(
+            rider=request.user,
+            status='delivered'
+        )
 
         return Response({
-            "total_earnings": total_earnings,
+            "total_earnings": float(wallet.total_earned),
             "total_deliveries": deliveries.count()
         })
 
@@ -1273,12 +1274,22 @@ class RiderWithdrawView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+
         try:
             amount = Decimal(request.data.get('amount'))
             if amount <= 0:
                 raise InvalidOperation()
         except:
             return Response({"error": "Invalid amount"}, status=400)
+
+        wallet, _ = RiderWallet.objects.get_or_create(rider=request.user)
+
+        # ✅ FIX: NOW amount exists before using it
+        if amount > wallet.balance:
+            return Response(
+                {"error": "Insufficient balance"},
+                status=400
+            )
 
         bank_account = request.data.get('bank_account')
         bank_code = request.data.get('bank_code')
@@ -1297,7 +1308,7 @@ class RiderWithdrawView(APIView):
         try:
             verify_res = requests.get(verify_url, headers=headers)
             verify_json = verify_res.json()
-            print("VERIFY RESPONSE:", verify_json)  # 👈 IMPORTANT
+            print("VERIFY RESPONSE:", verify_json)
         except Exception as e:
             return Response({
                 "error": "Verification request failed",
@@ -1328,10 +1339,9 @@ class RiderWithdrawView(APIView):
             headers=headers
         ).json()
 
-        print("RECIPIENT RESPONSE:", recipient_res)  # 👈 IMPORTANT
+        print("RECIPIENT RESPONSE:", recipient_res)
 
         if not recipient_res.get("status"):
-            # 🔁 Try to extract existing recipient
             if "recipient_code" in str(recipient_res):
                 recipient_code = recipient_res["data"].get("recipient_code")
             else:
@@ -1356,7 +1366,7 @@ class RiderWithdrawView(APIView):
             headers=headers
         ).json()
 
-        print("TRANSFER RESPONSE:", transfer_res)  # 👈 IMPORTANT
+        print("TRANSFER RESPONSE:", transfer_res)
 
         if not transfer_res.get("status"):
             return Response({
