@@ -265,3 +265,33 @@ class PackageStatusHistory(models.Model):
     package = models.ForeignKey(Package, on_delete=models.CASCADE, related_name='history')
     status = models.CharField(max_length=20)
     timestamp = models.DateTimeField(auto_now_add=True)
+
+
+class Withdrawal(models.Model):
+    STATUS = [
+        ("pending", "Pending"),
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
+        ("processing", "Processing"),
+        ("success", "Success"),
+        ("failed", "Failed"),
+    ]
+
+    rider = models.ForeignKey(User, on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    bank_account = models.CharField(max_length=50)
+    bank_code = models.CharField(max_length=10)
+
+    status = models.CharField(max_length=20, choices=STATUS, default="pending")
+
+    recipient_code = models.CharField(max_length=100, null=True, blank=True)
+    reference = models.CharField(max_length=100, null=True, blank=True)
+
+    failure_reason = models.TextField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+     return f"{self.rider.riderprofile.rider_id} - {self.amount} - {self.status}"
+
+

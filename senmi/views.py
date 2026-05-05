@@ -22,6 +22,7 @@ from rest_framework import status
 from rest_framework.permissions import BasePermission, IsAuthenticated, IsAdminUser
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.throttling import UserRateThrottle
+from django.shortcuts import get_object_or_404
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from channels.layers import get_channel_layer
@@ -31,7 +32,7 @@ from .serializers import UserSerializer
 from .utils import send_email, calculate_distance, calculate_price
 from .models import (
     Package, PackageStatusHistory, PackageTracking,
-    RiderRating, RiderWallet, RiderProfile
+    RiderRating, RiderWallet, RiderProfile,Withdrawal
 )
 from .serializers import (
     RegisterSerializer, RiderProfileSerializer, CustomLoginSerializer,
@@ -1290,9 +1291,15 @@ class RiderWithdrawView(APIView):
                 {"error": "Insufficient balance"},
                 status=400
             )
-
         bank_account = request.data.get('bank_account')
         bank_code = request.data.get('bank_code')
+        withdrawal = Withdrawal.objects.create(
+            rider=request.user,
+            amount=amount,
+            bank_account=bank_account,
+            bank_code=bank_code,
+            status="processing"
+        )
 
         if not bank_account or not bank_code:
             return Response({"error": "Bank details required"}, status=400)
@@ -1369,16 +1376,87 @@ class RiderWithdrawView(APIView):
         print("TRANSFER RESPONSE:", transfer_res)
 
         if not transfer_res.get("status"):
+            withdrawal.status = "failed"
+            withdrawal.failure_reason = transfer_res.get("message")
+            withdrawal.save()
+
             return Response({
                 "error": "Transfer failed",
                 "paystack_message": transfer_res.get("message"),
                 "details": transfer_res
             }, status=400)
 
+        withdrawal.status = "success"
+        withdrawal.save()
+
         return Response({
             "message": "Withdrawal successful"
         })
+    
+
+class AdminWithdrawalsView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        withdrawals = Withdrawal.objects.all().order_by("-created_at")
+
+        data = [
+            {
+                "rider_id": w.rider.riderprofile.rider_id,
+                "rider": w.rider.email,
+                "amount": float(w.amount),
+                "status": w.status,
+                "reason": w.failure_reason,
+                "created_at": w.created_at
+            }
+            for w in withdrawals
+        ]
+
+        return Response(data)
+    
+
+class ApproveWithdrawalView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, withdrawal_id):
+        withdrawal = get_object_or_404(Withdrawal, id=withdrawal_id)
+
+        if withdrawal.status not in ["pending", "processing"]:
+            return Response(
+                {"error": "Cannot approve this withdrawal"},
+                status=400
+            )
+
+        withdrawal.status = "approved"
+        withdrawal.save()
+
+        return Response({
+            "message": "Withdrawal approved"
+        })
         
+
+class RejectWithdrawalView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, withdrawal_id):
+        withdrawal = get_object_or_404(Withdrawal, id=withdrawal_id)
+
+        if withdrawal.status in ["success", "rejected"]:
+            return Response(
+                {"error": "Cannot reject this withdrawal"},
+                status=400
+            )
+
+        withdrawal.status = "rejected"
+        withdrawal.failure_reason = request.data.get(
+            "reason",
+            "Rejected by admin"
+        )
+        withdrawal.save()
+
+        return Response({
+            "message": "Withdrawal rejected"
+        })
 
 class BankListView(APIView):
     def get(self, request):
@@ -1389,6 +1467,63 @@ class BankListView(APIView):
         res = requests.get("https://api.paystack.co/bank", headers=headers)
 
         return Response(res.json())
+    
+
+
+class RetryWithdrawalView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, withdrawal_id):
+        withdrawal = get_object_or_404(Withdrawal, id=withdrawal_id)
+
+        if withdrawal.status != "failed":
+            return Response(
+                {"error": "Only failed withdrawals can be retried"},
+                status=400
+            )
+
+        withdrawal.status = "processing"
+        withdrawal.failure_reason = None
+        withdrawal.save()
+
+        process_withdrawal(withdrawal)
+
+        return Response({
+            "message": "Withdrawal retry started"
+        })
+    
+
+
+def process_withdrawal(withdrawal):
+    headers = {
+        "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    try:
+        transfer_res = requests.post(
+            "https://api.paystack.co/transfer",
+            json={
+                "source": "balance",
+                "amount": int(withdrawal.amount * 100),
+                "recipient": withdrawal.recipient_code,
+                "reason": "Rider payout retry"
+            },
+            headers=headers
+        ).json()
+
+        if transfer_res.get("status"):
+            withdrawal.status = "success"
+            withdrawal.reference = transfer_res["data"]["reference"]
+        else:
+            withdrawal.status = "failed"
+            withdrawal.failure_reason = transfer_res.get("message")
+
+    except Exception as e:
+        withdrawal.status = "failed"
+        withdrawal.failure_reason = str(e)
+
+    withdrawal.save()
     
 
 class ResolveAccountView(APIView):

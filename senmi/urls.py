@@ -1,8 +1,10 @@
 # senmi/urls.py
 from django.urls import path
-from .views import AdminRidersListView, AdminUserSearchView, BankListView, CreatePackageView, CustomerPackagesView, HardDeleteUserView, LogoutView, PackageDetailView, PaymentCallbackView, ResolveAccountView, calculate_price_view, delete_package, search_package
+from .views import AdminRidersListView, AdminUserSearchView, AdminWithdrawalsView, calculate_price_view, delete_package, search_package
 from .views import AcceptPackageView,UpdateDeliveryStatusView,CustomLoginView,RegisterView
-from .views import AvailablePackagesView,PaystackWebhookView,RiderEarningsView,RiderStatusView
+from .views import ApproveWithdrawalView, CustomerPackagesView, HardDeleteUserView, RejectWithdrawalView
+from .views import AvailablePackagesView,PaystackWebhookView,RiderEarningsView,RiderStatusView,ResolveAccountView, RetryWithdrawalView
+from .views import LogoutView, PackageDetailView, PaymentCallbackView, BankListView, CreatePackageView
 from .views import RiderProfileUpdateView, RiderWalletView, RiderWithdrawView,RateRiderView,  TrackPackageView
 from .views import UpdateLocationView, UserProfileView, review_rider, InitializeReceiverPaymentView
 from senmi import views
@@ -41,6 +43,17 @@ urlpatterns = [
     path('api/profile/hard-delete/', HardDeleteUserView.as_view()),
     path('api/calculate-price/', calculate_price_view),
     path('api/packages/<str:package_id>/delete/', delete_package),
+    path("api/admin/withdrawals/", AdminWithdrawalsView.as_view()),
+
+    path('api/admin/withdrawals/<int:withdrawal_id>/approve/',ApproveWithdrawalView.as_view()),
+    path(
+        'api/admin/withdrawals/<int:withdrawal_id>/reject/',
+        RejectWithdrawalView.as_view()
+    ),
+    path(
+        'api/admin/withdrawals/<int:withdrawal_id>/retry/',
+        RetryWithdrawalView.as_view()
+    ),
     
     
 ]
