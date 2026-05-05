@@ -90,6 +90,7 @@ class RiderProfile(models.Model):
     rating_count = models.IntegerField(default=0) 
     # Status fields
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+ 
     rejection_reason = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
 
@@ -101,6 +102,8 @@ class RiderProfile(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.status}"
+    
+    
     
 
 
