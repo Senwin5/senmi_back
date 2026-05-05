@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from django.contrib import admin
 from django.core.mail import send_mail
 from django.conf import settings
-from .models import User, RiderProfile
+from .models import User, RiderProfile,Withdrawal
 from .models import RiderWallet, Package, PackageTracking, PackageStatusHistory
 
 # -----------------------------
@@ -196,10 +196,6 @@ class PackageAdmin(admin.ModelAdmin):
     readonly_fields = ('commission', 'created_at', 'updated_at')
     ordering = ('-created_at',)
 
-@admin.register(RiderWallet)
-class RiderWalletAdmin(admin.ModelAdmin):
-    list_display = ('rider', 'balance', 'total_earned')
-    search_fields = ('rider__email', 'rider__username')
 
 @admin.register(PackageTracking)
 class PackageTrackingAdmin(admin.ModelAdmin):
@@ -211,3 +207,32 @@ class PackageTrackingAdmin(admin.ModelAdmin):
 class PackageStatusHistoryAdmin(admin.ModelAdmin):
     list_display = ('package','timestamp')
     ordering = ('-timestamp',)
+
+@admin.register(RiderWallet)
+class RiderWalletAdmin(admin.ModelAdmin):
+    list_display = ('rider', 'balance', 'total_earned')
+    search_fields = ('rider__email', 'rider__username')
+
+@admin.register(Withdrawal)
+class WithdrawalAdmin(admin.ModelAdmin):
+    list_display = (
+        "get_rider_id",
+        "rider_email",
+        "amount",
+        "status",
+        "created_at"
+    )
+
+    list_filter = ("status",)
+    search_fields = (
+        "rider__email",
+        "rider__riderprofile__rider_id",
+        "bank_account"
+    )
+
+    def get_rider_id(self, obj):
+        return obj.rider.riderprofile.rider_id
+    get_rider_id.short_description = "Rider ID"
+
+    def rider_email(self, obj):
+        return obj.rider.email
