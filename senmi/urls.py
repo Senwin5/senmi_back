@@ -44,16 +44,8 @@ urlpatterns = [
     path('api/calculate-price/', calculate_price_view),
     path('api/packages/<str:package_id>/delete/', delete_package),
     path("api/admin/withdrawals/", AdminWithdrawalsView.as_view()),
-
     path('api/admin/withdrawals/<int:withdrawal_id>/approve/',ApproveWithdrawalView.as_view()),
-    path(
-        'api/admin/withdrawals/<int:withdrawal_id>/reject/',
-        RejectWithdrawalView.as_view()
-    ),
-    path(
-        'api/admin/withdrawals/<int:withdrawal_id>/retry/',
-        RetryWithdrawalView.as_view()
-    ),
-    
-    
+    path('api/admin/withdrawals/<int:withdrawal_id>/reject/',RejectWithdrawalView.as_view()),
+    path('api/admin/withdrawals/<int:withdrawal_id>/retry/',RetryWithdrawalView.as_view()),
+  
 ]

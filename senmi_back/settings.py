@@ -32,6 +32,7 @@ ALLOWED_HOSTS = [
     "cottage-molar-unguarded.ngrok-free.dev",
 ]
 
+
 AUTH_USER_MODEL = 'senmi.User'
 
 # Application definition
@@ -151,9 +152,9 @@ USE_TZ = True
 from datetime import timedelta
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ),
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    )
 }
 
 
