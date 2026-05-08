@@ -92,6 +92,7 @@ class RiderProfile(models.Model):
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
  
     rejection_reason = models.TextField(blank=True)
+    rejection_reason2 = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
 
     def save(self, *args, **kwargs):
