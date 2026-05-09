@@ -26,11 +26,13 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
 ALLOWED_HOSTS = [
-    "127.0.0.1",
-    "localhost",
     "api.senmi.com.ng",
-    ".up.railway.app"
+    "senmiback-production.up.railway.app",
+    ".up.railway.app",
+    "localhost",
+    "127.0.0.1"
 ]
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # =========================
 # APPS
@@ -191,8 +193,6 @@ FUEL_MULTIPLIER = 1.39
 # =========================
 # SECURITY
 # =========================
-
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 CSRF_TRUSTED_ORIGINS = [
     "https://api.senmi.com.ng",
