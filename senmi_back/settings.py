@@ -34,6 +34,25 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1"
 ]
+
+
+
+import sys
+
+db_url = os.getenv("DATABASE_URL")
+
+if "railway" in str(db_url):
+    DATABASES = {
+        "default": dj_database_url.parse(db_url, conn_max_age=600)
+    }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
+    
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # =========================
