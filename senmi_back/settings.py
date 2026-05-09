@@ -26,6 +26,11 @@ ALLOWED_HOSTS = [
     "localhost"
 ]
 
+
+# =========================
+# TEMPLATES (FIXED STRUCTURE)
+# =========================
+
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -42,8 +47,9 @@ TEMPLATES = [
     },
 ]
 
+
 # =========================
-# DATABASE (FIXED - NO CONFLICTS)
+# DATABASE (CLEAN + SAFE)
 # =========================
 
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -109,19 +115,27 @@ ASGI_APPLICATION = 'senmi_back.asgi.application'
 
 
 # =========================
-# REDIS
+# REDIS (SAFE FIX - PREVENT CRASH)
 # =========================
 
 REDIS_URL = os.getenv("REDIS_URL")
 
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [REDIS_URL] if REDIS_URL else [],
+if REDIS_URL:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [REDIS_URL],
+            },
         },
-    },
-}
+    }
+else:
+    # fallback to in-memory (prevents 500 crash)
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer"
+        }
+    }
 
 
 # =========================
@@ -185,10 +199,11 @@ FUEL_MULTIPLIER = 1.39
 # SECURITY HEADERS
 # =========================
 
+# All media uploads go to Cloudinary
+DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
+
+
 CSRF_TRUSTED_ORIGINS = [
     "https://api.senmi.com.ng",
     "https://senmiback-production.up.railway.app"
 ]
-
-# All media uploads go to Cloudinary
-DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
