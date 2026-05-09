@@ -27,9 +27,9 @@ DEBUG = True
 
 ALLOWED_HOSTS = [
     "*",
+    "api.senmi.com",
     "127.0.0.1",
     "localhost",
-    "cottage-molar-unguarded.ngrok-free.dev",
 ]
 
 AUTH_USER_MODEL = 'senmi.User'
