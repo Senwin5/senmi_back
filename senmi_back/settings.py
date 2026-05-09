@@ -26,7 +26,8 @@ DEBUG = True
 
 
 ALLOWED_HOSTS = [
-    "api.senmi.com",
+    "api.senmi.com.ng",
+    "senmiback-production.up.railway.app",
     "127.0.0.1",
     "localhost",
 ]
