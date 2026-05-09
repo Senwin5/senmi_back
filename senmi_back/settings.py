@@ -26,7 +26,6 @@ DEBUG = True
 
 
 ALLOWED_HOSTS = [
-    "*",
     "api.senmi.com",
     "127.0.0.1",
     "localhost",
