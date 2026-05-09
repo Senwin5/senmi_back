@@ -27,13 +27,13 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 DEBUG = os.getenv("DEBUG", "False").strip().lower() == "true"
 
 ALLOWED_HOSTS = [
-    h.strip()
-    for h in os.getenv(
-        "ALLOWED_HOSTS",
-        "127.0.0.1,localhost,api.senmi.com.ng,.up.railway.app"
-    ).split(",")
+    "*",
+    "api.senmi.com.ng",
+    "senmiback-production.up.railway.app",
+    ".up.railway.app",
+    "localhost",
+    "127.0.0.1"
 ]
-
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # =========================
