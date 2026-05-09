@@ -25,10 +25,12 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
-ALLOWED_HOSTS = os.getenv(
-    "ALLOWED_HOSTS",
-    "127.0.0.1,localhost,api.senmi.com.ng"
-).split(",")
+ALLOWED_HOSTS = [
+    "127.0.0.1",
+    "localhost",
+    "api.senmi.com.ng",
+    ".up.railway.app"
+]
 
 # =========================
 # APPS
@@ -193,7 +195,8 @@ FUEL_MULTIPLIER = 1.39
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://api.senmi.com.ng"
+    "https://api.senmi.com.ng",
+    "https://senmiback-production.up.railway.app"
 ]
 
 # All media uploads go to Cloudinary
