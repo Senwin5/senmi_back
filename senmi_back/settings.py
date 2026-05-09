@@ -44,7 +44,7 @@ INSTALLED_APPS = [
 
     'corsheaders',
     'rest_framework',
-    'channels',
+    #'channels',
 
     'cloudinary',
     'cloudinary_storage',
@@ -72,7 +72,7 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'senmi_back.urls'
 WSGI_APPLICATION = 'senmi_back.wsgi.application'
-ASGI_APPLICATION = 'senmi_back.asgi.application'
+#ASGI_APPLICATION = 'senmi_back.asgi.application'
 
 # =========================
 # DATABASE
@@ -89,16 +89,16 @@ DATABASES = {
 # REDIS / CHANNELS
 # =========================
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379")
+#REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379")
 
-CHANNEL_LAYERS = {
+"""CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
             "hosts": [REDIS_URL],
         },
     },
-}
+}"""
 
 TEMPLATES = [
     {
@@ -188,6 +188,11 @@ STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+
+CORS_ALLOW_ALL_ORIGINS = True
 
 # =========================
 # CLOUDINARY
