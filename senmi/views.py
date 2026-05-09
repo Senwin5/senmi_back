@@ -1784,3 +1784,15 @@ def delete_package(request, package_id):
         return Response({"error": "Package not found"}, status=404)
     
 
+from django.core.mail import send_mail
+from django.http import HttpResponse
+
+def test_email(request):
+    send_mail(
+        "Test",
+        "Email working",
+        "senmilog@gmail.com",
+        ["senmilog@gmail.com"],
+        fail_silently=False,
+    )
+    return HttpResponse("Email sent")
