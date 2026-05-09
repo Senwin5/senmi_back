@@ -1,11 +1,3 @@
-"""
-Django settings for senmi_back project (PROFESSIONAL CLEAN VERSION)
-"""
-
-"""
-Django settings for senmi_back project (CLEAN PRODUCTION FIXED VERSION)
-"""
-
 import os
 from pathlib import Path
 from datetime import timedelta
@@ -17,33 +9,33 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
 # =========================
 # SECURITY
 # =========================
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 
-
 DEBUG = os.getenv("DEBUG", "False").strip().lower() == "true"
 
 ALLOWED_HOSTS = [
-    "*",
     "api.senmi.com.ng",
     "senmiback-production.up.railway.app",
-    ".up.railway.app",
-    "localhost",
-    "127.0.0.1"
+    ".railway.app",
+    "127.0.0.1",
+    "localhost"
 ]
 
 
+# =========================
+# DATABASE (FIXED - NO CONFLICTS)
+# =========================
 
-import sys
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-db_url = os.getenv("DATABASE_URL")
-
-if "railway" in str(db_url):
+if DATABASE_URL:
     DATABASES = {
-        "default": dj_database_url.parse(db_url, conn_max_age=600)
+        "default": dj_database_url.parse(DATABASE_URL, conn_max_age=600)
     }
 else:
     DATABASES = {
@@ -52,8 +44,7 @@ else:
             "NAME": BASE_DIR / "db.sqlite3",
         }
     }
-    
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 
 # =========================
 # APPS
@@ -77,6 +68,7 @@ INSTALLED_APPS = [
     'senmi',
 ]
 
+
 # =========================
 # MIDDLEWARE
 # =========================
@@ -95,20 +87,11 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+
 ROOT_URLCONF = 'senmi_back.urls'
 WSGI_APPLICATION = 'senmi_back.wsgi.application'
 ASGI_APPLICATION = 'senmi_back.asgi.application'
 
-# =========================
-# DATABASE
-# =========================
-
-DATABASES = {
-    "default": dj_database_url.config(
-        default=os.getenv("DATABASE_URL"),
-        conn_max_age=600,
-    )
-}
 
 # =========================
 # REDIS
@@ -125,31 +108,13 @@ CHANNEL_LAYERS = {
     },
 }
 
-# =========================
-# TEMPLATES
-# =========================
-
-TEMPLATES = [
-    {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-            ],
-        },
-    },
-]
 
 # =========================
 # AUTH
 # =========================
 
 AUTH_USER_MODEL = 'senmi.User'
+
 
 # =========================
 # REST FRAMEWORK
@@ -167,19 +132,6 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
-# =========================
-# EMAIL
-# =========================
-
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
-
-DEFAULT_FROM_EMAIL = f"Senmi <{EMAIL_HOST_USER}>"
 
 # =========================
 # STATIC FILES
@@ -190,8 +142,9 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
+
 # =========================
-# CLOUDINARY (YOUR REAL VALUES)
+# CLOUDINARY
 # =========================
 
 cloudinary.config(
@@ -200,7 +153,8 @@ cloudinary.config(
     api_secret=os.getenv("CLOUDINARY_API_SECRET"),
 )
 
-#DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
+DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
+
 
 # =========================
 # BUSINESS LOGIC
@@ -211,8 +165,9 @@ BASE_FEE = 1000
 PER_KM_RATE = 205
 FUEL_MULTIPLIER = 1.39
 
+
 # =========================
-# SECURITY
+# SECURITY HEADERS
 # =========================
 
 CSRF_TRUSTED_ORIGINS = [
