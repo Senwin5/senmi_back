@@ -2,6 +2,10 @@
 Django settings for senmi_back project (PROFESSIONAL CLEAN VERSION)
 """
 
+"""
+Django settings for senmi_back project (CLEAN PRODUCTION FIXED VERSION)
+"""
+
 import os
 from pathlib import Path
 from datetime import timedelta
@@ -9,28 +13,25 @@ import dj_database_url
 from dotenv import load_dotenv
 import cloudinary
 
-# Load local .env ONLY (Railway ignores this automatically)
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # =========================
-# CORE SECURITY
+# SECURITY
 # =========================
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 
-DEBUG = os.getenv("DEBUG", "False") == "True"
+DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
 ALLOWED_HOSTS = os.getenv(
     "ALLOWED_HOSTS",
-    "127.0.0.1,localhost"
-    "api.senmi.com.ng",
+    "127.0.0.1,localhost,api.senmi.com.ng"
 ).split(",")
 
-
 # =========================
-# APPLICATIONS
+# APPS
 # =========================
 
 INSTALLED_APPS = [
@@ -85,19 +86,23 @@ DATABASES = {
 }
 
 # =========================
-# REDIS / CHANNELS
+# REDIS
 # =========================
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379")
+REDIS_URL = os.getenv("REDIS_URL")
 
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [REDIS_URL],
+            "hosts": [REDIS_URL] if REDIS_URL else [],
         },
     },
 }
+
+# =========================
+# TEMPLATES
+# =========================
 
 TEMPLATES = [
     {
@@ -121,24 +126,8 @@ TEMPLATES = [
 
 AUTH_USER_MODEL = 'senmi.User'
 
-AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
-]
-
 # =========================
-# INTERNATIONALIZATION
-# =========================
-
-LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
-USE_I18N = True
-USE_TZ = True
-
-# =========================
-# REST FRAMEWORK / JWT
+# REST FRAMEWORK
 # =========================
 
 REST_FRAMEWORK = {
@@ -150,8 +139,6 @@ REST_FRAMEWORK = {
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=7),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
-    "ROTATE_REFRESH_TOKENS": False,
-    "BLACKLIST_AFTER_ROTATION": False,
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
@@ -170,26 +157,16 @@ EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = f"Senmi <{EMAIL_HOST_USER}>"
 
 # =========================
-# PAYSTACK
-# =========================
-
-PAYSTACK_PUBLIC_KEY = os.getenv("PAYSTACK_PUBLIC_KEY")
-PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY")
-PAYSTACK_WEBHOOK_SECRET = os.getenv("PAYSTACK_WEBHOOK_SECRET")
-
-PAYMENT_CALLBACK_URL = os.getenv("PAYMENT_CALLBACK_URL")
-
-# =========================
 # STATIC FILES
 # =========================
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # =========================
-# CLOUDINARY
+# CLOUDINARY (YOUR REAL VALUES)
 # =========================
 
 cloudinary.config(
@@ -197,6 +174,8 @@ cloudinary.config(
     api_key=os.getenv("CLOUDINARY_API_KEY"),
     api_secret=os.getenv("CLOUDINARY_API_SECRET"),
 )
+
+#DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
 
 # =========================
 # BUSINESS LOGIC
@@ -208,17 +187,14 @@ PER_KM_RATE = 205
 FUEL_MULTIPLIER = 1.39
 
 # =========================
-# SECURITY HEADERS
+# SECURITY
 # =========================
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 CSRF_TRUSTED_ORIGINS = [
-    origin.strip()
-    for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
-    if origin
+    "https://api.senmi.com.ng"
 ]
-
 
 # All media uploads go to Cloudinary
 DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
