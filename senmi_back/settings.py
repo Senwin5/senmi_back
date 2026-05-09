@@ -22,11 +22,11 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = os.getenv(
-    "ALLOWED_HOSTS",
-    "127.0.0.1,localhost"
+ALLOWED_HOSTS = [
+    "127.0.0.1",
+    "localhost",
     "api.senmi.com.ng",
-).split(",")
+]
 
 
 # =========================
