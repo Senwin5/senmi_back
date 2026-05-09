@@ -23,15 +23,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 
-DEBUG = os.getenv("DEBUG", "False").lower() == "true"
+
+DEBUG = os.getenv("DEBUG", "False").strip().lower() == "true"
 
 ALLOWED_HOSTS = [
-    "api.senmi.com.ng",
-    "senmiback-production.up.railway.app",
-    ".up.railway.app",
-    "localhost",
-    "127.0.0.1"
+    h.strip()
+    for h in os.getenv(
+        "ALLOWED_HOSTS",
+        "127.0.0.1,localhost,api.senmi.com.ng,.up.railway.app"
+    ).split(",")
 ]
+
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # =========================
