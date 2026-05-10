@@ -1,6 +1,6 @@
 # senmi/urls.py
 from django.urls import path
-from .views import AdminRidersListView, AdminUserSearchView, AdminWithdrawalsView, calculate_price_view, delete_package, search_package
+from .views import AdminRidersListView, AdminUserSearchView, AdminWithdrawalsView, calculate_price_view, delete_package, search_package, test_email
 from .views import AcceptPackageView,UpdateDeliveryStatusView,CustomLoginView,RegisterView
 from .views import ApproveWithdrawalView, CustomerPackagesView, HardDeleteUserView, RejectWithdrawalView
 from .views import AvailablePackagesView,PaystackWebhookView,RiderEarningsView,RiderStatusView,ResolveAccountView, RetryWithdrawalView
@@ -47,5 +47,6 @@ urlpatterns = [
     path('api/admin/withdrawals/<int:withdrawal_id>/approve/',ApproveWithdrawalView.as_view()),
     path('api/admin/withdrawals/<int:withdrawal_id>/reject/',RejectWithdrawalView.as_view()),
     path('api/admin/withdrawals/<int:withdrawal_id>/retry/',RetryWithdrawalView.as_view()),
+    path("api/test-email/", test_email)
   
 ]

@@ -10,7 +10,30 @@ import random
 from django.core.mail import send_mail
 from django.conf import settings
 
-def send_email(subject, message, recipients):
+
+import resend
+from django.conf import settings
+
+resend.api_key = settings.RESEND_API_KEY
+
+
+def send_email(to_email, subject, html):
+    try:
+        response = resend.Emails.send({
+            "from": "Senmi <onboarding@resend.dev>",  # change later to your domain
+            "to": [to_email],
+            "subject": subject,
+            "html": html,
+        })
+
+        return response
+
+    except Exception as e:
+        print("Email error:", str(e))
+        return None
+    
+
+'''def send_email(subject, message, recipients):
     all_recipients = list(set([r for r in recipients if r]))
 
     send_mail(
@@ -19,7 +42,7 @@ def send_email(subject, message, recipients):
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=all_recipients,
         fail_silently=False,
-    )
+    )'''
 
 '''def send_email(subject, message, recipients):
     # Ensure admin always receives a copy

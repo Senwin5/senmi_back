@@ -1785,3 +1785,13 @@ def delete_package(request, package_id):
         return Response({"error": "Package not found"}, status=404)
     
 
+from django.http import JsonResponse
+
+
+def test_email(request):
+    send_email(
+        "senmilog@gmail.com",
+        "Test Email",
+        "<h1>Hello from Senmi 🚀</h1>"
+    )
+    return JsonResponse({"message": "sent"})
