@@ -9,28 +9,26 @@ import random
 # senmi/utils.py
 from django.core.mail import send_mail
 from django.conf import settings
-
 import os
-import resend
-
-resend.api_key = os.getenv("RESEND_API_KEY")
-
+from math import radians, sin, cos, sqrt, atan2
 
 def send_email(subject, message, recipients):
-    all_recipients = list(set([r for r in recipients if r]))
+    import resend  # import INSIDE function (prevents crash at boot)
+
+    resend.api_key = os.getenv("RESEND_API_KEY")
 
     try:
-        resend.Emails.send({
+        return resend.Emails.send({
             "from": "Senmi <noreply@senmi.com.ng>",
-            "to": all_recipients,
+            "to": recipients,
             "subject": subject,
             "html": f"<p>{message}</p>"
         })
-        return True
     except Exception as e:
         print("Resend error:", e)
         return False
-
+    
+    
 '''def send_email(subject, message, recipients):
     # Ensure admin always receives a copy
     all_recipients = list(set(recipients + [settings.EMAIL_HOST_USER]))
