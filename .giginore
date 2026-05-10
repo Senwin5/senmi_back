@@ -13,11 +13,3 @@ git merge dev
 git push origin main
 
 
-
-from senmi.utils import send_email
-
-send_email(
-    "Test Email",
-    "Resend is working",
-    ["senmilog@email.com"]
-)
