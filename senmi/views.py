@@ -1790,10 +1790,15 @@ def delete_package(request, package_id):
 from django.http import JsonResponse
 
 
+@api_view(["GET"])
 def test_email(request):
-    send_email(
-        "senmilog@gmail.com",
-        "Test Email",
-        "<h1>Hello from Senmi 🚀</h1>"
+    result = send_email(
+        subject="Test Email from Senmi 🚀",
+        message="If you see this, Resend is working perfectly!",
+        recipients=["senmilog@gmail.com"]
     )
-    return JsonResponse({"message": "sent"})
+
+    return Response({
+        "success": True,
+        "result": str(result)
+    })
