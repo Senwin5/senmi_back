@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'senmi',
     'rest_framework',
+    'anymail',
     'channels',
     'cloudinary',
     'cloudinary_storage',
@@ -165,20 +166,26 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
-# Email configuration
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_TIMEOUT = 10
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER",)
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD",)
-NOTIFY_EMAIL = os.getenv("NOTIFY_EMAIL", EMAIL_HOST_USER)
-DEFAULT_FROM_EMAIL = f"Senmi <{EMAIL_HOST_USER}>"
+# ==========================
+# EMAIL CONFIG (RESEND ONLY)
+# ==========================
 
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.gmail.com'
+# EMAIL_PORT = 587
+# EMAIL_USE_TLS = True
+# EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+# EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 
-RESEND_API_KEY = "re_XTYQCAt6_B6Nswm2ekbtsrN1r4t2J4vK3"
-RESEND_API_KEY = os.getenv("RESEND_API_KEY",)
+EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
+
+ANYMAIL = {
+    "RESEND_API_KEY": os.getenv("RESEND_API_KEY")
+}
+
+DEFAULT_FROM_EMAIL = "Senmi <noreply@senmi.com>"
+NOTIFY_EMAIL = os.getenv("NOTIFY_EMAIL")
+
 
 # Paystack configuration
 PAYSTACK_PUBLIC_KEY = os.getenv("PAYSTACK_PUBLIC_KEY")
@@ -192,11 +199,13 @@ PAYMENT_CALLBACK_URL = "https://api.senmi.com.ng/api/payment/callback/"
 
 CSRF_TRUSTED_ORIGINS = [
     "https://api.senmi.com.ng",
+    "https://www.senmi.com.ng",
+    "https://senmi.com.ng",
     "https://senmiback-production.up.railway.app"
+
 ]
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-
 
 
 # Commission rate applied to all packages (e.g., 5%)
