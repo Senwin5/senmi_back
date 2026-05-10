@@ -3,11 +3,6 @@ from math import radians, sin, cos, sqrt, atan2
 from django.core.mail import send_mail
 from django.conf import settings
 import random
-
-# ------------------------------
-# Email helper
-# senmi/utils.py
-from django.core.mail import send_mail
 from django.conf import settings
 import os
 from math import radians, sin, cos, sqrt, atan2
@@ -19,7 +14,7 @@ def send_email(subject, message, recipients):
 
     try:
         return resend.Emails.send({
-            "from": "Senmi <noreply@senmi.com.ng>",
+            "from": "Senmi <support@senmi.com.ng>",
             "to": recipients,
             "subject": subject,
             "html": f"<p>{message}</p>"

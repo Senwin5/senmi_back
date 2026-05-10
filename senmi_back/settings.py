@@ -178,13 +178,13 @@ SIMPLE_JWT = {
 # EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 # EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 
-EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
+#EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
 
 ANYMAIL = {
     "RESEND_API_KEY": os.getenv("RESEND_API_KEY")
 }
 
-DEFAULT_FROM_EMAIL = "Senmi <noreply@senmi.com.ng>"
+DEFAULT_FROM_EMAIL = "Senmi <support@senmi.com.ng>"
 NOTIFY_EMAIL = os.getenv("NOTIFY_EMAIL")
 
 
