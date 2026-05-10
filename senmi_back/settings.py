@@ -206,8 +206,8 @@ PAYSTACK_WEBHOOK_SECRET = os.getenv("PAYSTACK_WEBHOOK_SECRET")
 PAYMENT_CALLBACK_URL = "https://www.senmi.com.ng/api/payment/callback/"
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://api.senmi.com.ng",
     "https://www.senmi.com.ng",
+    "https://api.senmi.com.ng",
     "https://senmi.com.ng",
     "https://senmiback-production.up.railway.app"
 
