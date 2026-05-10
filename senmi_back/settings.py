@@ -249,3 +249,6 @@ cloudinary.config(
 
 # All media uploads go to Cloudinary
 DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
+
+
+
