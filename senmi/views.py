@@ -250,7 +250,7 @@ class RegisterView(APIView):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
 
-            # Send email notification
+            
             try:
                 #admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
                 recipients = [user.email] +  [settings.NOTIFY_EMAIL]
