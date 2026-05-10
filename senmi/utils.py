@@ -1,15 +1,14 @@
 # senmi/utils.py
 from math import radians, sin, cos, sqrt, atan2
-from django.core.mail import send_mail
-from django.conf import settings
-import random
 from django.conf import settings
 import os
-from math import radians, sin, cos, sqrt, atan2
+import logging
+import resend
+
+
+logger = logging.getLogger(__name__)
 
 def send_email(subject, message, recipients):
-    import resend  # import INSIDE function (prevents crash at boot)
-
     resend.api_key = os.getenv("RESEND_API_KEY")
 
     try:
@@ -19,8 +18,9 @@ def send_email(subject, message, recipients):
             "subject": subject,
             "html": f"<p>{message}</p>"
         })
+
     except Exception as e:
-        print("Resend error:", e)
+        logger.error(f"EMAIL FAILED: {str(e)}")
         return False
     
     

@@ -1,9 +1,9 @@
 import uuid
 from django.contrib.auth import get_user_model
 from django.contrib import admin
-from django.core.mail import send_mail
 from django.conf import settings
 from .models import User, RiderProfile,Withdrawal
+from .utils import send_live_notification, send_email
 from .models import RiderWallet, Package, PackageTracking, PackageStatusHistory
 
 # -----------------------------
@@ -93,7 +93,11 @@ class RiderProfileAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
         if not change or obj.status == 'pending':
-            send_mail(
+            send_live_notification(obj.user.id, {
+                "type": "rider_pending",
+                "message": "Your rider application is under review"
+            })
+            send_email(
                 subject="Your Rider Profile Successfully Submitted",
                 message = (
                     f"Hello {obj.user.username},\n\n"
@@ -123,7 +127,7 @@ class RiderProfileAdmin(admin.ModelAdmin):
             .values_list('email', flat=True)
         )
 
-        send_mail(
+        send_email(
             subject="New Rider Profile Awaiting Review",
             message = (
                 "Hello Admin Team,\n\n"
@@ -150,6 +154,10 @@ class RiderProfileAdmin(admin.ModelAdmin):
             message = None
 
             if obj.status == 'approved':
+                send_live_notification(obj.user.id, {
+                "type": "rider_approved",
+                "message": "Your rider account has been approved"
+            })
                 message = f"""
         Hello {obj.user.username},
 
@@ -164,6 +172,10 @@ class RiderProfileAdmin(admin.ModelAdmin):
         """
 
             elif obj.status == 'rejected':
+                send_live_notification(obj.user.id, {
+                    "type": "rider_rejected",
+                    "message": obj.rejection_reason or "Your application was rejected"
+                })
                 message = (
                     f"Hello {obj.user.username},\n\n"
                     "We regret to inform you that your rider profile was not approved.\n\n"
@@ -173,10 +185,10 @@ class RiderProfileAdmin(admin.ModelAdmin):
                     "Please review and update your information if needed.\n\n"
                     "Best regards,\n"
                     "Senmi Team"
-                ),
+                )
 
             if message:
-                send_mail(
+                send_email(
                     subject="Rider Profile Review",
                     message=message,
                     from_email=settings.EMAIL_HOST_USER,
