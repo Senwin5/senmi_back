@@ -26,10 +26,12 @@ DEBUG = True
 
 
 ALLOWED_HOSTS = [
+    "www.senmi.com.ng",
+    "senmi.com.ng",
     "api.senmi.com.ng",
     "senmiback-production.up.railway.app",
     "127.0.0.1",
-    "localhost",
+    "localhost"
 ]
 
 AUTH_USER_MODEL = 'senmi.User'
