@@ -7,7 +7,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
 import cloudinary
-
+import dj_database_url
 load_dotenv()
 
 from django.contrib.messages import constants as messages
@@ -108,11 +108,19 @@ CHANNEL_LAYERS = {
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
+"""DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
+}"""
+
+
+
+DATABASES = {
+    "default": dj_database_url.config(
+        default="sqlite:///db.sqlite3"
+    )
 }
 
 
