@@ -970,7 +970,10 @@ class InitializeReceiverPaymentView(APIView):
             "email": email,
             "amount": amount,
             "reference": reference,
-            "callback_url": settings.PAYMENT_CALLBACK_URL
+            "callback_url": settings.PAYMENT_CALLBACK_URL,
+            "metadata": {
+                "package_id": package.package_id
+            }
         }
 
         try:
@@ -1308,14 +1311,18 @@ class RiderWithdrawView(APIView):
 
         wallet, _ = RiderWallet.objects.get_or_create(rider=request.user)
 
-        # ✅ FIX: NOW amount exists before using it
         if amount > wallet.balance:
             return Response(
                 {"error": "Insufficient balance"},
                 status=400
             )
+
         bank_account = request.data.get('bank_account')
         bank_code = request.data.get('bank_code')
+
+        if not bank_account or not bank_code:
+            return Response({"error": "Bank details required"}, status=400)
+
         withdrawal = Withdrawal.objects.create(
             rider=request.user,
             amount=amount,
@@ -1328,9 +1335,6 @@ class RiderWithdrawView(APIView):
             "type": "withdrawal_processing",
             "message": "Your withdrawal is being processed"
         })
-
-        if not bank_account or not bank_code:
-            return Response({"error": "Bank details required"}, status=400)
 
         headers = {
             "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
@@ -1345,12 +1349,20 @@ class RiderWithdrawView(APIView):
             verify_json = verify_res.json()
             print("VERIFY RESPONSE:", verify_json)
         except Exception as e:
+            withdrawal.status = "failed"
+            withdrawal.failure_reason = str(e)
+            withdrawal.save()
+
             return Response({
                 "error": "Verification request failed",
                 "details": str(e)
             }, status=500)
 
         if not verify_json.get("status"):
+            withdrawal.status = "failed"
+            withdrawal.failure_reason = verify_json.get("message")
+            withdrawal.save()
+
             return Response({
                 "error": "Invalid bank details",
                 "paystack_message": verify_json.get("message"),
@@ -1377,6 +1389,10 @@ class RiderWithdrawView(APIView):
         print("RECIPIENT RESPONSE:", recipient_res)
 
         if not recipient_res.get("status"):
+            withdrawal.status = "failed"
+            withdrawal.failure_reason = recipient_res.get("message")
+            withdrawal.save()
+
             if "recipient_code" in str(recipient_res):
                 recipient_code = recipient_res["data"].get("recipient_code")
             else:
@@ -1407,11 +1423,11 @@ class RiderWithdrawView(APIView):
             withdrawal.status = "failed"
             withdrawal.failure_reason = transfer_res.get("message")
             withdrawal.save()
+
             send_live_notification(request.user.id, {
                 "type": "withdrawal_failed",
                 "message": transfer_res.get("message")
             })
-
 
             return Response({
                 "error": "Transfer failed",
@@ -1419,8 +1435,13 @@ class RiderWithdrawView(APIView):
                 "details": transfer_res
             }, status=400)
 
+        # ✅ SUCCESS
+        wallet.balance -= amount
+        wallet.save()
+
         withdrawal.status = "success"
         withdrawal.save()
+
         send_live_notification(request.user.id, {
             "type": "withdrawal_success",
             "message": "Withdrawal successful"
@@ -1775,13 +1796,53 @@ def my_orders(request):
     return Response(serializer.data)
 
 
+import requests
+from django.conf import settings
+
 class PaymentCallbackView(APIView):
     def get(self, request):
         reference = request.GET.get("reference")
 
+        if not reference:
+            return Response({"error": "No reference"}, status=400)
+
+        headers = {
+            "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"
+        }
+
+        verify = requests.get(
+            f"https://api.paystack.co/transaction/verify/{reference}",
+            headers=headers
+        ).json()
+
+        if not verify.get("status"):
+            return Response({"error": "Verification failed"}, status=400)
+
+        data = verify["data"]
+
+        if data["status"] != "success":
+            return Response({"error": "Payment not successful"}, status=400)
+
+        try:
+            with transaction.atomic():
+                package = Package.objects.select_for_update().get(
+                    payment_reference=reference
+                )
+
+                if package.is_paid:
+                    return Response({
+                        "message": "Package already paid"
+                    })
+
+                package.is_paid = True
+                package.status = "paid"
+                package.save(update_fields=["is_paid", "status"])
+
+        except Package.DoesNotExist:
+            return Response({"error": "Package not found"}, status=404)
+
         return Response({
-            "message": "Payment completed",
-            "reference": reference
+            "message": "Payment verified and saved"
         })
     
 
