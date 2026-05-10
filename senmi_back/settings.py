@@ -30,6 +30,7 @@ ALLOWED_HOSTS = [
     "senmi.com.ng",
     "api.senmi.com.ng",
     "senmiback-production.up.railway.app",
+    ".up.railway.app",
     "127.0.0.1",
     "localhost"
 ]
@@ -183,7 +184,7 @@ ANYMAIL = {
     "RESEND_API_KEY": os.getenv("RESEND_API_KEY")
 }
 
-DEFAULT_FROM_EMAIL = "Senmi <noreply@senmi.com>"
+DEFAULT_FROM_EMAIL = "Senmi <noreply@senmi.com.ng>"
 NOTIFY_EMAIL = os.getenv("NOTIFY_EMAIL")
 
 
