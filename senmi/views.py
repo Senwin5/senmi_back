@@ -33,7 +33,7 @@ from channels.layers import get_channel_layer
 from rest_framework.pagination import PageNumberPagination
 from asgiref.sync import async_to_sync
 from .serializers import UserSerializer
-from .utils import send_email, calculate_distance, calculate_price
+from .utils import send_email, calculate_distance, calculate_price, send_live_notification
 from .models import (
     Package, PackageStatusHistory, PackageTracking,
     RiderRating, RiderWallet, RiderProfile,Withdrawal
@@ -261,6 +261,10 @@ class RegisterView(APIView):
                     message=f"Hello {user.username}, Your account has been created successfully as a {user.role.capitalize()}. Kindly complete your profile for approval by the admin",
                     recipients=recipients
                 )
+                send_live_notification(user.id, {
+                    "type": "account_created",
+                    "message": "Account created successfully"
+                })
             except Exception as e:
                 #print("Email sending failed:", e)
                 logger.exception(f"Registration email failed for {user.email}: {str(e)}")
@@ -506,6 +510,10 @@ class AcceptPackageView(APIView):
                     ),
                     recipients=[r for r in recipients if r]
                 )
+                send_live_notification(package.customer.id, {
+                    "type": "package_accepted",
+                    "message": f"Rider accepted your package {package.package_id}"
+                })
 
                 # =========================
                 # 💰 RESPONSE
@@ -592,12 +600,6 @@ class CreatePackageView(APIView):
                 #admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
                 recipients = [request.user.email] + [settings.NOTIFY_EMAIL]
 
-                '''send_email(
-                    subject="Package Created Successfully",
-                    message=f"Your package {package.package_id} has been created successfully.",
-                    recipients=recipients
-                )'''
-
                 send_email(
                     subject="📦 Package Created",
                     message=(
@@ -608,6 +610,10 @@ class CreatePackageView(APIView):
                     ),
                     recipients=recipients
                 )
+                send_live_notification(request.user.id, {
+                    "type": "package_created",
+                    "message": f"Package {package.package_id} created successfully"
+                })
             except Exception as e:
                 logger.exception(f"Failed to send package creation email: {e}")
 
@@ -813,6 +819,10 @@ class UpdateDeliveryStatusView(APIView):
                             f"Your delivery is now in progress.\n\n"
                             f"Thank you for using Senmi."
                         )
+                        send_live_notification(package.customer.id, {
+                            "type": "picked_up",
+                            "message": f"Your package {package.package_id} has been picked up"
+                        })
 
                     elif new_status == "delivered":
                         message = (
@@ -821,6 +831,10 @@ class UpdateDeliveryStatusView(APIView):
                             f"We hope you had a great experience.\n\n"
                             f"Thank you for using Senmi."
                         )
+                        send_live_notification(package.customer.id, {
+                            "type": "delivered",
+                            "message": f"Package {package.package_id} delivered successfully"
+                        })
 
                     else:
                         # fallback (keeps your original behavior)
@@ -1051,6 +1065,10 @@ class PaystackWebhookView(APIView):
                     return Response(status=200)
 
                 package.is_paid = True
+                send_live_notification(package.customer.id, {
+                    "type": "payment_success",
+                    "message": f"Payment for {package.package_id} successful"
+                })
                 package.status = "paid" 
                 package.save(update_fields=['is_paid','status'])
                 logger.info(f"Package {package.id} marked as paid via webhook.")
@@ -1306,6 +1324,11 @@ class RiderWithdrawView(APIView):
             status="processing"
         )
 
+        send_live_notification(request.user.id, {
+            "type": "withdrawal_processing",
+            "message": "Your withdrawal is being processed"
+        })
+
         if not bank_account or not bank_code:
             return Response({"error": "Bank details required"}, status=400)
 
@@ -1384,6 +1407,11 @@ class RiderWithdrawView(APIView):
             withdrawal.status = "failed"
             withdrawal.failure_reason = transfer_res.get("message")
             withdrawal.save()
+            send_live_notification(request.user.id, {
+                "type": "withdrawal_failed",
+                "message": transfer_res.get("message")
+            })
+
 
             return Response({
                 "error": "Transfer failed",
@@ -1393,6 +1421,10 @@ class RiderWithdrawView(APIView):
 
         withdrawal.status = "success"
         withdrawal.save()
+        send_live_notification(request.user.id, {
+            "type": "withdrawal_success",
+            "message": "Withdrawal successful"
+        })
 
         return Response({
             "message": "Withdrawal successful"
@@ -1434,6 +1466,10 @@ class ApproveWithdrawalView(APIView):
 
         withdrawal.status = "approved"
         withdrawal.save()
+        send_live_notification(withdrawal.rider.id, {
+            "type": "withdrawal_approved",
+            "message": "Your withdrawal has been approved"
+        })
 
         return Response({
             "message": "Withdrawal approved"
@@ -1458,6 +1494,10 @@ class RejectWithdrawalView(APIView):
             "Rejected by admin"
         )
         withdrawal.save()
+        send_live_notification(withdrawal.rider.id, {
+            "type": "withdrawal_rejected",
+            "message": withdrawal.failure_reason
+        })
 
         return Response({
             "message": "Withdrawal rejected"
@@ -1487,10 +1527,18 @@ class RetryWithdrawalView(APIView):
                 status=400
             )
 
+        # 🔄 mark retry started
         withdrawal.status = "processing"
         withdrawal.failure_reason = None
         withdrawal.save()
 
+        # 🔔 notify rider
+        send_live_notification(withdrawal.rider.id, {
+            "type": "withdrawal_retry",
+            "message": "Your withdrawal is being retried"
+        })
+
+        # 🚀 run actual payout logic
         process_withdrawal(withdrawal)
 
         return Response({
@@ -1529,6 +1577,10 @@ def process_withdrawal(withdrawal):
         withdrawal.failure_reason = str(e)
 
     withdrawal.save()
+    send_live_notification(withdrawal.rider.id, {
+        "type": "withdrawal_success",
+        "message": "Withdrawal successful"
+    })
 
 
 class ResolveAccountView(APIView):
@@ -1787,18 +1839,3 @@ def delete_package(request, package_id):
         return Response({"error": "Package not found"}, status=404)
     
 
-from django.http import JsonResponse
-
-
-@api_view(["GET"])
-def test_email(request):
-    result = send_email(
-        subject="Test Email from Senmi 🚀",
-        message="If you see this, Resend is working perfectly!",
-        recipients=["senmilog@gmail.com"]
-    )
-
-    return Response({
-        "success": True,
-        "result": str(result)
-    })

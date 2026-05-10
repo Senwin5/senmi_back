@@ -53,3 +53,18 @@ def calculate_price(distance_km):
     multiplier = settings.FUEL_MULTIPLIER
     return (base_fee + (distance_km * per_km_rate)) * multiplier
 
+
+
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+
+def send_live_notification(user_id, payload):
+    channel_layer = get_channel_layer()
+
+    async_to_sync(channel_layer.group_send)(
+        f"user_{user_id}",
+        {
+            "type": "notify",
+            "data": payload
+        }
+    )
