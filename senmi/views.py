@@ -260,7 +260,8 @@ class RegisterView(APIView):
                     recipients=recipients
                 )
             except Exception as e:
-                print("Email sending failed:", e)
+                #print("Email sending failed:", e)
+                logger.exception(f"Registration email failed for {user.email}: {str(e)}")
 
             # Return JWT
             refresh = RefreshToken.for_user(user)
@@ -1784,15 +1785,3 @@ def delete_package(request, package_id):
         return Response({"error": "Package not found"}, status=404)
     
 
-from django.core.mail import send_mail
-from django.http import HttpResponse
-
-def test_email(request):
-    send_mail(
-        "Test",
-        "Email working",
-        "senmilog@gmail.com",
-        ["senmilog@gmail.com"],
-        fail_silently=False,
-    )
-    return HttpResponse("Email sent")

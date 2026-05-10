@@ -6,7 +6,22 @@ import random
 
 # ------------------------------
 # Email helper
+# senmi/utils.py
+from django.core.mail import send_mail
+from django.conf import settings
+
 def send_email(subject, message, recipients):
+    all_recipients = list(set([r for r in recipients if r]))
+
+    send_mail(
+        subject=subject,
+        message=message,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=all_recipients,
+        fail_silently=False,
+    )
+
+'''def send_email(subject, message, recipients):
     # Ensure admin always receives a copy
     all_recipients = list(set(recipients + [settings.EMAIL_HOST_USER]))
 
@@ -16,7 +31,7 @@ def send_email(subject, message, recipients):
         from_email=settings.EMAIL_HOST_USER,
         recipient_list=all_recipients,
         fail_silently=False,
-    )
+    )'''
 
 # ------------------------------
 # Distance & price helpers
