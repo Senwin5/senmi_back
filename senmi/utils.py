@@ -1,4 +1,6 @@
 # senmi/utils.py
+# notification is in service
+
 from math import radians, sin, cos, sqrt, atan2
 from django.conf import settings
 import os
@@ -24,18 +26,6 @@ def send_email(subject, message, recipients):
         return False
     
     
-'''def send_email(subject, message, recipients):
-    # Ensure admin always receives a copy
-    all_recipients = list(set(recipients + [settings.EMAIL_HOST_USER]))
-
-    send_mail(
-        subject=subject,
-        message=message,
-        from_email=settings.EMAIL_HOST_USER,
-        recipient_list=all_recipients,
-        fail_silently=False,
-    )'''
-
 # ------------------------------
 # Distance & price helpers
 def calculate_distance(lat1, lng1, lat2, lng2):
@@ -55,16 +45,5 @@ def calculate_price(distance_km):
 
 
 
-from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
 
-def send_live_notification(user_id, payload):
-    channel_layer = get_channel_layer()
 
-    async_to_sync(channel_layer.group_send)(
-        f"user_{user_id}",
-        {
-            "type": "notify",
-            "data": payload
-        }
-    )

@@ -2,6 +2,9 @@ import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 
+# =========================
+# 📍 PACKAGE TRACKING SOCKET
+# =========================
 class TrackingConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
@@ -21,28 +24,29 @@ class TrackingConsumer(AsyncWebsocketConsumer):
             self.channel_name
         )
 
-    # optional but useful (keeps socket stable for future features)
     async def receive(self, text_data):
         try:
             data = json.loads(text_data)
+            print("WS received:", data)
         except:
-            return
-
-        # you can ignore or log for now
-        print("WS received:", data)
+            pass
 
     async def send_location(self, event):
         await self.send(text_data=json.dumps({
-            'lat': event.get('lat'),
-            'lng': event.get('lng'),
-            'status': event.get('status')
+            "lat": event.get("lat"),
+            "lng": event.get("lng"),
+            "status": event.get("status")
         }))
 
-class NotificationConsumer(AsyncWebsocketConsumer):
-    async def connect(self):
-        user = self.scope["user"]
 
-        # IMPORTANT: reject anonymous users
+# =========================
+# 🔔 NOTIFICATION SOCKET
+# =========================
+class NotificationConsumer(AsyncWebsocketConsumer):
+
+    async def connect(self):
+        user = self.scope["user"]  # ✅ FIXED (removed broken AuthMiddlewareStack text)
+
         if user.is_anonymous:
             await self.close()
             return

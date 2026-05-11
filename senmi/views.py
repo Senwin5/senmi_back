@@ -221,6 +221,10 @@ def review_rider(request, rider_id):
         """
             )
         )
+    send_live_notification(profile.user.id, {
+            "type": "account_review",
+            "message": "Rider account reviewed successfully"
+        })
 
     recipients = [settings.NOTIFY_EMAIL, profile.user.email]
 
@@ -241,6 +245,25 @@ class RegisterView(APIView):
         if serializer.is_valid():
             try:
                 user = serializer.save()
+                # 🔔 LIVE NOTIFICATIONS (safe block)
+                try:
+                    send_live_notification(user.id, {
+                        "type": "account_created",
+                        "message": "Account created successfully"
+                    })
+
+                    admins = User.objects.filter(is_superuser=True)
+
+                    for admin in admins:
+                        send_live_notification(admin.id, {
+                            "type": "new_user",
+                            "message": f"New user registered: {user.email}"
+                        })
+
+                except Exception as e:
+                    logger.exception(f"Live notification failed: {e}")
+                
+               
             except IntegrityError as e:
                 if 'email' in str(e).lower():
                     return Response(
@@ -261,10 +284,7 @@ class RegisterView(APIView):
                     message=f"Hello {user.username}, Your account has been created successfully as a {user.role.capitalize()}. Kindly complete your profile for approval by the admin",
                     recipients=recipients
                 )
-                send_live_notification(user.id, {
-                    "type": "account_created",
-                    "message": "Account created successfully"
-                })
+             
             except Exception as e:
                 #print("Email sending failed:", e)
                 logger.exception(f"Registration email failed for {user.email}: {str(e)}")
