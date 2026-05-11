@@ -2,7 +2,7 @@ import uuid
 from django.contrib.auth import get_user_model
 from django.contrib import admin
 from django.conf import settings
-from .models import User, RiderProfile,Withdrawal
+from .models import Notification, User, RiderProfile,Withdrawal
 from senmi.services.notifications import send_live_notification
 from .utils import send_email
 from .models import RiderWallet, Package, PackageTracking, PackageStatusHistory
@@ -249,3 +249,9 @@ class WithdrawalAdmin(admin.ModelAdmin):
 
     def rider_email(self, obj):
         return obj.rider.email
+    
+
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ('user','type','message','is_read')
+    ordering = ('-created_at',)
+admin.site.register(Notification, NotificationAdmin)
