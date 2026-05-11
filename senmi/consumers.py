@@ -45,7 +45,7 @@ class TrackingConsumer(AsyncWebsocketConsumer):
 class NotificationConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
-        user = self.scope["user"]  # ✅ FIXED (removed broken AuthMiddlewareStack text)
+        user = self.scope["user"]
 
         if user.is_anonymous:
             await self.close()

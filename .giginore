@@ -1,8 +1,15 @@
+# This auto-runs migrations every deploy
+# python manage.py migrate && gunicorn senmi_back.wsgi:application --bind 0.0.0.0:$PORT
+
 #FOR production MIGRATION
 # python manage.py shell -c "from senmi.models import User; u,created=User.objects.get_or_create(email='senmilog@gmail.com'); u.is_staff=True; u.is_superuser=True; u.is_active=True; u.set_password('adminsenmi'); u.save()" && gunicorn senmi_back.wsgi:application --bind 0.0.0.0:$PORT
   
 #THIS IS FOR UPDATING RAILWAY MODEL 
   python manage.py shell -c "from senmi.models import User; u=User.objects.get(email='senmilog@gmail.com'); u.role='admin'; u.is_staff=True; u.is_superuser=True; u.is_active=True; u.save()" && gunicorn senmi_back.wsgi:application --bind 0.0.0.0:$PORT
+
+#THIS IS DEFULT START COMMAND
+#  uvicorn senmi_back.asgi:application --host 0.0.0.0 --port $PORT
+#  python manage.py migrate && python manage.py collectstatic --noinput && uvicorn senmi_back.asgi:application --host 0.0.0.0 --port $PORT
 
 When building features:
 git checkout dev
