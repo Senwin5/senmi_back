@@ -15,21 +15,22 @@ def send_live_notification(user_id, data):
     try:
         user = User.objects.get(id=user_id)
 
-        # 💾 Save notification in DB
         Notification.objects.create(
             user=user,
             type=data.get("type", ""),
             message=data.get("message", "")
         )
 
-        # 📡 Send websocket message
         channel_layer = get_channel_layer()
 
         async_to_sync(channel_layer.group_send)(
             f"user_{user_id}",
             {
                 "type": "notify",
-                "data": data
+                "data": {
+                    "message": data.get("message", ""),
+                    "type": data.get("type", "")
+                }
             }
         )
 
