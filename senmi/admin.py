@@ -3,7 +3,8 @@ from django.contrib.auth import get_user_model
 from django.contrib import admin
 from django.conf import settings
 from .models import User, RiderProfile,Withdrawal
-from .utils import send_live_notification, send_email
+from senmi.services.notifications import send_live_notification
+from .utils import send_email
 from .models import RiderWallet, Package, PackageTracking, PackageStatusHistory
 
 # -----------------------------

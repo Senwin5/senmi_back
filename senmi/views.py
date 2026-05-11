@@ -33,7 +33,8 @@ from channels.layers import get_channel_layer
 from rest_framework.pagination import PageNumberPagination
 from asgiref.sync import async_to_sync
 from .serializers import UserSerializer
-from .utils import send_email, calculate_distance, calculate_price, send_live_notification
+from .utils import send_email, calculate_distance, calculate_price
+from senmi.services.notifications import send_live_notification
 from .models import (
     Package, PackageStatusHistory, PackageTracking,
     RiderRating, RiderWallet, RiderProfile,Withdrawal
