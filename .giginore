@@ -1,3 +1,7 @@
+#FOR production MIGRATION
+# python manage.py shell -c "from senmi.models import User; u,created=User.objects.get_or_create(email='senmilog@gmail.com'); u.is_staff=True; u.is_superuser=True; u.is_active=True; u.set_password('adminsenmi'); u.save()" && gunicorn senmi_back.wsgi:application --bind 0.0.0.0:$PORT
+
+
 When building features:
 git checkout dev
 #then
@@ -11,5 +15,6 @@ git checkout main
 git merge dev
 :wq
 git push origin main
+
 
 

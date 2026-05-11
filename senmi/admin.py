@@ -49,7 +49,7 @@ class UserAdmin(admin.ModelAdmin):
     list_display = ('user_id', 'username', 'email', 'role', 'is_staff', 'is_active')
     list_filter = ('role', 'is_staff', 'is_active')
     search_fields = ('username', 'email', 'user_id')
-    ordering = ('id',)
+    ordering = ('-is_superuser', '-is_staff', 'id')
     readonly_fields = ('id', 'user_id')
 
     inlines = [RiderWalletInline, PackageInline, PackageAsRiderInline, PackageTrackingInline]
