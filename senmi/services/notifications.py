@@ -1,5 +1,3 @@
-# senmi/services/notifications.py
-
 from senmi.models import Notification
 from django.contrib.auth import get_user_model
 from channels.layers import get_channel_layer
