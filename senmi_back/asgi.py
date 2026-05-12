@@ -1,54 +1,28 @@
-from urllib.parse import parse_qs
+import os
 
-from channels.middleware import BaseMiddleware
-from channels.db import database_sync_to_async
+# 🔥 MUST BE FIRST LINE
+os.environ.setdefault(
+    "DJANGO_SETTINGS_MODULE",
+    "senmi_back.settings"
+)
 
-from django.contrib.auth import get_user_model
-from django.contrib.auth.models import AnonymousUser
+from django.core.asgi import get_asgi_application
 
-User = get_user_model()
+django_asgi_app = get_asgi_application()
 
-
-@database_sync_to_async
-def get_user(token):
-
-    try:
-        # 🔥 IMPORT INSIDE FUNCTION (prevents Django startup crash)
-        from rest_framework_simplejwt.tokens import AccessToken
-
-        access_token = AccessToken(token)
-
-        user_id = access_token.get("user_id")
-
-        if not user_id:
-            return AnonymousUser()
-
-        return User.objects.get(id=user_id)
-
-    except Exception as e:
-        print("JWT ERROR:", e)
-        return AnonymousUser()
+from channels.routing import ProtocolTypeRouter, URLRouter
+from senmi.routing import websocket_urlpatterns
 
 
-class JwtAuthMiddleware(BaseMiddleware):
+# IMPORTANT: import AFTER Django setup
+from senmi.jwt_middleware import JwtAuthMiddleware
 
-    async def __call__(self, scope, receive, send):
 
-        try:
-            query_string = parse_qs(
-                scope["query_string"].decode()
-            )
+application = ProtocolTypeRouter({
 
-            token_list = query_string.get("token")
+    "http": django_asgi_app,
 
-            if token_list:
-                token = token_list[0]
-                scope["user"] = await get_user(token)
-            else:
-                scope["user"] = AnonymousUser()
-
-        except Exception as e:
-            print("MIDDLEWARE ERROR:", e)
-            scope["user"] = AnonymousUser()
-
-        return await super().__call__(scope, receive, send)
+    "websocket": JwtAuthMiddleware(
+        URLRouter(websocket_urlpatterns)
+    ),
+})
