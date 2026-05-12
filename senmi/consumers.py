@@ -47,7 +47,10 @@ class NotificationConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         user = self.scope["user"]
 
+        print("CONNECTED USER:", user)
+
         if user.is_anonymous:
+            print("ANONYMOUS USER")
             await self.close()
             return
 
@@ -67,4 +70,6 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         )
 
     async def notify(self, event):
-        await self.send(text_data=json.dumps(event["data"]))
+        await self.send(
+            text_data=json.dumps(event["data"])
+        )

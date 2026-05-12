@@ -1,18 +1,21 @@
 import os
+
 from channels.routing import ProtocolTypeRouter, URLRouter
 from django.core.asgi import get_asgi_application
-from channels.auth import AuthMiddlewareStack
-import senmi.routing
+
+from senmi.routing import websocket_urlpatterns
+from senmi.jwt_middleware import JwtAuthMiddleware
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'senmi_back.settings')
 
-application = ProtocolTypeRouter({
-    "http": get_asgi_application(),
+django_asgi_app = get_asgi_application()
 
-    "websocket": AuthMiddlewareStack(
+application = ProtocolTypeRouter({
+    "http": django_asgi_app,
+
+    "websocket": JwtAuthMiddleware(
         URLRouter(
-            senmi.routing.websocket_urlpatterns
+            websocket_urlpatterns
         )
     ),
 })
-
