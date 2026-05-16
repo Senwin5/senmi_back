@@ -1,4 +1,4 @@
-#notifications.py
+# notifications.py
 from senmi.models import Notification
 from django.contrib.auth import get_user_model
 from channels.layers import get_channel_layer
@@ -21,6 +21,8 @@ def send_live_notification(user_id, data):
         )
 
         channel_layer = get_channel_layer()
+
+        print("SENDING TO GROUP:", f"user_{user_id}")
 
         async_to_sync(channel_layer.group_send)(
             f"user_{user_id}",
