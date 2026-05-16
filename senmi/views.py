@@ -521,7 +521,7 @@ class AcceptPackageView(APIView):
                 ]
 
                 send_email(
-                    subject="📦 Package Accepted",
+                    subject=" Package Accepted",
                     message=(
                         f"Hello {package.customer.username},\n\n"
                         f"Your package {package.package_id} has been accepted by a rider.\n\n"
@@ -865,7 +865,7 @@ class UpdateDeliveryStatusView(APIView):
 
                     # Send email (unchanged behavior)
                     send_email(
-                        subject=f"📦 Package Update - {package.package_id}",
+                        subject=f" Package Update - {package.package_id}",
                         message=message,
                         recipients=recipients
                     )
