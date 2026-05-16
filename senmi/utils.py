@@ -1,5 +1,5 @@
 # senmi/utils.py
-# notification is in service
+
 
 from math import radians, sin, cos, sqrt, atan2
 from django.conf import settings
@@ -7,24 +7,73 @@ import os
 import logging
 import resend
 
-
 logger = logging.getLogger(__name__)
 
-def send_email(subject, message, recipients):
-    resend.api_key = os.getenv("RESEND_API_KEY")
+resend.api_key = os.getenv("RESEND_API_KEY")
 
+
+def send_email(subject, message, recipients):
     try:
+        html = f"""
+        <div style="
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 30px;
+        ">
+
+            <div style="
+                max-width: 600px;
+                margin: auto;
+                background: white;
+                border-radius: 16px;
+                padding: 40px;
+                text-align: center;
+            ">
+
+                <img
+                    src="https://www.senmi.com.ng/static/logo.png"
+                    width="120"
+                    style="margin-bottom: 20px;"
+                />
+
+                <h2 style="color:#111;">
+                    {subject}
+                </h2>
+
+                <p style="
+                    color:#444;
+                    line-height:1.7;
+                    font-size:15px;
+                    white-space: pre-line;
+                ">
+                    {message}
+                </p>
+
+                <div style="
+                    margin-top:30px;
+                    font-size:13px;
+                    color:#888;
+                ">
+                    © Senmi Delivery
+                </div>
+
+            </div>
+
+        </div>
+        """
+
         return resend.Emails.send({
             "from": "Senmi <support@senmi.com.ng>",
             "to": recipients,
             "subject": subject,
-            "html": f"<p>{message}</p>"
+            "html": html
         })
 
     except Exception as e:
         logger.error(f"EMAIL FAILED: {str(e)}")
         return False
-    
+
+ 
     
 # ------------------------------
 # Distance & price helpers

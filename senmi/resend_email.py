@@ -1,4 +1,5 @@
-import os
+#resend_email.py
+"""import os
 import resend
 
 resend.api_key = os.getenv("RESEND_API_KEY")
@@ -15,4 +16,4 @@ def send_email(to_email, subject, html):
         return True
     except Exception as e:
         print("Resend error:", e)
-        return False
+        return False"""
