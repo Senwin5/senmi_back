@@ -1,3 +1,4 @@
+#consumers.py
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 
@@ -45,6 +46,8 @@ class TrackingConsumer(AsyncWebsocketConsumer):
 class NotificationConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
+        print("USER:", self.scope["user"])
+        print("AUTH:", self.scope["user"].is_authenticated)
         user = self.scope["user"]
 
         print("CONNECTED USER:", user)
@@ -53,6 +56,9 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             print("ANONYMOUS USER")
             await self.close()
             return
+        
+
+        print("NOTIFICATION SOCKET CONNECTED:", user.id)
 
         self.group_name = f"user_{user.id}"
 

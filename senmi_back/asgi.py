@@ -1,6 +1,8 @@
+# asgi
+
 import os
 
-# 🔥 MUST BE FIRST LINE
+
 os.environ.setdefault(
     "DJANGO_SETTINGS_MODULE",
     "senmi_back.settings"

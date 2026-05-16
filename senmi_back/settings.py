@@ -99,6 +99,9 @@ CHANNEL_LAYERS = {
     },
 }
 
+
+
+
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
