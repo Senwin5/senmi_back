@@ -624,7 +624,7 @@ class CreatePackageView(APIView):
                 recipients = [request.user.email] + [settings.NOTIFY_EMAIL]
 
                 send_email(
-                    subject="📦 Package Created",
+                    subject="Package Created",
                     message=(
                         f"Hello {request.user.username},\n\n"
                         f"Your package {package.package_id} has been created successfully.\n\n"
