@@ -1111,8 +1111,8 @@ class PaystackWebhookView(APIView):
                     message=(
                         f"Hello {package.customer.username},\n\n"
                         f"Your payment for package {package.package_id} was successful.\n\n"
-                        f"📦 Delivery Code: {package.delivery_code}\n\n"
-                        f"⚠️ Please share this code ONLY with the rider upon delivery.\n\n"
+                        f"Delivery Code: {package.delivery_code}\n\n"
+                        f"Please share this code ONLY with the rider upon delivery.\n\n"
                         f"Your package is now available for riders to accept.\n\n"
                         f"Thank you for using Senmi."
                     ),
@@ -1861,15 +1861,29 @@ class PaymentCallbackView(APIView):
                 package.status = "paid"
                 package.save(update_fields=["is_paid", "status"])
 
+                send_email(
+                subject="Payment Successful",
+                message=(
+                    f"Hello {package.customer.username},\n\n"
+                    f"Your payment for package {package.package_id} was successful.\n\n"
+                    f"Delivery Code: {package.delivery_code}\n\n"
+                    f"Please share this code ONLY with the rider upon delivery.\n\n"
+                    f"Your package is now available for riders to accept.\n\n"
+                    f"Thank you for using Senmi."
+                ),
+                recipients=[
+                    package.customer.email,
+                    settings.NOTIFY_EMAIL
+                ]
+            )
+
         except Package.DoesNotExist:
             return Response({"error": "Package not found"}, status=404)
-
-        '''return Response({
-            "message": "Payment verified and saved"
-        })'''
-        return redirect(
-            f"https://www.senmi.com.ng/api/payment-success/?reference={reference}"
-        )
+        
+        if package.is_paid:
+            return redirect(
+                f"https://www.senmi.com.ng/api/payment-success/?reference={reference}"
+            )
 
 
 
@@ -1892,7 +1906,7 @@ def payment_success(request):
         background:#f5f5f5;
     ">
 
-        <h1 style="color:green;">✅ Payment Successful</h1>
+        <h1 style="color:green;"> Payment Successful</h1>
 
         <p>Your package payment was completed successfully.</p>
 
