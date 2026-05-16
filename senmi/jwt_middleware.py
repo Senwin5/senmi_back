@@ -1,6 +1,5 @@
-#jwt_middleware.py
+# jwt_middleware.py
 from urllib.parse import parse_qs
-from channels.middleware import BaseMiddleware
 from channels.db import database_sync_to_async
 from rest_framework_simplejwt.tokens import AccessToken
 from django.contrib.auth import get_user_model
@@ -21,7 +20,6 @@ def get_user(token):
 
 
 class JwtAuthMiddleware:
-
     def __init__(self, app):
         self.app = app
 
@@ -36,6 +34,9 @@ class JwtAuthMiddleware:
 
         if token:
             user = await get_user(token[0])
+
+            print("AUTH USER:", user)
+
             if user:
                 scope["user"] = user
 

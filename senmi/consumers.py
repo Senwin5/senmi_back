@@ -46,21 +46,18 @@ class TrackingConsumer(AsyncWebsocketConsumer):
 class NotificationConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
-        print("USER:", self.scope["user"])
-        print("AUTH:", self.scope["user"].is_authenticated)
         user = self.scope["user"]
 
-        print("CONNECTED USER:", user)
+        print("WS USER:", user)
 
         if user.is_anonymous:
-            print("ANONYMOUS USER")
+            print("REJECTED ANONYMOUS USER")
             await self.close()
             return
-        
-
-        print("NOTIFICATION SOCKET CONNECTED:", user.id)
 
         self.group_name = f"user_{user.id}"
+
+        print("JOINING GROUP:", self.group_name)
 
         await self.channel_layer.group_add(
             self.group_name,
@@ -69,13 +66,10 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 
         await self.accept()
 
-    async def disconnect(self, close_code):
-        await self.channel_layer.group_discard(
-            self.group_name,
-            self.channel_name
-        )
+        print("NOTIFICATION SOCKET CONNECTED:", user.id)
+
 
     async def notify(self, event):
-        await self.send(
-            text_data=json.dumps(event["data"])
-        )
+        print("EVENT RECEIVED IN SOCKET:", event)
+
+        await self.send(text_data=json.dumps(event["data"]))
