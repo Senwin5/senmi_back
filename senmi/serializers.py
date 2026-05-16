@@ -62,6 +62,11 @@ class RiderProfileSerializer(serializers.ModelSerializer):
             'rider_image_with_vehicle',
         ]
 
+    def get_profile_picture(self, obj):
+        if obj.profile_picture:
+            return obj.profile_picture.url
+        return None
+
 
 
 class PackageSerializer(serializers.ModelSerializer):
