@@ -1926,6 +1926,7 @@ def payment_success(request):
     </html>
     """)
 
+
 def search_package(request):
     query = request.GET.get("q", "").strip()
 

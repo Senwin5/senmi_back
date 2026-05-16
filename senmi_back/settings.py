@@ -28,7 +28,6 @@ DEBUG = True
 ALLOWED_HOSTS = [
     "www.senmi.com.ng",
     "senmi.com.ng",
-    "api.senmi.com.ng",
     "senmiback-production.up.railway.app",
     ".up.railway.app",
     "127.0.0.1",
@@ -90,13 +89,6 @@ TEMPLATES = [
 WSGI_APPLICATION = 'senmi_back.wsgi.application'
 
 
-'''CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer",
-    },
-}'''
-
-
 
 CHANNEL_LAYERS = {
     "default": {
@@ -109,13 +101,6 @@ CHANNEL_LAYERS = {
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
-
-"""DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}"""
 
 
 
