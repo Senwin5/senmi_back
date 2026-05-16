@@ -30,6 +30,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.authentication import TokenAuthentication
+from django.http import HttpResponse
 from channels.layers import get_channel_layer
 from rest_framework.pagination import PageNumberPagination
 from asgiref.sync import async_to_sync
@@ -1867,11 +1868,11 @@ class PaymentCallbackView(APIView):
             "message": "Payment verified and saved"
         })'''
         return redirect(
-            f"https://senmi.com.ng/api/payment-success/?reference={reference}"
+            f"https://www.senmi.com.ng/api/payment-success/?reference={reference}"
         )
 
 
-from django.http import HttpResponse
+
 
 def payment_success(request):
     return HttpResponse("""
