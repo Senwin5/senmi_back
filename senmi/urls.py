@@ -47,5 +47,6 @@ urlpatterns = [
     path('api/admin/withdrawals/<int:withdrawal_id>/approve/',ApproveWithdrawalView.as_view()),
     path('api/admin/withdrawals/<int:withdrawal_id>/reject/',RejectWithdrawalView.as_view()),
     path('api/admin/withdrawals/<int:withdrawal_id>/retry/',RetryWithdrawalView.as_view()),
+    path('api/payment-success/', views.payment_success),
     
 ]

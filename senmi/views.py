@@ -9,6 +9,7 @@ import logging
 import requests
 from decimal import Decimal, InvalidOperation
 import re
+from django.shortcuts import redirect
 from rest_framework.parsers import JSONParser
 from django.conf import settings
 from django.http import JsonResponse
@@ -1862,10 +1863,53 @@ class PaymentCallbackView(APIView):
         except Package.DoesNotExist:
             return Response({"error": "Package not found"}, status=404)
 
-        return Response({
+        '''return Response({
             "message": "Payment verified and saved"
-        })
-    
+        })'''
+        return redirect(
+            f"https://senmi.com.ng/api/payment-success/?reference={reference}"
+        )
+
+
+from django.http import HttpResponse
+
+def payment_success(request):
+    return HttpResponse("""
+    <html>
+    <head>
+        <title>Payment Successful</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+    </head>
+
+    <body style="
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        height:100vh;
+        font-family:sans-serif;
+        flex-direction:column;
+        background:#f5f5f5;
+    ">
+
+        <h1 style="color:green;">✅ Payment Successful</h1>
+
+        <p>Your package payment was completed successfully.</p>
+
+        <button onclick="window.location.href='senmi://payment-success'"
+        style="
+            padding:14px 24px;
+            border:none;
+            background:green;
+            color:white;
+            border-radius:8px;
+            font-size:16px;
+        ">
+            Continue
+        </button>
+
+    </body>
+    </html>
+    """)
 
 def search_package(request):
     query = request.GET.get("q", "").strip()
