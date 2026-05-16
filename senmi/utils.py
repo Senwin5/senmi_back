@@ -54,7 +54,7 @@ def send_email(subject, message, recipients):
                     font-size:13px;
                     color:#888;
                 ">
-                    © Senmi Delivery
+                    © Senmi Real Time <br> Deliver App Ltd
                 </div>
 
             </div>
