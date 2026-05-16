@@ -12,59 +12,31 @@ logger = logging.getLogger(__name__)
 resend.api_key = os.getenv("RESEND_API_KEY")
 
 
-def send_email(subject, message, recipients):
+def send_email(subject, message, from_email=None, recipient_list=None, recipients=None, fail_silently=False):
     try:
+        to = recipient_list or recipients
+
         html = f"""
-        <div style="
-            font-family: Arial, sans-serif;
-            background: #f5f5f5;
-            padding: 30px;
-        ">
+        <div style="font-family: Arial, sans-serif; background: #f5f5f5; padding: 30px;">
+            <div style="max-width: 600px; margin: auto; background: white; border-radius: 16px; padding: 40px; text-align: center;">
+                <img src="https://www.senmi.com.ng/static/logo.png" width="120" style="margin-bottom: 20px;" />
 
-            <div style="
-                max-width: 600px;
-                margin: auto;
-                background: white;
-                border-radius: 16px;
-                padding: 40px;
-                text-align: center;
-            ">
+                <h2 style="color:#111;">{subject}</h2>
 
-                <img
-                    src="https://www.senmi.com.ng/static/logo.png"
-                    width="120"
-                    style="margin-bottom: 20px;"
-                />
-
-                <h2 style="color:#111;">
-                    {subject}
-                </h2>
-
-                <p style="
-                    color:#444;
-                    line-height:1.7;
-                    font-size:15px;
-                    white-space: pre-line;
-                ">
+                <p style="color:#444; line-height:1.7; font-size:15px; white-space: pre-line;">
                     {message}
                 </p>
 
-                <div style="
-                    margin-top:30px;
-                    font-size:13px;
-                    color:#888;
-                ">
-                    © Senmi Real Time <br> Deliver App Ltd
+                <div style="margin-top:30px; font-size:13px; color:#888;">
+                    © Senmi Real Time Delivery App Ltd.
                 </div>
-
             </div>
-
         </div>
         """
 
         return resend.Emails.send({
             "from": "Senmi <support@senmi.com.ng>",
-            "to": recipients,
+            "to": to,
             "subject": subject,
             "html": html
         })
