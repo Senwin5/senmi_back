@@ -47,7 +47,7 @@ class RiderProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
 
     # ✅ IMPORTANT
-    #profile_picture = serializers.SerializerMethodField()
+    profile_picture = serializers.SerializerMethodField()
 
     class Meta:
         model = RiderProfile
