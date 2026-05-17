@@ -27,3 +27,8 @@ git push origin main
 
 
 
+from senmi.notifications import send_live_notification
+send_live_notification(YOUR_USER_ID, {
+    "type": "test",
+    "message": "hello"
+})

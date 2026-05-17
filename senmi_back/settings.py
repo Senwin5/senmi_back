@@ -98,7 +98,7 @@ CHANNEL_LAYERS = {
         },
     },
 }
-
+print("REDIS:", os.getenv("REDIS_URL"))
 
 
 

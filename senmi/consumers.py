@@ -46,6 +46,7 @@ class TrackingConsumer(AsyncWebsocketConsumer):
 class NotificationConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
+        print("CONNECT CALLED")
         user = self.scope["user"]
 
         print("WS USER:", user)
