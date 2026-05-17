@@ -46,11 +46,7 @@ class RiderProfileSerializer(serializers.ModelSerializer):
     email = serializers.CharField(source='user.email', read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
 
-    profile_picture = serializers.ImageField(
-        required=False,
-        allow_null=True,
-        use_url=True
-    )
+    profile_picture = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = RiderProfile
@@ -68,11 +64,16 @@ class RiderProfileSerializer(serializers.ModelSerializer):
             'rider_image_with_vehicle',
         ]
 
-    """def get_profile_picture(self, obj):
-        if obj.profile_picture:
-            return obj.profile_picture.url
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
 
-        return None"""
+        if data.get("profile_picture") and request:
+            data["profile_picture"] = request.build_absolute_uri(
+                instance.profile_picture.url
+            )
+        return data
+ 
 
 
 
