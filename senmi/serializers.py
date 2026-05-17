@@ -46,8 +46,11 @@ class RiderProfileSerializer(serializers.ModelSerializer):
     email = serializers.CharField(source='user.email', read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
 
-    # ✅ IMPORTANT
-    profile_picture = serializers.SerializerMethodField()
+    profile_picture = serializers.ImageField(
+        required=False,
+        allow_null=True,
+        use_url=True
+    )
 
     class Meta:
         model = RiderProfile
@@ -65,11 +68,11 @@ class RiderProfileSerializer(serializers.ModelSerializer):
             'rider_image_with_vehicle',
         ]
 
-    def get_profile_picture(self, obj):
+    """def get_profile_picture(self, obj):
         if obj.profile_picture:
             return obj.profile_picture.url
 
-        return None
+        return None"""
 
 
 
