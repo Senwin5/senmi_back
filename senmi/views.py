@@ -1701,6 +1701,8 @@ class RateRiderView(APIView):
             rider_profile.rating_count = stats['count'] or 0
             rider_profile.save(update_fields=['rating', 'rating_count'])
 
+            
+
         return Response({"message": "Rating submitted"})
 
 

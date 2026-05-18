@@ -42,7 +42,7 @@ class UserSerializer(serializers.ModelSerializer):
         
 
 # serializers.py
-class RiderProfileSerializer(serializers.ModelSerializer):
+"""class RiderProfileSerializer(serializers.ModelSerializer):
     email = serializers.CharField(source='user.email', read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
 
@@ -62,6 +62,8 @@ class RiderProfileSerializer(serializers.ModelSerializer):
             'profile_picture',
             'rider_image_1',
             'rider_image_with_vehicle',
+            'rating',
+            'rating_count',
         ]
 
     def to_representation(self, instance):
@@ -72,7 +74,38 @@ class RiderProfileSerializer(serializers.ModelSerializer):
             data["profile_picture"] = request.build_absolute_uri(
                 instance.profile_picture.url
             )
-        return data
+        return data"""
+
+
+class RiderProfileSerializer(serializers.ModelSerializer):
+    email = serializers.CharField(source='user.email', read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True)
+
+    profile_picture = serializers.SerializerMethodField()
+
+    class Meta:
+        model = RiderProfile
+        fields = [
+            'full_name',
+            'phone_number',
+            'vehicle_number',
+            'address',
+            'city',
+            'status',
+            'email',
+            'username',
+            'profile_picture',
+            'rider_image_1',
+            'rider_image_with_vehicle',
+            'rating',
+            'rating_count',
+        ]
+
+    def get_profile_picture(self, obj):
+        request = self.context.get("request")
+        if obj.profile_picture and request:
+            return request.build_absolute_uri(obj.profile_picture.url)
+        return None
  
 
 
