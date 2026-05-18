@@ -47,6 +47,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
         print("CONNECT CALLED")
+
         user = self.scope["user"]
 
         print("WS USER:", user)
@@ -69,8 +70,46 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 
         print("NOTIFICATION SOCKET CONNECTED:", user.id)
 
+    async def disconnect(self, close_code):
+        print("DISCONNECTED:", close_code)
+
+        await self.channel_layer.group_discard(
+            self.group_name,
+            self.channel_name
+        )
 
     async def notify(self, event):
         print("EVENT RECEIVED IN SOCKET:", event)
 
         await self.send(text_data=json.dumps(event["data"]))
+    
+    async def connect(self):
+
+        print("===== WS CONNECT =====")
+
+        user = self.scope["user"]
+
+        print("USER =", user)
+        print("AUTH =", user.is_authenticated)
+
+        if user.is_anonymous:
+            print("ANONYMOUS USER REJECTED")
+            await self.close()
+            return
+
+        self.group_name = f"user_{user.id}"
+
+        print("GROUP =", self.group_name)
+
+        await self.channel_layer.group_add(
+            self.group_name,
+            self.channel_name
+        )
+
+        await self.accept()
+
+        print("SOCKET ACCEPTED")
+
+        await self.send(text_data=json.dumps({
+            "message": "connected"
+        }))

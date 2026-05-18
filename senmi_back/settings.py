@@ -90,17 +90,18 @@ WSGI_APPLICATION = 'senmi_back.wsgi.application'
 
 
 
+REDIS_URL = os.environ.get("REDIS_URL")
+
+print("REDIS URL =", REDIS_URL)
+
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [os.getenv("REDIS_URL")],
+            "hosts": [REDIS_URL],
         },
     },
 }
-print("REDIS:", os.getenv("REDIS_URL"))
-
-
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
