@@ -32,3 +32,16 @@ git push origin main
 
 
 
+from senmi.models import User
+from senmi.utils import send_fcm_notification
+
+user = User.objects.get(
+    email="godwinsenwin@gmail.com"
+)
+
+send_fcm_notification(
+    user,
+    "Test Notification",
+    "Firebase is working",
+    {"type": "test"}
+)
