@@ -32,13 +32,13 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.authentication import TokenAuthentication
 from django.http import HttpResponse
 from channels.layers import get_channel_layer
+from .utils import send_fcm_notification 
 from rest_framework.pagination import PageNumberPagination
 from asgiref.sync import async_to_sync
 from .serializers import UserSerializer
 from .utils import send_email, calculate_distance, calculate_price
-from senmi.services.notifications import send_live_notification
 from .models import (
-    Package, PackageStatusHistory, PackageTracking,
+    FCMDevice, Package, PackageStatusHistory, PackageTracking,
     RiderRating, RiderWallet, RiderProfile,Withdrawal
 )
 from .serializers import (
@@ -224,10 +224,13 @@ def review_rider(request, rider_id):
         """
             )
         )
-    send_live_notification(profile.user.id, {
-            "type": "account_review",
-            "message": "Rider account reviewed successfully"
-        })
+
+    send_fcm_notification(
+        profile.user,
+        "Account Review",
+        "Your rider profile has been reviewed",
+        {"type": "account_review", "status": status_value}
+    )
 
     recipients = [settings.NOTIFY_EMAIL, profile.user.email]
 
@@ -236,6 +239,43 @@ def review_rider(request, rider_id):
     return Response({"message": f"Rider profile {status_value} successfully."}, status=200)
 
 
+@api_view(['POST'])
+def test_push(request):
+    user_id = request.data.get("user_id")
+
+    user = User.objects.filter(id=user_id).first()
+
+    if not user:
+        return Response({"error": "User not found"}, status=400)
+
+    result = send_fcm_notification(
+        user,
+        "Test Notification 🚀",
+        "Hello from Django"
+    )
+
+    return Response({"success": True, "result": result})
+
+
+@api_view(['POST'])
+def save_fcm_token(request):
+    user = request.user
+    token = request.data.get("token")
+    device_type = request.data.get("device_type")
+
+    if not token:
+        return Response({"error": "No token"}, status=400)
+
+    obj, created = FCMDevice.objects.update_or_create(
+        token=token,
+        defaults={
+            "user": user,
+            "device_type": device_type,
+            "is_active": True
+        }
+    )
+
+    return Response({"success": True})
 
 # ------------------------------
 # Registration
@@ -250,18 +290,22 @@ class RegisterView(APIView):
                 user = serializer.save()
                 # 🔔 LIVE NOTIFICATIONS (safe block)
                 try:
-                    send_live_notification(user.id, {
-                        "type": "account_created",
-                        "message": "Account created successfully"
-                    })
+                    send_fcm_notification(
+                        user,
+                        "Welcome ",
+                        "Account created successfully",
+                        {"type": "account_created"}
+                    )
 
                     admins = User.objects.filter(is_superuser=True)
 
                     for admin in admins:
-                        send_live_notification(admin.id, {
-                            "type": "new_user",
-                            "message": f"New user registered: {user.email}"
-                        })
+                        send_fcm_notification(
+                            admin,
+                            "New User 👤",
+                            f"New user registered: {user.email}",
+                            {"type": "new_user"}
+                        )
 
                 except Exception as e:
                     logger.exception(f"Live notification failed: {e}")
@@ -533,10 +577,12 @@ class AcceptPackageView(APIView):
                     ),
                     recipients=[r for r in recipients if r]
                 )
-                send_live_notification(package.customer.id, {
-                    "type": "package_accepted",
-                    "message": f"Rider accepted your package {package.package_id}"
-                })
+                send_fcm_notification(
+                    package.customer,
+                    "Package Accepted",
+                    f"Rider accepted your package {package.package_id}",
+                    {"type": "package_accepted"}
+                )
 
                 # =========================
                 # 💰 RESPONSE
@@ -633,10 +679,13 @@ class CreatePackageView(APIView):
                     ),
                     recipients=recipients
                 )
-                send_live_notification(request.user.id, {
-                    "type": "package_created",
-                    "message": f"Package {package.package_id} created successfully"
-                })
+
+                send_fcm_notification(
+                    request.user,
+                    "Package Created",
+                    f"Package {package.package_id} created successfully",
+                    {"type": "package_created"}
+                )
             except Exception as e:
                 logger.exception(f"Failed to send package creation email: {e}")
 
@@ -827,13 +876,7 @@ class UpdateDeliveryStatusView(APIView):
                 recipients = [r for r in recipients if r]
 
                 try:
-                    '''send_email(
-                        subject=f"Package {package.package_id} Status Update",
-                        message=f"Package {package.package_id} is now {new_status}.",
-                        recipients=recipients
-                    )'''
-
-                    # Choose message based on status (NO LOGIC CHANGE)
+                 # Choose message based on status (NO LOGIC CHANGE)
                     if new_status == "picked_up":
                         message = (
                             f"Hello {package.customer.username},\n\n"
@@ -842,10 +885,13 @@ class UpdateDeliveryStatusView(APIView):
                             f"Your delivery is now in progress.\n\n"
                             f"Thank you for using Senmi."
                         )
-                        send_live_notification(package.customer.id, {
-                            "type": "picked_up",
-                            "message": f"Your package {package.package_id} has been picked up"
-                        })
+                    
+                        send_fcm_notification(
+                            package.customer,
+                            "Package Picked Up",
+                            f"Your package {package.package_id} has been picked up",
+                            {"type": "picked_up"}
+                        )
 
                     elif new_status == "delivered":
                         message = (
@@ -854,10 +900,13 @@ class UpdateDeliveryStatusView(APIView):
                             f"We hope you had a great experience.\n\n"
                             f"Thank you for using Senmi."
                         )
-                        send_live_notification(package.customer.id, {
-                            "type": "delivered",
-                            "message": f"Package {package.package_id} delivered successfully"
-                        })
+
+                        send_fcm_notification(
+                            package.customer,
+                            "Delivered",
+                            f"Package {package.package_id} delivered successfully",
+                            {"type": "delivered"}
+                        )
 
                     else:
                         # fallback (keeps your original behavior)
@@ -1091,10 +1140,13 @@ class PaystackWebhookView(APIView):
                     return Response(status=200)
 
                 package.is_paid = True
-                send_live_notification(package.customer.id, {
-                    "type": "payment_success",
-                    "message": f"Payment for {package.package_id} successful"
-                })
+
+                send_fcm_notification(
+                    package.customer,
+                    "Payment Successful",
+                    f"Payment for {package.package_id} successful",
+                    {"type": "payment_success"}
+                )
                 package.status = "paid" 
                 package.save(update_fields=['is_paid','status'])
                 logger.info(f"Package {package.id} marked as paid via webhook.")
@@ -1354,10 +1406,12 @@ class RiderWithdrawView(APIView):
             status="processing"
         )
 
-        send_live_notification(request.user.id, {
-            "type": "withdrawal_processing",
-            "message": "Your withdrawal is being processed"
-        })
+        send_fcm_notification(
+            request.user,
+            "Withdrawal Processing",
+            "Your withdrawal is being processed",
+            {"type": "withdrawal_processing"}
+        )
 
         headers = {
             "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
@@ -1447,10 +1501,12 @@ class RiderWithdrawView(APIView):
             withdrawal.failure_reason = transfer_res.get("message")
             withdrawal.save()
 
-            send_live_notification(request.user.id, {
-                "type": "withdrawal_failed",
-                "message": transfer_res.get("message")
-            })
+            send_fcm_notification(
+                request.user,
+                "Withdrawal Failed",
+                transfer_res.get("message"),
+                {"type": "withdrawal_failed"}
+            )
 
             return Response({
                 "error": "Transfer failed",
@@ -1465,10 +1521,12 @@ class RiderWithdrawView(APIView):
         withdrawal.status = "success"
         withdrawal.save()
 
-        send_live_notification(request.user.id, {
-            "type": "withdrawal_success",
-            "message": "Withdrawal successful"
-        })
+        send_fcm_notification(
+            request.user,
+            "Withdrawal Successful",
+            "Withdrawal successful",
+            {"type": "withdrawal_success"}
+        )
 
         return Response({
             "message": "Withdrawal successful"
@@ -1510,10 +1568,13 @@ class ApproveWithdrawalView(APIView):
 
         withdrawal.status = "approved"
         withdrawal.save()
-        send_live_notification(withdrawal.rider.id, {
-            "type": "withdrawal_approved",
-            "message": "Your withdrawal has been approved"
-        })
+
+        send_fcm_notification(
+            withdrawal.rider.user,
+            "Withdrawal Approved",
+            "Your withdrawal has been approved",
+            {"type": "withdrawal_approved"}
+        )
 
         return Response({
             "message": "Withdrawal approved"
@@ -1538,10 +1599,13 @@ class RejectWithdrawalView(APIView):
             "Rejected by admin"
         )
         withdrawal.save()
-        send_live_notification(withdrawal.rider.id, {
-            "type": "withdrawal_rejected",
-            "message": withdrawal.failure_reason
-        })
+
+        send_fcm_notification(
+            withdrawal.rider.user,
+            "Withdrawal Rejected",
+            withdrawal.failure_reason,
+            {"type": "withdrawal_rejected"}
+        )
 
         return Response({
             "message": "Withdrawal rejected"
@@ -1577,12 +1641,15 @@ class RetryWithdrawalView(APIView):
         withdrawal.save()
 
         # 🔔 notify rider
-        send_live_notification(withdrawal.rider.id, {
-            "type": "withdrawal_retry",
-            "message": "Your withdrawal is being retried"
-        })
 
-        # 🚀 run actual payout logic
+        send_fcm_notification(
+            withdrawal.rider.user,
+            "Withdrawal Retry",
+            "Your withdrawal is being retried",
+            {"type": "withdrawal_retry"}
+        )
+
+        # run actual payout logic
         process_withdrawal(withdrawal)
 
         return Response({
@@ -1621,10 +1688,12 @@ def process_withdrawal(withdrawal):
         withdrawal.failure_reason = str(e)
 
     withdrawal.save()
-    send_live_notification(withdrawal.rider.id, {
-        "type": "withdrawal_success",
-        "message": "Withdrawal successful"
-    })
+    send_fcm_notification(
+        withdrawal.rider.user,
+        "Withdrawal Successful",
+        "Withdrawal successful",
+        {"type": "withdrawal_success"}
+    )
 
 
 class ResolveAccountView(APIView):

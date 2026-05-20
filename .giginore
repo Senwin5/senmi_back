@@ -10,7 +10,11 @@
 #THIS IS DEFULT START COMMAND
 #  uvicorn senmi_back.asgi:application --host 0.0.0.0 --port $PORT
 #  python manage.py migrate && python manage.py collectstatic --noinput && uvicorn senmi_back.asgi:application --host 0.0.0.0 --port $PORT
+#----------------------------------------------------------------------------------
 
+firebase-service-account.json/
+
+#-----------------------------------------------------
 When building features:
 git checkout dev
 #then
@@ -26,9 +30,3 @@ git merge dev
 git push origin main
 
 
-
-from senmi.notifications import send_live_notification
-send_live_notification(YOUR_USER_ID, {
-    "type": "test",
-    "message": "hello"
-})

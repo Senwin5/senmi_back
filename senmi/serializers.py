@@ -11,6 +11,9 @@ from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
 from rest_framework.exceptions import ValidationError
 from .models import User, RiderProfile
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -40,6 +43,19 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['username', 'email', 'phone_number', 'role']
         
+
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def save_fcm_token(request):
+    token = request.data.get("fcm_token")
+
+    request.user.fcm_token = token
+    request.user.save()
+
+    return Response({"success": True})
+
 
 # serializers.py
     

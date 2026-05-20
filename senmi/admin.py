@@ -1,10 +1,11 @@
+import profile
 import uuid
 from django.contrib.auth import get_user_model
 from django.contrib import admin
 from django.conf import settings
 from .models import Notification, User, RiderProfile,Withdrawal
-from senmi.services.notifications import send_live_notification
-from .utils import send_email
+from .utils import send_email, send_fcm_notification
+from django.core.exceptions import ValidationError
 from .models import RiderWallet, Package, PackageTracking, PackageStatusHistory
 
 # -----------------------------
@@ -76,7 +77,11 @@ class RiderProfileAdmin(admin.ModelAdmin):
         required_images = ['profile_picture', 'rider_image_1', 'rider_image_with_vehicle']
         missing_images = [img for img in required_images if not getattr(obj, img)]
         if missing_images:
-            raise ValueError(f"Cannot save: missing required images: {', '.join(missing_images)}")
+            #raise ValueError(f"Cannot save: missing required images: {', '.join(missing_images)}")
+            raise ValidationError(
+                f"Missing required images: {', '.join(missing_images)}"
+            )
+        
 
         # 2️⃣ Track old status to detect changes
         old_status = None
@@ -94,10 +99,13 @@ class RiderProfileAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
         if not change or obj.status == 'pending':
-            send_live_notification(obj.user.id, {
-                "type": "rider_pending",
-                "message": "Your rider application is under review"
-            })
+
+            send_fcm_notification(
+                obj.user,
+                "Rider Pending",
+                "Your rider application is under review",
+                {"type": "rider_pending"}
+            )
             send_email(
                 subject="Your Rider Profile Successfully Submitted",
                 message = (
@@ -122,32 +130,31 @@ class RiderProfileAdmin(admin.ModelAdmin):
             )
 
         # Notify admins
-        UserModel = get_user_model()
-        admins = list(
-            UserModel.objects.filter(is_superuser=True)
-            .values_list('email', flat=True)
-        )
+        # Notify admins only for new applications
+        if not change:
 
-        send_email(
-            subject="New Rider Profile Awaiting Review",
-            message = (
-                "Hello Admin Team,\n\n"
-                "A new rider profile has been submitted for review.\n\n"
-                "Rider Details:\n"
-                f"Username: {obj.user.username}\n"
-                f"Profile ID: {obj.rider_id}\n"
-                "Status: Pending Review\n\n"
-                "Please log in to the dashboard to verify and take action.\n\n"
-                "Regards,\n"
-                "Senmi System"
-            ),
-            from_email=settings.EMAIL_HOST_USER,
-            recipient_list=["senmilog@gmail.com"],
-            fail_silently=False,
-        )
+            UserModel = get_user_model()
 
+            admins = list(
+                UserModel.objects.filter(is_superuser=True)
+                .values_list('email', flat=True)
+            )
 
-
+            send_email(
+                subject="New Rider Profile Awaiting Review",
+                message=(
+                    "Hello Admin Team,\n\n"
+                    "A new rider profile has been submitted for review.\n\n"
+                    f"Username: {obj.user.username}\n"
+                    f"Profile ID: {obj.rider_id}\n\n"
+                    "Please review from admin dashboard.\n\n"
+                    "Regards,\n"
+                    "Senmi System"
+                ),
+                from_email=settings.EMAIL_HOST_USER,
+                recipient_list=["senmilog@gmail.com"],
+                fail_silently=False,
+            )
 
 
         # 7️⃣ Notify rider if status changed (approved/rejected)
@@ -155,10 +162,16 @@ class RiderProfileAdmin(admin.ModelAdmin):
             message = None
 
             if obj.status == 'approved':
-                send_live_notification(obj.user.id, {
-                "type": "rider_approved",
-                "message": "Your rider account has been approved"
-            })
+      
+                send_fcm_notification(
+                    obj.user,
+                    "Rider Approved",
+                    "Your rider account has been approved",
+                    {
+                        "type": "rider_approved"
+                    }
+                )
+                
                 message = f"""
         Hello {obj.user.username},
 
@@ -173,10 +186,15 @@ class RiderProfileAdmin(admin.ModelAdmin):
         """
 
             elif obj.status == 'rejected':
-                send_live_notification(obj.user.id, {
-                    "type": "rider_rejected",
-                    "message": obj.rejection_reason or "Your application was rejected"
-                })
+
+                send_fcm_notification(
+                    obj.user,
+                    "Rider Rejected",
+                    obj.rejection_reason or "Your rider application was rejected",
+                    {
+                        "type": "rider_rejected"
+                    }
+                )
                 message = (
                     f"Hello {obj.user.username},\n\n"
                     "We regret to inform you that your rider profile was not approved.\n\n"
@@ -203,11 +221,73 @@ class RiderProfileAdmin(admin.ModelAdmin):
 # Package, RiderWallet, PackageTracking, PackageStatusHistory admins
 @admin.register(Package)
 class PackageAdmin(admin.ModelAdmin):
-    list_display = ('package_id', 'customer', 'rider', 'description', 'status', 'price', 'commission','is_paid', 'created_at')
+
+    list_display = (
+        'package_id',
+        'customer',
+        'rider',
+        'description',
+        'status',
+        'price',
+        'commission',
+        'is_paid',
+        'created_at'
+    )
+
     list_filter = ('status', 'rider')
-    search_fields = ('customer__email', 'rider__email', 'description')
-    readonly_fields = ('commission', 'created_at', 'updated_at')
+
+    search_fields = (
+        'customer__email',
+        'rider__email',
+        'description'
+    )
+
+    readonly_fields = (
+        'commission',
+        'created_at',
+        'updated_at'
+    )
+
     ordering = ('-created_at',)
+
+    def save_model(self, request, obj, form, change):
+
+        old_status = None
+
+        if change:
+            old_obj = Package.objects.get(pk=obj.pk)
+            old_status = old_obj.status
+
+        super().save_model(request, obj, form, change)
+
+        # notify only when status changes
+        if change and old_status != obj.status:
+
+            # notify customer
+            send_fcm_notification(
+                obj.customer,
+                "Package Update",
+                f"Your package is now {obj.status}",
+                {
+                    "type": "package_status",
+                    "status": obj.status,
+                    "package_id": obj.package_id
+                }
+            )
+
+            # notify rider
+            if obj.rider:
+
+                send_fcm_notification(
+                    obj.rider,
+                    "Delivery Update",
+                    f"Package updated to {obj.status}",
+                    {
+                        "type": "delivery_update",
+                        "status": obj.status,
+                        "package_id": obj.package_id
+                    }
+                )
 
 
 @admin.register(PackageTracking)

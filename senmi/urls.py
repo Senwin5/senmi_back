@@ -1,5 +1,7 @@
 # senmi/urls.py
 from django.urls import path
+
+from senmi.serializers import save_fcm_token
 from .views import AdminRidersListView, AdminUserSearchView, AdminWithdrawalsView, calculate_price_view, delete_package, search_package
 from .views import AcceptPackageView,UpdateDeliveryStatusView,CustomLoginView,RegisterView
 from .views import ApproveWithdrawalView, CustomerPackagesView, HardDeleteUserView, RejectWithdrawalView
@@ -48,5 +50,6 @@ urlpatterns = [
     path('api/admin/withdrawals/<int:withdrawal_id>/reject/',RejectWithdrawalView.as_view()),
     path('api/admin/withdrawals/<int:withdrawal_id>/retry/',RetryWithdrawalView.as_view()),
     path('api/payment-success/', views.payment_success),
+    path("api/save-fcm-token/", save_fcm_token),
     
 ]

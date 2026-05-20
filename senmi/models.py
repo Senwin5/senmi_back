@@ -64,6 +64,48 @@ class User(AbstractUser):
         return self.email
 
 
+class FCMDevice(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="fcm_devices"
+    )
+
+    token = models.TextField(unique=True)
+
+    device_type = models.CharField(
+        max_length=20,
+        choices=[
+            ("android", "Android"),
+            ("ios", "iOS"),
+            ("web", "Web"),
+        ],
+        blank=True,
+        null=True
+    )
+
+    device_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Optional: unique device identifier"
+    )
+
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["user"]),
+            models.Index(fields=["token"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user.email} - {self.device_type or 'unknown'}"
 
 
 class RiderProfile(models.Model):

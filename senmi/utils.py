@@ -5,7 +5,11 @@ from math import radians, sin, cos, sqrt, atan2
 from django.conf import settings
 import os
 import logging
+from firebase_admin import messaging
 import resend
+from .models import FCMDevice
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +49,34 @@ def send_email(subject, message, from_email=None, recipient_list=None, recipient
         logger.error(f"EMAIL FAILED: {str(e)}")
         return False
 
+
+
+def send_fcm_notification(user, title, body, data=None):
+    tokens = FCMDevice.objects.filter(
+        user=user,
+        is_active=True
+    ).values_list("token", flat=True)
+
+    if not tokens:
+        return False
+
+    for token in tokens:
+        try:
+            message = messaging.Message(
+                notification=messaging.Notification(
+                    title=title,
+                    body=body,
+                ),
+                data={k: str(v) for k, v in (data or {}).items()},
+                token=token,
+            )
+
+            messaging.send(message)
+
+        except Exception :
+            logger.error("FCM ERROR")
+
+    return True
  
     
 # ------------------------------
