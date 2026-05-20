@@ -239,25 +239,10 @@ def review_rider(request, rider_id):
     return Response({"message": f"Rider profile {status_value} successfully."}, status=200)
 
 
-@api_view(['POST'])
-def test_push(request):
-    user_id = request.data.get("user_id")
-
-    user = User.objects.filter(id=user_id).first()
-
-    if not user:
-        return Response({"error": "User not found"}, status=400)
-
-    result = send_fcm_notification(
-        user,
-        "Test Notification 🚀",
-        "Hello from Django"
-    )
-
-    return Response({"success": True, "result": result})
 
 
 @api_view(['POST'])
+@csrf_exempt
 def save_fcm_token(request):
     user = request.user
     token = request.data.get("token")
