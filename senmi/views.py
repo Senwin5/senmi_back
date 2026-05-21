@@ -36,6 +36,8 @@ from .utils import send_fcm_notification
 from rest_framework.pagination import PageNumberPagination
 from asgiref.sync import async_to_sync
 from .serializers import UserSerializer
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
 from .utils import send_email, calculate_distance, calculate_price
 from .models import (
     FCMDevice, Package, PackageStatusHistory, PackageTracking,
@@ -242,7 +244,7 @@ def review_rider(request, rider_id):
 
 
 @api_view(['POST'])
-@csrf_exempt
+@permission_classes([AllowAny])
 def save_fcm_token(request):
     user = request.user
     token = request.data.get("token")
