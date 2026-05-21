@@ -244,7 +244,7 @@ def review_rider(request, rider_id):
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def save_fcm_token(request):
     user = request.user
     token = request.data.get("token")
