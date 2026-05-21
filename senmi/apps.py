@@ -6,5 +6,4 @@ class SenmiConfig(AppConfig):
     name = 'senmi'
 
     def ready(self):
-        import senmi.firebase 
         import senmi.signals
