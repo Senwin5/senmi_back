@@ -29,7 +29,7 @@ git merge dev
 :wq
 git push origin main
 
-
+firebase-service-account.json
 
 
 from senmi.models import User
