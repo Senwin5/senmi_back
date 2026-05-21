@@ -32,14 +32,3 @@ git push origin main
 firebase-service-account.json
 
 
-from senmi.models import User
-from senmi.utils import send_fcm_notification
-
-rider = User.objects.get(email="cybersenwin@proton.me")
-
-send_fcm_notification(
-    rider,
-    "Test Rider Notification",
-    "Firebase is working for rider",
-    {"type": "test_rider"}
-)
