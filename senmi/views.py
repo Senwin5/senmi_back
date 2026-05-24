@@ -337,7 +337,6 @@ class RegisterView(APIView):
 
             
             try:
-                #admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
                 recipients = [user.email] +  [settings.NOTIFY_EMAIL]
                 send_email(
                     subject="Welcome to Senmi!",
@@ -346,7 +345,6 @@ class RegisterView(APIView):
                 )
              
             except Exception as e:
-                #print("Email sending failed:", e)
                 logger.exception(f"Registration email failed for {user.email}: {str(e)}")
 
             # Return JWT
@@ -354,6 +352,7 @@ class RegisterView(APIView):
             return Response({
                 "success": True,
                 "message": "User created successfully",
+                "user_id": user.id,
                 "role": user.role,
                 "username": user.username,
                 "access": str(refresh.access_token),
