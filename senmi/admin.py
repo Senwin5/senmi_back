@@ -332,7 +332,7 @@ class WithdrawalAdmin(admin.ModelAdmin):
 
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
-    list_display = ('user', 'type', 'message', 'is_read', 'created_at')
+    list_display = ('user', 'type', 'is_read', 'created_at')
     list_filter = ('is_read', 'type')
     search_fields = ('user__email', 'message')
     ordering = ('-created_at',)
