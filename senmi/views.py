@@ -246,23 +246,29 @@ def review_rider(request, rider_id):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def save_fcm_token(request):
-    user = request.user
+
     token = request.data.get("token")
-    device_type = request.data.get("device_type")
+    device_type = request.data.get("device_type", "android")
 
     if not token:
-        return Response({"error": "No token"}, status=400)
+        return Response(
+            {"error": "Token required"},
+            status=400
+        )
 
-    obj, created = FCMDevice.objects.update_or_create(
+    FCMDevice.objects.update_or_create(
         token=token,
         defaults={
-            "user": user,
+            "user": request.user,
             "device_type": device_type,
-            "is_active": True
+            "is_active": True,
         }
     )
 
+    print("✅ TOKEN SAVED:", token)
+
     return Response({"success": True})
+
 
 # ------------------------------
 # Registration

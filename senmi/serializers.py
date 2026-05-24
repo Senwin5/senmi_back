@@ -45,18 +45,6 @@ class UserSerializer(serializers.ModelSerializer):
         
 
 
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def save_fcm_token(request):
-    token = request.data.get("fcm_token")
-
-    request.user.fcm_token = token
-    request.user.save()
-
-    return Response({"success": True})
-
-
 # serializers.py
     
 class RiderProfileSerializer(serializers.ModelSerializer):
