@@ -2,7 +2,7 @@ import uuid
 from django.contrib.auth import get_user_model
 from django.contrib import admin
 from django.conf import settings
-from .models import Notification, User, RiderProfile,Withdrawal
+from .models import FCMDevice, Notification, User, RiderProfile,Withdrawal
 from .utils import send_email, send_fcm_notification
 from django.core.exceptions import ValidationError
 from .models import RiderWallet, Package, PackageTracking, PackageStatusHistory
@@ -336,3 +336,12 @@ class NotificationAdmin(admin.ModelAdmin):
     list_filter = ('is_read', 'type')
     search_fields = ('user__email', 'message')
     ordering = ('-created_at',)
+
+
+@admin.register(FCMDevice)
+class FCMDeviceAdmin(admin.ModelAdmin):
+    list_display = ("id","user","device_type","is_active","created_at","updated_at",)
+    search_fields = ("user__email","token","device_id",)
+    list_filter = ("device_type","is_active","created_at",)
+    readonly_fields = ("id","created_at","updated_at",)
+    ordering = ("-created_at",)
