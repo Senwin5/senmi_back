@@ -242,6 +242,33 @@ def review_rider(request, rider_id):
 
 
 
+#Flutter to build
+class AdminNotificationView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+
+        title = request.data.get("title")
+        body = request.data.get("body")
+        target = request.data.get("target", "all")
+
+        if not title or not body:
+            return Response({"error": "title and body required"}, status=400)
+
+        sent = send_fcm_notification(
+            title=title,
+            body=body,
+            target=target,
+            data={"type": "admin_broadcast"}
+        )
+
+        return Response({
+            "success": True,
+            "sent_devices": sent,
+            "target": target
+        })
+
+        
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])

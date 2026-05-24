@@ -1,6 +1,6 @@
 # senmi/utils.py
 
-
+from django.contrib.auth import get_user_model
 from math import radians, sin, cos, sqrt, atan2
 from django.conf import settings
 import os
@@ -52,9 +52,99 @@ def send_email(subject, message, from_email=None, recipient_list=None, recipient
 
 
 
-def send_fcm_notification(user, title, body, data=None):
 
-    # ✅ SAVE TO DATABASE
+def send_fcm_notification(
+    user=None,
+    title="",
+    body="",
+    data=None,
+    target="single"
+):
+    """
+    target:
+        - single  → one user
+        - all     → all users
+        - rider   → all riders
+        - customer→ all customers
+        - admin   → all admins
+    """
+
+    User = get_user_model()
+
+    # ==============================
+    # 1. Select recipients
+    # ==============================
+    if target == "all":
+        users = User.objects.all()
+
+    elif target == "rider":
+        users = User.objects.filter(role="rider")
+
+    elif target == "customer":
+        users = User.objects.filter(role="customer")
+
+    elif target == "admin":
+        users = User.objects.filter(role="admin")
+
+    else:
+        users = [user] if user else []
+
+    if not users:
+        return False
+
+    # ==============================
+    # 2. Save notification in DB
+    # ==============================
+    for u in users:
+        try:
+            Notification.objects.create(
+                user=u,
+                type=(data.get("type") if data else "general"),
+                message=body
+            )
+        except Exception as e:
+            logger.exception(e)
+
+    # ==============================
+    # 3. Get FCM tokens
+    # ==============================
+    tokens = list(
+        FCMDevice.objects.filter(
+            user__in=users,
+            is_active=True
+        ).values_list("token", flat=True)
+    )
+
+    if not tokens:
+        print("❌ NO TOKENS FOUND")
+        return False
+
+    # ==============================
+    # 4. Send push
+    # ==============================
+    for token in tokens:
+        try:
+            message = messaging.Message(
+                notification=messaging.Notification(
+                    title=title,
+                    body=body,
+                ),
+                data={k: str(v) for k, v in (data or {}).items()},
+                token=token,
+            )
+
+            messaging.send(message)
+
+        except Exception as e:
+            logger.exception(e)
+
+    return True
+
+
+
+"""def send_fcm_notification(user, title, body, data=None):
+
+    # SAVE TO DATABASE
     try:
         Notification.objects.create(
             user=user,
@@ -105,7 +195,10 @@ def send_fcm_notification(user, title, body, data=None):
             print("❌ FCM ERROR:", str(e))
             logger.exception(e)
 
-    return True
+    return True"""
+
+
+
     
 # ------------------------------
 # Distance & price helpers

@@ -7,6 +7,8 @@ from .utils import send_email, send_fcm_notification
 from django.core.exceptions import ValidationError
 from .models import RiderWallet, Package, PackageTracking, PackageStatusHistory
 
+from senmi.utils import send_fcm_notification
+
 # -----------------------------
 # Inlines for User admin
 
@@ -307,20 +309,10 @@ class RiderWalletAdmin(admin.ModelAdmin):
 
 @admin.register(Withdrawal)
 class WithdrawalAdmin(admin.ModelAdmin):
-    list_display = (
-        "get_rider_id",
-        "rider_email",
-        "amount",
-        "status",
-        "created_at"
-    )
+    list_display = ("get_rider_id","rider_email","amount","status","created_at")
 
     list_filter = ("status",)
-    search_fields = (
-        "rider__email",
-        "rider__riderprofile__rider_id",
-        "bank_account"
-    )
+    search_fields = ("rider__email","rider__riderprofile__rider_id","bank_account")
 
     def get_rider_id(self, obj):
         return obj.rider.riderprofile.rider_id
@@ -338,10 +330,25 @@ class NotificationAdmin(admin.ModelAdmin):
     ordering = ('-created_at',)
 
 
+
+
+    
+
 @admin.register(FCMDevice)
 class FCMDeviceAdmin(admin.ModelAdmin):
-    list_display = ("id","user","device_type","is_active","created_at","updated_at",)
-    search_fields = ("user__email","token","device_id",)
-    list_filter = ("device_type","is_active","created_at",)
-    readonly_fields = ("id","created_at","updated_at",)
-    ordering = ("-created_at",)
+    list_display = (
+        "user",
+        "device_type",
+        "is_active",
+        "created_at",
+    )
+
+    search_fields = (
+        "user__email",
+        "token",
+    )
+
+    list_filter = (
+        "device_type",
+        "is_active",
+    )

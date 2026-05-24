@@ -1,5 +1,7 @@
 # senmi/urls.py
 from django.urls import path
+
+from senmi.views import AdminNotificationView
 from .views import AdminRidersListView, AdminUserSearchView, AdminWithdrawalsView, delete_package, save_fcm_token, search_package
 from .views import AcceptPackageView,UpdateDeliveryStatusView,CustomLoginView,RegisterView,calculate_price_view
 from .views import ApproveWithdrawalView, CustomerPackagesView, HardDeleteUserView, RejectWithdrawalView
@@ -49,5 +51,6 @@ urlpatterns = [
     path('api/admin/withdrawals/<int:withdrawal_id>/retry/',RetryWithdrawalView.as_view()),
     path('api/payment-success/', views.payment_success),
     path('api/save-fcm-token/', save_fcm_token),
+    path("api/send-notification/",AdminNotificationView.as_view(),name="admin-send-notification",),
     
 ]
