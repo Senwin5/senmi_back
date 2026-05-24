@@ -1,4 +1,3 @@
-import profile
 import uuid
 from django.contrib.auth import get_user_model
 from django.contrib import admin
@@ -331,7 +330,9 @@ class WithdrawalAdmin(admin.ModelAdmin):
         return obj.rider.email
     
 
+@admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
-    list_display = ('user','type','message','is_read')
+    list_display = ('user', 'type', 'message', 'is_read', 'created_at')
+    list_filter = ('is_read', 'type')
+    search_fields = ('user__email', 'message')
     ordering = ('-created_at',)
-admin.site.register(Notification, NotificationAdmin)

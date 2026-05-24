@@ -1,3 +1,5 @@
+firebase-service-account.json
+
 # This auto-runs migrations every deploy
 # python manage.py migrate && gunicorn senmi_back.wsgi:application --bind 0.0.0.0:$PORT
 
@@ -12,7 +14,6 @@
 #  python manage.py migrate && python manage.py collectstatic --noinput && uvicorn senmi_back.asgi:application --host 0.0.0.0 --port $PORT
 #----------------------------------------------------------------------------------
 
-firebase-service-account.json
 
 #-----------------------------------------------------
 When building features:
@@ -30,5 +31,4 @@ git merge dev
 git push origin main
 
 firebase-service-account.json
-
 

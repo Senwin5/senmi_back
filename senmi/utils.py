@@ -73,8 +73,8 @@ def send_fcm_notification(user, title, body, data=None):
 
             messaging.send(message)
 
-        except Exception :
-            logger.error("FCM ERROR")
+        except Exception as e:
+            logger.exception(f"FCM ERROR: {str(e)}")
 
     return True
  
