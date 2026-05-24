@@ -244,8 +244,7 @@ def review_rider(request, rider_id):
 
 #Flutter to build
 class AdminNotificationView(APIView):
-    permission_classes = []
-
+    permission_classes = [IsAdminUser]
     def post(self, request):
 
         title = request.data.get("title")
