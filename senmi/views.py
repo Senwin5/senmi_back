@@ -249,7 +249,7 @@ def save_fcm_token(request):
 
     token = request.data.get("token")
     device_type = request.data.get("device_type", "android")
-    user_id = request.data.get("user_id")  # ✅ IMPORTANT FIX
+    user_id = request.data.get("user_id")
 
     if not token:
         return Response(
@@ -265,6 +265,7 @@ def save_fcm_token(request):
 
     try:
         user = User.objects.get(id=user_id)
+
     except User.DoesNotExist:
         return Response(
             {"error": "Invalid user_id"},
@@ -272,9 +273,9 @@ def save_fcm_token(request):
         )
 
     device, created = FCMDevice.objects.update_or_create(
-        user=user,
+        token=token,
         defaults={
-            "token": token,
+            "user": user,
             "device_type": device_type,
             "is_active": True,
         }
