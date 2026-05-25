@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'senmi',
+    'legal',
     'rest_framework',
     'anymail',
     'channels',

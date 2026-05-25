@@ -6,6 +6,7 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path ('',include ('senmi.urls')),
+    path('', include('legal.urls')),
 ]
 
 admin.site.site_header = "SenMi Admin "
