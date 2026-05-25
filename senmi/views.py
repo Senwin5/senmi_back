@@ -1007,7 +1007,7 @@ class RiderEarningsView(APIView):
 
 
 # ------------------------------
-# Receiver Payment Views
+# Payment Views
 # ------------------------------
 class InitializeReceiverPaymentView(APIView):
     throttle_classes = [LoginThrottle]
