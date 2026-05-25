@@ -2,7 +2,7 @@
 from django.urls import path
 
 from senmi.views import AdminNotificationView
-from .views import AdminRidersListView, AdminUserSearchView, AdminWithdrawalsView, delete_package, save_fcm_token, search_package
+from .views import AdminRidersListView, AdminUserSearchView, AdminWithdrawalsView, delete_package, privacy_policy, save_fcm_token, search_package, terms_conditions
 from .views import AcceptPackageView,UpdateDeliveryStatusView,CustomLoginView,RegisterView,calculate_price_view
 from .views import ApproveWithdrawalView, CustomerPackagesView, HardDeleteUserView, RejectWithdrawalView
 from .views import AvailablePackagesView,PaystackWebhookView,RiderEarningsView,RiderStatusView,ResolveAccountView, RetryWithdrawalView
@@ -51,6 +51,9 @@ urlpatterns = [
     path('api/admin/withdrawals/<int:withdrawal_id>/retry/',RetryWithdrawalView.as_view()),
     path('api/payment-success/', views.payment_success),
     path('api/save-fcm-token/', save_fcm_token),
-    path("api/send-notification/",AdminNotificationView.as_view(),name="admin-send-notification",),
+    path("api/send-notification/",AdminNotificationView.as_view(),name="admin-send-notification"),
+    path("api/privacy/", privacy_policy),
+    path("api/terms/", terms_conditions),
+
     
 ]

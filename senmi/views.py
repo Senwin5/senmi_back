@@ -244,9 +244,7 @@ def review_rider(request, rider_id):
 
 #Flutter to build
 class AdminNotificationView(APIView):
-    #permission_classes = [IsAdminUser]
-    permission_classes = []
-
+    permission_classes = [IsAdminUser]
     def post(self, request):
 
         title = request.data.get("title")
@@ -2071,3 +2069,50 @@ def delete_package(request, package_id):
         return Response({"error": "Package not found"}, status=404)
     
 
+from django.http import HttpResponse
+
+
+def privacy_policy(request):
+    return HttpResponse("""
+    <html>
+    <head>
+        <title>Senmi Privacy Policy</title>
+    </head>
+    <body style="font-family: Arial; padding:40px; max-width:800px; margin:auto;">
+        <h1>Privacy Policy</h1>
+
+        <p>Senmi collects user information such as name, phone number,
+        email address, delivery information, and location data
+        to provide delivery services.</p>
+
+        <p>We use Firebase notifications for alerts and updates.</p>
+
+        <p>Your information is protected and never sold to third parties.</p>
+
+        <p>By using Senmi, you agree to this policy.</p>
+
+        <p>Contact: support@senmi.com</p>
+    </body>
+    </html>
+    """)
+
+
+def terms_conditions(request):
+    return HttpResponse("""
+    <html>
+    <head>
+        <title>Senmi Terms</title>
+    </head>
+    <body style="font-family: Arial; padding:40px; max-width:800px; margin:auto;">
+        <h1>Terms & Conditions</h1>
+
+        <p>Users must provide accurate delivery information.</p>
+
+        <p>Riders must complete deliveries responsibly.</p>
+
+        <p>Fraudulent activity may lead to suspension.</p>
+
+        <p>Senmi is not responsible for losses caused by incorrect addresses.</p>
+    </body>
+    </html>
+    """)
