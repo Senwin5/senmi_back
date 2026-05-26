@@ -2094,7 +2094,7 @@ class PaymentCallbackView(APIView):
                 # =========================
                 approved_riders = User.objects.filter(
                     role='rider',
-                    riderprofile__is_approved='approved'
+                    riderprofile__status='approved'
                 )
 
                 for rider in approved_riders:
