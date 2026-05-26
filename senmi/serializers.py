@@ -51,7 +51,8 @@ class RiderProfileSerializer(serializers.ModelSerializer):
     email = serializers.CharField(source='user.email', read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
 
-    profile_picture = serializers.SerializerMethodField()
+    #profile_picture = serializers.SerializerMethodField()
+    profile_picture = serializers.ImageField(required=False)
 
     class Meta:
         model = RiderProfile
@@ -71,7 +72,22 @@ class RiderProfileSerializer(serializers.ModelSerializer):
             'rating_count',
         ]
 
-    def get_profile_picture(self, obj):
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        request = self.context.get("request")
+
+        if instance.profile_picture:
+            if request:
+                data["profile_picture"] = request.build_absolute_uri(
+                    instance.profile_picture.url
+                )
+            else:
+                data["profile_picture"] = instance.profile_picture.url
+
+        return data
+
+    """def get_profile_picture(self, obj):
         request = self.context.get("request")
 
         if not obj.profile_picture:
@@ -80,7 +96,7 @@ class RiderProfileSerializer(serializers.ModelSerializer):
         if request:
             return request.build_absolute_uri(obj.profile_picture.url)
 
-        return obj.profile_picture.url
+        return obj.profile_picture.url"""
  
 
 
