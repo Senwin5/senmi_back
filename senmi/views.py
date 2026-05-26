@@ -926,7 +926,6 @@ class UpdateDeliveryStatusView(APIView):
                         )
 
                     else:
-                        # fallback (keeps your original behavior)
                         message = f"Package {package.package_id} is now {new_status}."
 
                     # Send email (unchanged behavior)
@@ -1015,7 +1014,7 @@ class InitializeReceiverPaymentView(APIView):
 
     def post(self, request, package_id):
         try:
-            # ✅ LOCK to prevent race condition
+            # LOCK to prevent race condition
             with transaction.atomic():
                 package = Package.objects.select_for_update().get(package_id=package_id)
         except Package.DoesNotExist:
@@ -1633,7 +1632,6 @@ class BankListView(APIView):
         headers = {
             "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"
         }
-
         res = requests.get("https://api.paystack.co/bank", headers=headers)
 
         return Response(res.json())
@@ -1910,7 +1908,7 @@ def my_orders(request):
 import requests
 from django.conf import settings
 
-class PaymentCallbackView(APIView):
+"""class PaymentCallbackView(APIView):
     def get(self, request):
         reference = request.GET.get("reference")
 
@@ -1948,6 +1946,7 @@ class PaymentCallbackView(APIView):
                 package.is_paid = True
                 package.status = "paid"
                 package.save(update_fields=["is_paid", "status"])
+                
 
                 send_email(
                 subject="Payment Successful",
@@ -1959,6 +1958,39 @@ class PaymentCallbackView(APIView):
                     f"Your package is now available for riders to accept.\n\n"
                     f"Thank you for using Senmi."
                 ),
+
+                send_fcm_notification(
+
+                    package.customer,
+                    "Payment Successful",
+                    f"Package {package.package_id} payment confirmed",
+                    {"type": "payment_success"}
+                )
+
+                # live rider websocket
+                async_to_sync(channel_layer.group_send)(
+                    "riders",
+                    {
+                        "type": "new_package",
+                        "data": {
+                            "package_id": package.package_id,
+                            "pickup": package.pickup_address,
+                            "price": float(package.price),
+                        }
+                    }
+                )
+
+                # rider push notifications
+                for rider in approved_riders:
+                    send_fcm_notification(
+                        rider,
+                        "New Delivery Available",
+                        f"Pickup: {package.pickup_address}",
+                        {
+                            "type": "new_package",
+                            "package_id": str(package.package_id)
+                        }
+                    )
                 recipients=[
                     package.customer.email,
                     settings.NOTIFY_EMAIL
@@ -1971,8 +2003,121 @@ class PaymentCallbackView(APIView):
         if package.is_paid:
             return redirect(
                 f"https://www.senmi.com.ng/api/payment-success/?reference={reference}"
+            )"""
+
+
+class PaymentCallbackView(APIView):
+    def get(self, request):
+        reference = request.GET.get("reference")
+
+        if not reference:
+            return Response({"error": "No reference"}, status=400)
+
+        headers = {
+            "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"
+        }
+
+        verify = requests.get(
+            f"https://api.paystack.co/transaction/verify/{reference}",
+            headers=headers
+        ).json()
+
+        if not verify.get("status"):
+            return Response({"error": "Verification failed"}, status=400)
+
+        data = verify["data"]
+
+        if data["status"] != "success":
+            return Response({"error": "Payment not successful"}, status=400)
+
+        try:
+            with transaction.atomic():
+
+                package = Package.objects.select_for_update().get(
+                    payment_reference=reference
+                )
+
+                # already paid
+                if package.is_paid:
+                    return Response({
+                        "message": "Package already paid"
+                    })
+
+                # mark paid
+                package.is_paid = True
+                package.status = "paid"
+
+                package.save(update_fields=["is_paid", "status"])
+
+                # =========================
+                # EMAIL
+                # =========================
+                send_email(
+                    subject="Payment Successful",
+                    message=(
+                        f"Hello {package.customer.username},\n\n"
+                        f"Your payment for package "
+                        f"{package.package_id} was successful.\n\n"
+
+                        f"Delivery Code: "
+                        f"{package.delivery_code}\n\n"
+
+                        f"Please share this code ONLY with "
+                        f"the rider upon delivery.\n\n"
+
+                        f"Your package is now available "
+                        f"for riders to accept.\n\n"
+
+                        f"Thank you for using Senmi."
+                    ),
+                    recipients=[
+                        package.customer.email,
+                        settings.NOTIFY_EMAIL
+                    ]
+                )
+
+                # =========================
+                # CUSTOMER PUSH NOTIFICATION
+                # =========================
+                send_fcm_notification(
+                    package.customer,
+                    "Payment Successful",
+                    f"Package {package.package_id} payment confirmed",
+                    {
+                        "type": "payment_success",
+                        "package_id": str(package.package_id)
+                    }
+                )
+
+                # =========================
+                # NOTIFY APPROVED RIDERS
+                # =========================
+                approved_riders = User.objects.filter(
+                    role='rider',
+                    riderprofile__is_approved=True
+                )
+
+                for rider in approved_riders:
+                    send_fcm_notification(
+                        rider,
+                        "New Delivery Available",
+                        f"Pickup: {package.pickup_address}",
+                        {
+                            "type": "new_package",
+                            "package_id": str(package.package_id)
+                        }
+                    )
+
+        except Package.DoesNotExist:
+            return Response(
+                {"error": "Package not found"},
+                status=404
             )
 
+        # redirect success page
+        return redirect(
+            f"https://www.senmi.com.ng/api/payment-success/?reference={reference}"
+        )
 
 
 

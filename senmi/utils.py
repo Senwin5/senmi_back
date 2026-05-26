@@ -40,7 +40,7 @@ def send_email(subject, message, from_email=None, recipient_list=None, recipient
         """
 
         return resend.Emails.send({
-            "from": "Senmi <support@senmi.com.ng>",
+            "from": "Senmi <senmisupport@gmail.com>",
             "to": to,
             "subject": subject,
             "html": html
@@ -117,7 +117,7 @@ def send_fcm_notification(
 
     if not tokens:
         print("❌ NO TOKENS FOUND")
-        return False
+        return False      
 
     # ==============================
     # 4. Send push
