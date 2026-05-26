@@ -40,7 +40,7 @@ def send_email(subject, message, from_email=None, recipient_list=None, recipient
         """
 
         return resend.Emails.send({
-            "from": "Senmi <senmisupport@gmail.com>",
+            "from": "Senmi <support@senmi.com.ng>",
             "to": to,
             "subject": subject,
             "html": html
