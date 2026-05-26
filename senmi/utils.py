@@ -117,7 +117,7 @@ def send_fcm_notification(
 
     if not tokens:
         print("❌ NO TOKENS FOUND")
-        return False      
+        return False
 
     # ==============================
     # 4. Send push
@@ -216,8 +216,5 @@ def calculate_price(distance_km):
     per_km_rate = settings.PER_KM_RATE
     multiplier = settings.FUEL_MULTIPLIER
     return (base_fee + (distance_km * per_km_rate)) * multiplier
-
-
-
 
 
