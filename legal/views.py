@@ -8,6 +8,9 @@ def privacy_policy(request):
 def terms_conditions(request):
     return render(request, 'legal/terms.html')
 
+def about(request):
+    return render(request, 'legal/about.html')
+
 
 def home(request):
     return render(request, 'legal/home.html')

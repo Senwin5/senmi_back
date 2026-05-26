@@ -34,9 +34,11 @@
             padding: 120px 0;
             background:
                 linear-gradient(
-                    rgba(13,110,253,.85),
-                    rgba(10,88,202,.9)
+                    rgba(88, 28, 135, 0.92),
+                    rgba(59, 7, 100, 0.96)
                 ),
+                
+                
                 url('https://images.unsplash.com/photo-1526367790999-0150786686a2?q=80&w=1400&auto=format&fit=crop');
 
             background-size: cover;
@@ -49,7 +51,7 @@
         }
 
         .footer {
-            background: #212529;
+            background: #5B2C83;
             color: white;
             padding: 50px 0;
             margin-top: 80px;
@@ -65,7 +67,7 @@
         }
 
         .section-title {
-            color: #0d6efd;
+            color: #5B2C83;
             font-weight: 700;
             margin-top: 40px;
         }
@@ -85,7 +87,8 @@
 <body>
 
 <!-- NAVBAR -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+<nav class="navbar navbar-expand-lg navbar-dark shadow-sm"
+     style="background-color: #581C87;">
     <div class="container">
 
         <a class="navbar-brand" href="/">
@@ -111,6 +114,12 @@
                 </li>
 
                 <li class="nav-item">
+                    <a class="nav-link px-lg-3" href="/about/">
+                        About Us
+                    </a>
+                </li>
+
+                <li class="nav-item">
                     <a class="nav-link px-lg-3" href="/faq/">
                         FAQ
                     </a>
@@ -129,8 +138,9 @@
                 </li>
 
                 <li class="nav-item mt-3 mt-lg-0">
-                    <a class="btn btn-primary ms-lg-3 px-4 rounded-pill"
-                       href="/contact/">
+                    <a class="btn ms-lg-3 px-4 rounded-pill text-white"
+                    href="/contact/"
+                    style="background-color: #49874C; border-color: #49874C;">
 
                         Contact
                     </a>

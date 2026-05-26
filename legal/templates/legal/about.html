@@ -1,0 +1,351 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}About Us | Senmi{% endblock %}
+
+{% block content %}
+
+<!-- HERO SECTION -->
+<section class="hero-section">
+    <div class="container text-center">
+
+        <h1 class="display-3 fw-bold">
+            About Senmi
+        </h1>
+
+        <p class="lead mt-4 mx-auto" style="max-width: 800px;">
+            Senmi is building a smarter and more reliable delivery experience
+            by connecting customers, businesses, and trusted riders through technology.
+        </p>
+
+    </div>
+</section>
+
+<!-- ABOUT SECTION -->
+<section class="py-5 bg-white">
+    <div class="container">
+
+        <div class="row align-items-center g-5">
+
+            <div class="col-lg-6">
+
+                   <img src="{% static 'logo.png' %}"
+                    class="img-fluid rounded-4 shadow-lg"
+                    alt="Senmi Logo">
+
+            </div>
+
+            <div class="col-lg-6">
+
+                <h2 class="fw-bold mb-4" style="color: #581C87;">
+                    Who We Are
+                </h2>
+
+                <p class="text-muted">
+                    Senmi is a technology-driven logistics and delivery platform
+                    focused on helping individuals and businesses move packages
+                    quickly, safely, and efficiently.
+                </p>
+
+                <p class="text-muted">
+                    We understand the importance of speed, trust, and communication
+                    in modern delivery services. Our platform is designed to simplify
+                    logistics by connecting customers with verified riders in real time.
+                </p>
+
+                <p class="text-muted">
+                    From personal deliveries to business logistics,
+                    Senmi provides reliable solutions powered by technology,
+                    transparency, and customer satisfaction.
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+</section>
+
+<!-- MISSION SECTION -->
+<section class="py-5">
+    <div class="container">
+
+        <div class="text-center mb-5">
+
+            <h2 class="fw-bold" style="color: #581C87;">
+                Our Mission
+            </h2>
+
+            <p class="text-muted mx-auto" style="max-width: 800px;">
+                Our mission is to revolutionize delivery services across Nigeria
+                by providing secure, affordable, and technology-powered logistics solutions.
+            </p>
+
+        </div>
+
+        <div class="row g-4">
+
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm rounded-4 h-100">
+                    <div class="card-body p-4 text-center">
+
+                        <i class="bi bi-lightning-charge-fill display-4 text-success"></i>
+
+                        <h4 class="mt-4">
+                            Fast Delivery
+                        </h4>
+
+                        <p class="text-muted">
+                            We prioritize speed and efficiency to ensure
+                            packages arrive on time.
+                        </p>
+
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm rounded-4 h-100">
+                    <div class="card-body p-4 text-center">
+
+                        <i class="bi bi-shield-check display-4 text-success"></i>
+
+                        <h4 class="mt-4">
+                            Trusted Service
+                        </h4>
+
+                        <p class="text-muted">
+                            Verified riders and secure systems designed
+                            to protect customers and deliveries.
+                        </p>
+
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm rounded-4 h-100">
+                    <div class="card-body p-4 text-center">
+
+                        <i class="bi bi-phone display-4 text-success"></i>
+
+                        <h4 class="mt-4">
+                            Smart Technology
+                        </h4>
+
+                        <p class="text-muted">
+                            Real-time tracking and seamless communication
+                            for a better delivery experience.
+                        </p>
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+</section>
+
+<!-- WHY CHOOSE US -->
+<section class="py-5 bg-white">
+    <div class="container">
+
+        <div class="row g-5 align-items-center">
+
+            <div class="col-lg-6">
+
+                <h2 class="fw-bold mb-4" style="color: #581C87;">
+                    Why Choose Senmi?
+                </h2>
+
+                <div class="mb-4">
+
+                    <h5 class="fw-bold">
+                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                        Reliable Rider Network
+                    </h5>
+
+                    <p class="text-muted">
+                        Our riders are carefully verified and trained
+                        to maintain professionalism and accountability.
+                    </p>
+
+                </div>
+
+                <div class="mb-4">
+
+                    <h5 class="fw-bold">
+                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                        Real-Time Tracking
+                    </h5>
+
+                    <p class="text-muted">
+                        Customers can monitor deliveries and receive updates
+                        throughout the delivery process.
+                    </p>
+
+                </div>
+
+                <div class="mb-4">
+
+                    <h5 class="fw-bold">
+                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                        Secure Transactions
+                    </h5>
+
+                    <p class="text-muted">
+                        We use secure systems and trusted payment integrations
+                        for safer transactions.
+                    </p>
+
+                </div>
+
+                <div>
+
+                    <h5 class="fw-bold">
+                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                        Customer Support
+                    </h5>
+
+                    <p class="text-muted">
+                        Our support team is available to assist customers and riders
+                        whenever help is needed.
+                    </p>
+
+                </div>
+
+            </div>
+
+            <div class="col-lg-6">
+
+                <img src="{% static 'logo.png' %}"
+                    class="img-fluid rounded-4 shadow-lg"
+                    alt="Senmi Logo">
+
+            </div>
+
+        </div>
+
+    </div>
+</section>
+
+<!-- STATS -->
+<section class="py-5">
+    <div class="container">
+
+        <div class="row text-center g-4">
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="card-body py-5">
+
+                        <h1 class="fw-bold text-success">
+                            10K+
+                        </h1>
+
+                        <p class="text-muted mb-0">
+                            Deliveries Completed
+                        </p>
+
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="card-body py-5">
+
+                        <h1 class="fw-bold text-success">
+                            2K+
+                        </h1>
+
+                        <p class="text-muted mb-0">
+                            Active Customers
+                        </p>
+
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="card-body py-5">
+
+                        <h1 class="fw-bold text-success">
+                            500+
+                        </h1>
+
+                        <p class="text-muted mb-0">
+                            Verified Riders
+                        </p>
+
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="card-body py-5">
+
+                        <h1 class="fw-bold text-success">
+                            24/7
+                        </h1>
+
+                        <p class="text-muted mb-0">
+                            Customer Support
+                        </p>
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="py-5 bg-white">
+    <div class="container">
+
+        <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+
+            <div class="card-body p-5 text-center">
+
+                <h2 class="fw-bold" style="color: #581C87;">
+                    Join the Senmi Community
+                </h2>
+
+                <p class="text-muted mt-3 mx-auto" style="max-width: 700px;">
+                    Whether you're a customer looking for reliable delivery
+                    or a rider seeking opportunities, Senmi is here to help you grow.
+                </p>
+
+                <div class="d-flex justify-content-center gap-3 flex-wrap mt-4">
+
+                    <a href="/contact/"
+                       class="btn btn-lg text-white px-5"
+                       style="background-color: #49874C; border-color: #49874C;">
+
+                        Contact Us
+                    </a>
+
+                    <a href="https://play.google.com/store/apps/details?id=com.senmi.app"
+                       target="_blank"
+                       class="btn btn-dark btn-lg px-5">
+
+                        <i class="bi bi-google-play me-2"></i>
+                        Download App
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+</section>
+
+{% endblock %}
