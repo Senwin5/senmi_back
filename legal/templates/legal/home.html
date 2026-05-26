@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+
+{% block title %}Home | Senmi{% endblock %}
+
+{% block content %}
+
+<section class="hero-section">
+    <div class="container text-center">
+
+        <h1 class="display-3 fw-bold">
+            Fast & Reliable Delivery
+        </h1>
+
+        <p class="lead mt-4">
+            Connect with trusted riders for secure and
+            real-time delivery services across Nigeria.
+        </p>
+
+        <a href="/contact/" class="btn btn-light btn-lg mt-3 px-5">
+            Get Started
+        </a>
+
+    </div>
+</section>
+
+<section class="py-5">
+    <div class="container">
+
+        <div class="row g-4">
+
+            <div class="col-md-4">
+                <div class="card shadow-sm h-100 border-0 rounded-4">
+                    <div class="card-body p-4 text-center">
+
+                        <i class="bi bi-lightning-charge-fill text-primary display-5"></i>
+
+                        <h4 class="mt-3">
+                            Fast Delivery
+                        </h4>
+
+                        <p class="text-muted">
+                            Quick delivery services with live tracking.
+                        </p>
+
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card shadow-sm h-100 border-0 rounded-4">
+                    <div class="card-body p-4 text-center">
+
+                        <i class="bi bi-shield-check text-primary display-5"></i>
+
+                        <h4 class="mt-3">
+                            Trusted Riders
+                        </h4>
+
+                        <p class="text-muted">
+                            Verified riders focused on professionalism.
+                        </p>
+
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card shadow-sm h-100 border-0 rounded-4">
+                    <div class="card-body p-4 text-center">
+
+                        <i class="bi bi-headset text-primary display-5"></i>
+
+                        <h4 class="mt-3">
+                            24/7 Support
+                        </h4>
+
+                        <p class="text-muted">
+                            Support available anytime you need help.
+                        </p>
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+</section>
+
+<section class="py-5 bg-white">
+    <div class="container">
+
+        <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="card-body p-5 text-center">
+
+                <h2 class="fw-bold">
+                    Download the Senmi App
+                </h2>
+
+                <p class="text-muted mt-3">
+                    Available on Android and iOS devices.
+                </p>
+
+                <div class="d-flex justify-content-center gap-3 flex-wrap mt-4">
+
+                    <a href="https://play.google.com/store/apps/details?id=com.senmi.app"
+                       target="_blank"
+                       class="btn btn-dark btn-lg">
+
+                        <i class="bi bi-google-play me-2"></i>
+                        Download for Android
+                    </a>
+
+                    <a href="https://apps.apple.com/"
+                       target="_blank"
+                       class="btn btn-outline-dark btn-lg">
+
+                        <i class="bi bi-apple me-2"></i>
+                        Download for iPhone
+                    </a>
+
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</section>
+
+{% endblock %}

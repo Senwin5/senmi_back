@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block title %}Home | Senmi{% endblock %}
+
+{% block content %}
+
+
+<div class="container py-5">
+
+    <div class="text-center mb-5">
+        <h1>Contact Us</h1>
+        <p class="text-muted">
+            We'd love to hear from you.
+        </p>
+    </div>
+
+    <div class="row g-5">
+
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+
+                    <h3 class="mb-4">Send a Message</h3>
+
+                    <form>
+                        <div class="mb-3">
+                            <label class="form-label">Full Name</label>
+                            <input type="text" class="form-control">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Email Address</label>
+                            <input type="email" class="form-control">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Message</label>
+                            <textarea class="form-control" rows="5"></textarea>
+                        </div>
+
+                        <button class="btn btn-primary w-100">
+                            Send Message
+                        </button>
+                    </form>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h3>Who We Are</h3>
+
+                    <p>
+                        Senmi is a delivery platform focused on providing reliable,
+                        fast, and secure delivery services for customers and businesses.
+                    </p>
+
+                    <p>
+                        Our mission is to make logistics easier through technology
+                        and trusted riders.
+                    </p>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h3>Contact Information</h3>
+
+                    <p><strong>Email:</strong> support@senmi.com.ng</p>
+                    <p><strong>Phone:</strong> +234 XXX XXX XXXX</p>
+                    <p><strong>Location:</strong> Lagos, Nigeria</p>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}
