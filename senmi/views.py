@@ -926,7 +926,6 @@ class UpdateDeliveryStatusView(APIView):
                         )
 
                     else:
-                        # fallback (keeps your original behavior)
                         message = f"Package {package.package_id} is now {new_status}."
 
                     # Send email (unchanged behavior)
@@ -1007,7 +1006,7 @@ class RiderEarningsView(APIView):
 
 
 # ------------------------------
-# Receiver Payment Views
+# Payment Views
 # ------------------------------
 class InitializeReceiverPaymentView(APIView):
     throttle_classes = [LoginThrottle]
@@ -1015,7 +1014,7 @@ class InitializeReceiverPaymentView(APIView):
 
     def post(self, request, package_id):
         try:
-            # ✅ LOCK to prevent race condition
+            # LOCK to prevent race condition
             with transaction.atomic():
                 package = Package.objects.select_for_update().get(package_id=package_id)
         except Package.DoesNotExist:
@@ -1633,7 +1632,6 @@ class BankListView(APIView):
         headers = {
             "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"
         }
-
         res = requests.get("https://api.paystack.co/bank", headers=headers)
 
         return Response(res.json())
@@ -1941,37 +1939,44 @@ class PaymentCallbackView(APIView):
                 )
 
                 if package.is_paid:
-                    return Response({
-                        "message": "Package already paid"
-                    })
+                    return Response({"message": "Package already paid"})
 
                 package.is_paid = True
                 package.status = "paid"
                 package.save(update_fields=["is_paid", "status"])
 
                 send_email(
-                subject="Payment Successful",
-                message=(
-                    f"Hello {package.customer.username},\n\n"
-                    f"Your payment for package {package.package_id} was successful.\n\n"
-                    f"Delivery Code: {package.delivery_code}\n\n"
-                    f"Please share this code ONLY with the rider upon delivery.\n\n"
-                    f"Your package is now available for riders to accept.\n\n"
-                    f"Thank you for using Senmi."
-                ),
-                recipients=[
-                    package.customer.email,
-                    settings.NOTIFY_EMAIL
-                ]
-            )
+                    subject="Payment Successful",
+                    message=(
+                        f"Hello {package.customer.username},\n\n"
+                        f"Your payment for package {package.package_id} was successful.\n\n"
+                        f"Delivery Code: {package.delivery_code}\n\n"
+                        f"Please share this code ONLY with the rider upon delivery.\n\n"
+                        f"Your package is now available for riders to accept.\n\n"
+                        f"Thank you for using Senmi."
+                    ),
+                    recipients=[
+                        package.customer.email,
+                        settings.NOTIFY_EMAIL
+                    ]
+                )
+
+                send_fcm_notification(
+                    package.customer,
+                    "Payment Successful",
+                    f"Package {package.package_id} payment confirmed",
+                    {
+                        "type": "payment_success",
+                        "package_id": str(package.package_id)
+                    }
+                )
 
         except Package.DoesNotExist:
             return Response({"error": "Package not found"}, status=404)
-        
-        if package.is_paid:
-            return redirect(
-                f"https://www.senmi.com.ng/api/payment-success/?reference={reference}"
-            )
+
+        return redirect(
+            f"https://www.senmi.com.ng/api/payment-success/?reference={reference}"
+        )
 
 
 
@@ -2068,3 +2073,4 @@ def delete_package(request, package_id):
     except Package.DoesNotExist:
         return Response({"error": "Package not found"}, status=404)
     
+
