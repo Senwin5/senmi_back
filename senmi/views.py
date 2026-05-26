@@ -1991,6 +1991,38 @@ class PaymentCallbackView(APIView):
                 ]
             )
 
+             # =====================================
+                # PUSH NOTIFICATION TO CUSTOMER
+                # =====================================
+                send_fcm_notification(
+                    user=package.customer,
+                    title="Payment Successful",
+                    body=f"Your payment for package {package.package_id} was successful.",
+                    data={
+                        "type": "payment_success",
+                        "package_id": package.package_id
+                    }
+                )
+
+                approved_riders = User.objects.filter(
+                    role="rider",
+                    riderprofile__status="approved"
+                )
+
+                for rider in approved_riders:
+
+                    send_fcm_notification(
+                        user=rider,
+                        title="New Delivery Available",
+                        body=f"New package from {package.pickup_address}",
+                        data={
+                            "type": "new_package",
+                            "package_id": package.package_id,
+                            "pickup": package.pickup_address,
+                            "delivery": package.delivery_address,
+                        }
+                    )
+
         except Package.DoesNotExist:
             return Response({"error": "Package not found"}, status=404)
         
