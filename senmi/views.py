@@ -1939,29 +1939,28 @@ class PaymentCallbackView(APIView):
                 )
 
                 if package.is_paid:
-                    return Response({
-                        "message": "Package already paid"
-                    })
+                    return Response({"message": "Package already paid"})
 
                 package.is_paid = True
                 package.status = "paid"
                 package.save(update_fields=["is_paid", "status"])
 
                 send_email(
-                subject="Payment Successful",
-                message=(
-                    f"Hello {package.customer.username},\n\n"
-                    f"Your payment for package {package.package_id} was successful.\n\n"
-                    f"Delivery Code: {package.delivery_code}\n\n"
-                    f"Please share this code ONLY with the rider upon delivery.\n\n"
-                    f"Your package is now available for riders to accept.\n\n"
-                    f"Thank you for using Senmi."
-                ),
-                
-                recipients=[
-                    package.customer.email,
-                    settings.NOTIFY_EMAIL
-                ]
+                    subject="Payment Successful",
+                    message=(
+                        f"Hello {package.customer.username},\n\n"
+                        f"Your payment for package {package.package_id} was successful.\n\n"
+                        f"Delivery Code: {package.delivery_code}\n\n"
+                        f"Please share this code ONLY with the rider upon delivery.\n\n"
+                        f"Your package is now available for riders to accept.\n\n"
+                        f"Thank you for using Senmi."
+                    ),
+                    recipients=[
+                        package.customer.email,
+                        settings.NOTIFY_EMAIL
+                    ]
+                )
+
                 send_fcm_notification(
                     package.customer,
                     "Payment Successful",
@@ -1971,15 +1970,13 @@ class PaymentCallbackView(APIView):
                         "package_id": str(package.package_id)
                     }
                 )
-            )
 
         except Package.DoesNotExist:
             return Response({"error": "Package not found"}, status=404)
-        
-        if package.is_paid:
-            return redirect(
-                f"https://www.senmi.com.ng/api/payment-success/?reference={reference}"
-            )
+
+        return redirect(
+            f"https://www.senmi.com.ng/api/payment-success/?reference={reference}"
+        )
 
 
 
