@@ -269,6 +269,8 @@ class AdminNotificationView(APIView):
 
         
 
+from django.db import IntegrityError
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def save_fcm_token(request):
@@ -280,20 +282,44 @@ def save_fcm_token(request):
     if not token:
         return Response({"error": "Token required"}, status=400)
 
-    device, created = FCMDevice.objects.update_or_create(
-        user=user,
-        defaults={
-            "token": token,
-            "device_type": device_type,
-            "is_active": True,
-        }
-    )
+    try:
+        # Find existing token first
+        device = FCMDevice.objects.filter(token=token).first()
 
-    return Response({
-        "success": True,
-        "created": created
-    })
+        if device:
+            # Update existing device ownership
+            device.user = user
+            device.device_type = device_type
+            device.is_active = True
+            device.save()
 
+            created = False
+
+        else:
+            # Create new token
+            device = FCMDevice.objects.create(
+                user=user,
+                token=token,
+                device_type=device_type,
+                is_active=True,
+            )
+
+            created = True
+
+        return Response({
+            "success": True,
+            "created": created
+        })
+
+    except IntegrityError:
+        return Response({
+            "error": "Token conflict"
+        }, status=409)
+
+    except Exception as e:
+        return Response({
+            "error": str(e)
+        }, status=500)
 
 # ------------------------------
 # Registration
