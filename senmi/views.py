@@ -242,7 +242,7 @@ def review_rider(request, rider_id):
 
 
 
-#Flutter to build
+#Flutter to build 
 class AdminNotificationView(APIView):
     permission_classes = [IsAdminUser]
     def post(self, request):
