@@ -22,3 +22,6 @@ def faq(request):
 
 def contact(request):
     return render(request, 'legal/contact.html')
+
+def support(request):
+    return render(request, 'legal/support.html')
