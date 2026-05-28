@@ -151,6 +151,32 @@ class AdminUserSearchView(APIView):
         return Response([{"user_id": u.user_id, "email": u.email, "role": u.role, "is_active": u.is_active} for u in users])
 
 
+class AdminPackagesView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        # ✅ ADMIN ONLY
+        if not request.user.is_staff and not request.user.is_superuser:
+            return Response(
+                {"error": "Unauthorized"},
+                status=403
+            )
+
+        packages = Package.objects.select_related(
+            'customer',
+            'rider'
+        ).all().order_by('-created_at')
+
+        serializer = PackageSerializer(
+            packages,
+            many=True,
+            context={"request": request}
+        )
+
+        return Response(serializer.data)
+    
+
 @api_view(['POST'])
 @permission_classes([IsAdminUser])
 def review_rider(request, rider_id):
