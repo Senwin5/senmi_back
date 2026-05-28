@@ -385,50 +385,43 @@ def admin_dashboard(request):
         status='delivered'
     ).count()
 
-    available_packages = Package.objects.filter(
-        status='paid'
+    # IMPORTANT: define clearly what "available" means
+    available_packages = Package.objects.exclude(
+        status='delivered'
     ).count()
 
     # =========================
     # ALERTS
     # =========================
-
     alerts = []
 
     if pending_riders > 0:
-        alerts.append(
-            f"{pending_riders} riders awaiting approval"
-        )
+        alerts.append(f"{pending_riders} riders awaiting approval")
 
     failed_today = Package.objects.filter(
         status='cancelled'
     ).count()
 
     if failed_today > 5:
-        alerts.append(
-            f"{failed_today} deliveries cancelled recently"
-        )
+        alerts.append(f"{failed_today} deliveries cancelled recently")
 
     pending_withdrawals = Withdrawal.objects.filter(
         status='pending'
     ).count()
 
     if pending_withdrawals > 0:
-        alerts.append(
-            f"{pending_withdrawals} withdrawals pending"
-        )
+        alerts.append(f"{pending_withdrawals} withdrawals pending")
+
+    # 🚨 ADD IMPORTANT SYSTEM ALERTS
+    if active_deliveries > 50:
+        alerts.append("High delivery load detected")
 
     data = {
         "total_riders": total_riders,
-
         "pending_riders": pending_riders,
-
         "active_deliveries": active_deliveries,
-
         "completed_deliveries": completed_deliveries,
-
         "available_packages": available_packages,
-
         "alerts": alerts,
     }
 
