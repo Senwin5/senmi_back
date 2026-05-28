@@ -7,8 +7,10 @@ import hmac
 import json
 import logging
 import requests
+from django.db.models import Sum, Avg, Count, F, ExpressionWrapper, DurationField
 from decimal import Decimal, InvalidOperation
 import re
+from django.utils.timezone import now
 from django.shortcuts import redirect
 from rest_framework.parsers import JSONParser
 from django.conf import settings
@@ -35,7 +37,7 @@ from channels.layers import get_channel_layer
 from .utils import send_fcm_notification 
 from rest_framework.pagination import PageNumberPagination
 from asgiref.sync import async_to_sync
-from .serializers import UserSerializer
+from .serializers import AdminAnalyticsSerializer, UserSerializer
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from .utils import send_email, calculate_distance, calculate_price
@@ -176,6 +178,140 @@ class AdminPackagesView(APIView):
 
         return Response(serializer.data)
     
+
+class AvailableRidersView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        riders = RiderProfile.objects.filter(
+            status='approved'
+        )
+
+        data = []
+
+        for rider in riders:
+            data.append({
+                "id": rider.user.id,
+                "name": rider.user.username,
+            })
+
+        return Response(data)
+    
+
+@api_view(['GET'])
+@permission_classes([IsAdminUser])
+def admin_analytics(request):
+
+    packages = Package.objects.all()
+
+    total_deliveries = packages.count()
+
+    completed_deliveries = packages.filter(
+        status='delivered'
+    ).count()
+
+    failed_deliveries = packages.filter(
+        status='cancelled'
+    ).count()
+
+    total_revenue = packages.aggregate(
+        total=Sum('price')
+    )['total'] or 0
+
+    total_rider_payout = packages.aggregate(
+        total=Sum('rider_earning')
+    )['total'] or 0
+
+    # =========================
+    # AVERAGE DELIVERY TIME
+    # =========================
+
+    delivered_packages = packages.filter(
+        status='delivered',
+        delivered_at__isnull=False
+    )
+
+    avg_duration = delivered_packages.annotate(
+        duration=ExpressionWrapper(
+            F('delivered_at') - F('created_at'),
+            output_field=DurationField()
+        )
+    ).aggregate(
+        avg=Avg('duration')
+    )['avg']
+
+    average_delivery_time = str(avg_duration) if avg_duration else "0"
+
+    # =========================
+    # DELIVERY SUCCESS RATE
+    # =========================
+
+    delivery_success_rate = 0
+
+    if total_deliveries > 0:
+        delivery_success_rate = round(
+            (completed_deliveries / total_deliveries) * 100,
+            2
+        )
+
+    # =========================
+    # ACTIVE RIDERS
+    # =========================
+
+    active_riders = RiderProfile.objects.filter(
+        status='approved'
+    ).count()
+
+    # =========================
+    # CUSTOMERS
+    # =========================
+
+    total_customers = User.objects.filter(
+        role='customer'
+    ).count()
+
+    # =========================
+    # FREQUENT CUSTOMERS
+    # =========================
+
+    top_customers = (
+        User.objects.filter(role='customer')
+        .annotate(total_orders=Count('orders'))
+        .order_by('-total_orders')[:5]
+        .values('username', 'total_orders')
+    )
+
+    # =========================
+    # TOP RIDERS
+    # =========================
+
+    top_riders = (
+        User.objects.filter(role='rider')
+        .annotate(total_deliveries=Count('deliveries'))
+        .order_by('-total_deliveries')[:5]
+        .values('username', 'total_deliveries')
+    )
+
+    data = {
+        "total_deliveries": total_deliveries,
+        "completed_deliveries": completed_deliveries,
+        "failed_deliveries": failed_deliveries,
+        "total_revenue": total_revenue,
+        "total_rider_payout": total_rider_payout,
+        "average_delivery_time": average_delivery_time,
+
+        # NEW
+        "delivery_success_rate": delivery_success_rate,
+        "active_riders": active_riders,
+        "total_customers": total_customers,
+        "top_customers": list(top_customers),
+        "top_riders": list(top_riders),
+    }
+
+    return Response(data)
+
+
 
 @api_view(['POST'])
 @permission_classes([IsAdminUser])

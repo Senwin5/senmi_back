@@ -200,6 +200,7 @@ class Package(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    delivered_at = models.DateTimeField(null=True,blank=True)
 
     def is_available(self):
         return self.status == 'pending' and self.rider is None

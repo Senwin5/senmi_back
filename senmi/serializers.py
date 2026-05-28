@@ -5,7 +5,7 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.db import IntegrityError
-from .models import User, RiderProfile, Package
+from .models import PackageStatusHistory, User, RiderProfile, Package
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
@@ -87,17 +87,19 @@ class RiderProfileSerializer(serializers.ModelSerializer):
 
         return data
 
-    """def get_profile_picture(self, obj):
-        request = self.context.get("request")
-
-        if not obj.profile_picture:
-            return None
-
-        if request:
-            return request.build_absolute_uri(obj.profile_picture.url)
-
-        return obj.profile_picture.url"""
  
+
+
+class PackageHistorySerializer(
+    serializers.ModelSerializer
+):
+    class Meta:
+        model = PackageStatusHistory
+
+        fields = [
+            'status',
+            'timestamp',
+        ]
 
 
 
@@ -113,6 +115,7 @@ class PackageSerializer(serializers.ModelSerializer):
 
     # ✅ ADD THIS (only change)
     delivery_code = serializers.SerializerMethodField()
+    history = PackageHistorySerializer(many=True, read_only=True)
 
     rider_profile_picture = serializers.SerializerMethodField()
     vehicle_number = serializers.SerializerMethodField()
@@ -147,6 +150,7 @@ class PackageSerializer(serializers.ModelSerializer):
              # extra info
             'rider_profile_picture',
             'vehicle_number',
+            'history',
         ]
 
         read_only_fields = [
@@ -194,6 +198,18 @@ class PackageSerializer(serializers.ModelSerializer):
 
 
 
+class PackageHistorySerializer(
+    serializers.ModelSerializer
+):
+    class Meta:
+        model = PackageStatusHistory
+
+        fields = [
+            'status',
+            'timestamp',
+        ]
+        
+
 class CustomLoginSerializer(TokenObtainPairSerializer):
 
     @classmethod
@@ -235,4 +251,11 @@ class CustomLoginSerializer(TokenObtainPairSerializer):
         return data
     
 
-    
+
+class AdminAnalyticsSerializer(serializers.Serializer):
+    total_deliveries = serializers.IntegerField()
+    completed_deliveries = serializers.IntegerField()
+    failed_deliveries = serializers.IntegerField()
+    total_revenue = serializers.DecimalField(max_digits=10, decimal_places=2)
+    total_rider_payout = serializers.DecimalField(max_digits=10, decimal_places=2)
+    average_delivery_time = serializers.CharField()
