@@ -4,6 +4,8 @@ from django.contrib.auth import get_user_model
 from math import radians, sin, cos, sqrt, atan2
 from django.conf import settings
 import os
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 import logging
 from firebase_admin import messaging
 import resend
@@ -198,6 +200,21 @@ def send_fcm_notification(
     return True"""
 
 
+#notify_admin_dashboard flutter admin
+def notify_admin_dashboard():
+    try:
+        channel_layer = get_channel_layer()
+
+        async_to_sync(channel_layer.group_send)(
+            "admin_dashboard",
+            {
+                "type": "dashboard_update",
+                "message": "refresh"
+            }
+        )
+
+    except Exception as e:
+        logger.exception(f"Dashboard notification failed: {e}")
 
     
 # ------------------------------

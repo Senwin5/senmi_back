@@ -35,7 +35,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.authentication import TokenAuthentication
 from django.http import HttpResponse
 from channels.layers import get_channel_layer
-from .utils import send_fcm_notification 
+from .utils import notify_admin_dashboard, send_fcm_notification 
 from rest_framework.pagination import PageNumberPagination
 from asgiref.sync import async_to_sync
 from .serializers import AdminAnalyticsSerializer, UserSerializer
@@ -454,15 +454,7 @@ def review_rider(request, rider_id):
     profile.save(update_fields=['status', 'rejection_reason'])
 
     # LIVE ADMIN DASHBOARD UPDATE
-    channel_layer = get_channel_layer()
-
-    async_to_sync(channel_layer.group_send)(
-        "admin_dashboard",
-        {
-            "type": "dashboard_update",
-            "message": "refresh"
-        }
-    )
+    notify_admin_dashboard()
 
     #message = f"Your rider profile has been {'approved' if status_value == 'approved' else f'rejected: {reason}'}"
     message = (
@@ -874,16 +866,7 @@ class AcceptPackageView(APIView):
                 # 🔔 NOTIFY OTHER RIDERS
                 # =========================
                 try:
-                    channel_layer = get_channel_layer()
-                    async_to_sync(channel_layer.group_send)(
-                        "riders",
-                        {
-                            "type": "package_taken",
-                            "data": {
-                                "package_id": package.id
-                            }
-                        }
-                    )
+                    notify_admin_dashboard()
                 except Exception as e:
                     logger.exception(f"WebSocket error: {e}")
 
@@ -1094,17 +1077,7 @@ class UpdateDeliveryStatusView(APIView):
 
                     package.save()
 
-                    # LIVE ADMIN DASHBOARD UPDATE
-                    channel_layer = get_channel_layer()
-
-                    async_to_sync(channel_layer.group_send)(
-                        "admin_dashboard",
-                        {
-                            "type": "dashboard_update",
-                            "message": "refresh"
-                        }
-                    )
-
+                    notify_admin_dashboard()
                     # 🔥 EMAIL NOTIFICATION
                     try:
                         recipients = [
@@ -1234,14 +1207,7 @@ class UpdateDeliveryStatusView(APIView):
 
                 # ✅ NEW: BROADCAST STATUS UPDATE (correct position)
                 try:
-                    channel_layer = get_channel_layer()
-                    async_to_sync(channel_layer.group_send)(
-                        f"tracking_{package.package_id}",
-                        {
-                            "type": "send_location",
-                            "status": new_status
-                        }
-                    )
+                    notify_admin_dashboard()
                 except Exception as e:
                     logger.exception(f"WebSocket broadcast failed (status update): {e}")
 
@@ -1523,6 +1489,8 @@ class PaystackWebhookView(APIView):
                 )
                 package.status = "paid" 
                 package.save(update_fields=['is_paid','status'])
+               
+                notify_admin_dashboard()
                 logger.info(f"Package {package.id} marked as paid via webhook.")
 
                 recipients = [
@@ -1779,6 +1747,7 @@ class RiderWithdrawView(APIView):
             bank_code=bank_code,
             status="processing"
         )
+        notify_admin_dashboard()
 
         send_fcm_notification(
             request.user,
@@ -1954,16 +1923,7 @@ class ApproveWithdrawalView(APIView):
         withdrawal.status = "approved"
         withdrawal.save()
 
-        # LIVE ADMIN DASHBOARD UPDATE
-        channel_layer = get_channel_layer()
-
-        async_to_sync(channel_layer.group_send)(
-            "admin_dashboard",
-            {
-                "type": "dashboard_update",
-                "message": "refresh"
-            }
-        )
+        notify_admin_dashboard()
 
         send_fcm_notification(
             withdrawal.rider.user,
@@ -1996,16 +1956,7 @@ class RejectWithdrawalView(APIView):
         )
         withdrawal.save()
 
-        # LIVE ADMIN DASHBOARD UPDATE
-        channel_layer = get_channel_layer()
-
-        async_to_sync(channel_layer.group_send)(
-            "admin_dashboard",
-            {
-                "type": "dashboard_update",
-                "message": "refresh"
-            }
-        )
+        notify_admin_dashboard()
 
         send_fcm_notification(
             withdrawal.rider.user,
@@ -2046,9 +1997,8 @@ class RetryWithdrawalView(APIView):
         withdrawal.status = "processing"
         withdrawal.failure_reason = None
         withdrawal.save()
-
-        # 🔔 notify rider
-
+        notify_admin_dashboard()
+        # notify rider
         send_fcm_notification(
             withdrawal.rider.user,
             "Withdrawal Retry",
@@ -2095,6 +2045,7 @@ def process_withdrawal(withdrawal):
         withdrawal.failure_reason = str(e)
 
     withdrawal.save()
+    notify_admin_dashboard()
     send_fcm_notification(
         withdrawal.rider.user,
         "Withdrawal Successful",
@@ -2338,6 +2289,8 @@ class PaymentCallbackView(APIView):
                 package.is_paid = True
                 package.status = "paid"
                 package.save(update_fields=["is_paid", "status"])
+
+                notify_admin_dashboard()
 
                 send_email(
                 subject="Payment Successful",
