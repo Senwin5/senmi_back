@@ -7,9 +7,10 @@ import hmac
 import json
 import logging
 import requests
-from django.db.models import Sum, Avg, Count, F, ExpressionWrapper, DurationField
 from decimal import Decimal, InvalidOperation
 import re
+from django.db.models.functions import TruncDate,TruncMonth,ExtractHour
+from django.db.models import Sum, Count, Avg, F, DurationField, ExpressionWrapper
 from django.utils.timezone import now
 from django.shortcuts import redirect
 from rest_framework.parsers import JSONParser
@@ -293,6 +294,53 @@ def admin_analytics(request):
         .values('username', 'total_deliveries')
     )
 
+    daily_revenue = (
+        Package.objects.filter(status='delivered')
+        .annotate(day=TruncDate('created_at'))
+        .values('day')
+        .annotate(total=Sum('price'))
+        .order_by('day')
+    )
+
+    monthly_deliveries = (
+        Package.objects.filter(status='delivered')
+        .annotate(month=TruncMonth('created_at'))
+        .values('month')
+        .annotate(total=Count('id'))
+        .order_by('month')
+    )
+
+    peak_hours = (
+        Package.objects
+        .annotate(hour=ExtractHour('created_at'))
+        .values('hour')
+        .annotate(total=Count('id'))
+        .order_by('-total')[:5]
+    )
+
+    heatmap_data = Package.objects.filter(
+        delivery_lat__isnull=False,
+        delivery_lng__isnull=False,
+    ).values(
+        'delivery_lat',
+        'delivery_lng'
+    )
+
+    pending_withdrawals = Withdrawal.objects.filter(
+        status='pending'
+    ).aggregate(
+        total=Sum('amount')
+    )['total'] or 0
+
+    failure_stats = (
+        Package.objects
+        .exclude(failure_reason='')
+        .values('failure_reason')
+        .annotate(total=Count('id'))
+    )
+
+
+
     data = {
         "total_deliveries": total_deliveries,
         "completed_deliveries": completed_deliveries,
@@ -307,7 +355,15 @@ def admin_analytics(request):
         "total_customers": total_customers,
         "top_customers": list(top_customers),
         "top_riders": list(top_riders),
+        "daily_revenue": list(daily_revenue),
+        "monthly_deliveries": list(monthly_deliveries),
+        "peak_hours": list(peak_hours),
+        "heatmap_data": list(heatmap_data),
+        "pending_withdrawals": pending_withdrawals,
+        "failure_stats": list(failure_stats),
     }
+
+    
 
     return Response(data)
 
@@ -949,14 +1005,22 @@ class UpdateDeliveryStatusView(APIView):
                             "error": "You can only cancel before pickup"
                         }, status=400)
 
-                    # ✅ SAVE RIDER INFO BEFORE REMOVING
+                    # RIDER INFO BEFORE REMOVING
                     rider_user = request.user
                     rider_profile = getattr(rider_user, 'riderprofile', None)
                     rider_id = rider_profile.rider_id if rider_profile else "N/A"
 
+                    # UPDATE PACKAGE
                     # ✅ UPDATE PACKAGE
                     package.status = "paid"
+
+                    package.failure_reason = request.data.get(
+                        'failure_reason',
+                        ''
+                    )
+
                     package.rider = None
+
                     package.save()
 
                     # 🔥 EMAIL NOTIFICATION

@@ -134,7 +134,7 @@ class RiderProfile(models.Model):
     rating_count = models.IntegerField(default=0) 
     # Status fields
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
- 
+    is_online = models.BooleanField(default=False)
     rejection_reason = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
 
@@ -200,6 +200,7 @@ class Package(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    failure_reason = models.TextField(blank=True)
     delivered_at = models.DateTimeField(null=True,blank=True)
 
     def is_available(self):
