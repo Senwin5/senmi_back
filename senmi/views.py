@@ -16,7 +16,7 @@ from rest_framework.parsers import JSONParser
 from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-
+from rest_framework.permissions import IsAdminUser
 from senmi.utils import send_email
 from django.utils.decorators import method_decorator
 from django.db import IntegrityError, transaction
@@ -1057,7 +1057,15 @@ class UpdateDeliveryStatusView(APIView):
                     package.delivery_code = None
                     package.save(update_fields=['delivery_code'])
 
+                #package.status = new_status
+                #package.save()
+
                 package.status = new_status
+
+                # ✅ save delivery completion time
+                if new_status == "delivered" and not package.delivered_at:
+                    package.delivered_at = now()
+
                 package.save()
 
                 # ✅ KEEP YOUR HISTORY (unchanged)
