@@ -21,6 +21,7 @@ urlpatterns = [
     path('api/review-rider/<int:rider_id>/', review_rider, name='review-rider'),
     path('api/admin/packages/',AdminPackagesView.as_view()),
     path('api/admin/analytics/',views.admin_analytics,name='admin_analytics'),
+    path('api/admin/dashboard/',views.admin_dashboard,name='admin_dashboard'),
     path('api/admin/available-riders/',AvailableRidersView.as_view(),),
     path('api/packages/', AvailablePackagesView.as_view()),
     path('api/packages/<str:package_id>/accept/', AcceptPackageView.as_view()),

@@ -363,7 +363,74 @@ def admin_analytics(request):
         "failure_stats": list(failure_stats),
     }
 
-    
+    return Response(data)
+
+
+
+@api_view(['GET'])
+@permission_classes([IsAdminUser])
+def admin_dashboard(request):
+
+    total_riders = RiderProfile.objects.count()
+
+    pending_riders = RiderProfile.objects.filter(
+        status='pending'
+    ).count()
+
+    active_deliveries = Package.objects.filter(
+        status__in=['accepted', 'picked_up']
+    ).count()
+
+    completed_deliveries = Package.objects.filter(
+        status='delivered'
+    ).count()
+
+    available_packages = Package.objects.filter(
+        status='paid'
+    ).count()
+
+    # =========================
+    # ALERTS
+    # =========================
+
+    alerts = []
+
+    if pending_riders > 0:
+        alerts.append(
+            f"{pending_riders} riders awaiting approval"
+        )
+
+    failed_today = Package.objects.filter(
+        status='cancelled'
+    ).count()
+
+    if failed_today > 5:
+        alerts.append(
+            f"{failed_today} deliveries cancelled recently"
+        )
+
+    pending_withdrawals = Withdrawal.objects.filter(
+        status='pending'
+    ).count()
+
+    if pending_withdrawals > 0:
+        alerts.append(
+            f"{pending_withdrawals} withdrawals pending"
+        )
+
+    data = {
+        "total_riders": total_riders,
+
+        "pending_riders": pending_riders,
+
+        "active_deliveries": active_deliveries,
+
+        "completed_deliveries": completed_deliveries,
+
+        "available_packages": available_packages,
+
+        "alerts": alerts,
+    }
 
     return Response(data)
 
@@ -392,6 +459,17 @@ def review_rider(request, rider_id):
     profile.status = status_value
     profile.rejection_reason = reason if status_value == 'rejected' else ''
     profile.save(update_fields=['status', 'rejection_reason'])
+
+    # LIVE ADMIN DASHBOARD UPDATE
+    channel_layer = get_channel_layer()
+
+    async_to_sync(channel_layer.group_send)(
+        "admin_dashboard",
+        {
+            "type": "dashboard_update",
+            "message": "refresh"
+        }
+    )
 
     #message = f"Your rider profile has been {'approved' if status_value == 'approved' else f'rejected: {reason}'}"
     message = (
@@ -1023,6 +1101,17 @@ class UpdateDeliveryStatusView(APIView):
 
                     package.save()
 
+                    # LIVE ADMIN DASHBOARD UPDATE
+                    channel_layer = get_channel_layer()
+
+                    async_to_sync(channel_layer.group_send)(
+                        "admin_dashboard",
+                        {
+                            "type": "dashboard_update",
+                            "message": "refresh"
+                        }
+                    )
+
                     # 🔥 EMAIL NOTIFICATION
                     try:
                         recipients = [
@@ -1121,10 +1210,25 @@ class UpdateDeliveryStatusView(APIView):
                     package.delivery_code = None
                     package.save(update_fields=['delivery_code'])
 
-                #package.status = new_status
-                #package.save()
-
                 package.status = new_status
+
+                try:
+                    channel_layer = get_channel_layer()
+
+                    async_to_sync(channel_layer.group_send)(
+                        "admin_dashboard",
+                        {
+                            "type": "dashboard_update",
+                            "message": "refresh"
+                        }
+                    )
+
+                except Exception as e:
+                    logger.exception(
+                        f"Dashboard websocket failed: {e}"
+                    )
+
+
 
                 # ✅ save delivery completion time
                 if new_status == "delivered" and not package.delivered_at:
@@ -1798,6 +1902,17 @@ class RiderWithdrawView(APIView):
         withdrawal.status = "success"
         withdrawal.save()
 
+        # ✅ LIVE ADMIN DASHBOARD UPDATE
+        channel_layer = get_channel_layer()
+
+        async_to_sync(channel_layer.group_send)(
+            "admin_dashboard",
+            {
+                "type": "dashboard_update",
+                "message": "refresh"
+            }
+        )
+
         send_fcm_notification(
             request.user,
             "Withdrawal Successful",
@@ -1846,6 +1961,17 @@ class ApproveWithdrawalView(APIView):
         withdrawal.status = "approved"
         withdrawal.save()
 
+        # LIVE ADMIN DASHBOARD UPDATE
+        channel_layer = get_channel_layer()
+
+        async_to_sync(channel_layer.group_send)(
+            "admin_dashboard",
+            {
+                "type": "dashboard_update",
+                "message": "refresh"
+            }
+        )
+
         send_fcm_notification(
             withdrawal.rider.user,
             "Withdrawal Approved",
@@ -1876,6 +2002,17 @@ class RejectWithdrawalView(APIView):
             "Rejected by admin"
         )
         withdrawal.save()
+
+        # LIVE ADMIN DASHBOARD UPDATE
+        channel_layer = get_channel_layer()
+
+        async_to_sync(channel_layer.group_send)(
+            "admin_dashboard",
+            {
+                "type": "dashboard_update",
+                "message": "refresh"
+            }
+        )
 
         send_fcm_notification(
             withdrawal.rider.user,
