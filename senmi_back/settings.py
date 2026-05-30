@@ -187,7 +187,7 @@ ANYMAIL = {
     "RESEND_API_KEY": os.getenv("RESEND_API_KEY")
 }
 
-DEFAULT_FROM_EMAIL = "Senmi <senmisupport@gmail.com>"
+DEFAULT_FROM_EMAIL = "Senmi <support@senmi.com.ng>"
 NOTIFY_EMAIL = os.getenv("NOTIFY_EMAIL")
 
 
