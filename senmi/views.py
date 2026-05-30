@@ -17,7 +17,7 @@ from rest_framework.parsers import JSONParser
 from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from senmi.permissions import IsAdminOrSupport
+from senmi.permissions import IsAdminOrSupport, calculate_distance, calculate_price
 from senmi.utils import send_email
 from django.utils.decorators import method_decorator
 from django.db import IntegrityError, transaction
@@ -41,7 +41,7 @@ from asgiref.sync import async_to_sync
 from .serializers import AdminAnalyticsSerializer, UserSerializer
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
-from .utils import send_email, calculate_distance, calculate_price
+from .utils import send_email
 from .models import (
     FCMDevice, Package, PackageStatusHistory, PackageTracking,
     RiderRating, RiderWallet, RiderProfile,Withdrawal
