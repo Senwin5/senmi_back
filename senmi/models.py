@@ -42,6 +42,7 @@ def compress_image(image, max_size=(1024, 1024), quality=70):
 class User(AbstractUser):
     ROLE_CHOICES = (
         ('admin', 'Admin'),
+        ('support', 'Support'),
         ('customer', 'Customer'),
         ('rider', 'Rider'),
     )
