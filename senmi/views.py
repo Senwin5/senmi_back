@@ -17,7 +17,7 @@ from rest_framework.parsers import JSONParser
 from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework.permissions import IsAdminUser
+from senmi.permissions import IsAdminOrSupport
 from senmi.utils import send_email
 from django.utils.decorators import method_decorator
 from django.db import IntegrityError, transaction
@@ -26,7 +26,7 @@ from django.contrib.auth import authenticate
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import BasePermission, IsAuthenticated, IsAdminUser
+from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.throttling import UserRateThrottle
 from django.shortcuts import get_object_or_404
@@ -35,7 +35,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.authentication import TokenAuthentication
 from django.http import HttpResponse
 from channels.layers import get_channel_layer
-from .utils import notify_admin_dashboard, send_fcm_notification 
+from .utils import  notify_admin_dashboard, send_fcm_notification 
 from rest_framework.pagination import PageNumberPagination
 from asgiref.sync import async_to_sync
 from .serializers import AdminAnalyticsSerializer, UserSerializer
@@ -117,7 +117,7 @@ class UserProfileView(APIView):
 # Admin Views
 # ------------------------------
 class AdminRidersListView(APIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAdminOrSupport]
 
     def get(self, request):
         riders = RiderProfile.objects.select_related('user').all()
@@ -139,7 +139,7 @@ class AdminRidersListView(APIView):
 
 
 class AdminUserSearchView(APIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAdminOrSupport]
 
     def get(self, request):
         query = request.GET.get('q')
@@ -155,17 +155,9 @@ class AdminUserSearchView(APIView):
 
 
 class AdminPackagesView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminOrSupport]
 
     def get(self, request):
-
-        # ✅ ADMIN ONLY
-        if not request.user.is_staff and not request.user.is_superuser:
-            return Response(
-                {"error": "Unauthorized"},
-                status=403
-            )
-
         packages = Package.objects.select_related(
             'customer',
             'rider'
@@ -201,7 +193,7 @@ class AvailableRidersView(APIView):
     
 
 @api_view(['GET'])
-@permission_classes([IsAdminUser])
+@permission_classes([IsAdminOrSupport])
 def admin_analytics(request):
 
     packages = Package.objects.all()
@@ -368,7 +360,7 @@ def admin_analytics(request):
 
 
 @api_view(['GET'])
-@permission_classes([IsAdminUser])
+@permission_classes([IsAdminOrSupport])
 def admin_dashboard(request):
 
     total_riders = RiderProfile.objects.count()
@@ -430,7 +422,7 @@ def admin_dashboard(request):
 
 
 @api_view(['POST'])
-@permission_classes([IsAdminUser])
+@permission_classes([IsAdminOrSupport])
 def review_rider(request, rider_id):
     """Approve or reject a rider profile""" 
     try:
@@ -525,7 +517,7 @@ def review_rider(request, rider_id):
 
 #Flutter to build 
 class AdminNotificationView(APIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAdminOrSupport]
     def post(self, request):
 
         title = request.data.get("title")
@@ -1888,7 +1880,7 @@ class RiderWithdrawView(APIView):
     
 
 class AdminWithdrawalsView(APIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAdminOrSupport]
 
     def get(self, request):
         withdrawals = Withdrawal.objects.all().order_by("-created_at")
@@ -1909,7 +1901,7 @@ class AdminWithdrawalsView(APIView):
     
 
 class ApproveWithdrawalView(APIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAdminOrSupport]
 
     def post(self, request, withdrawal_id):
         withdrawal = get_object_or_404(Withdrawal, id=withdrawal_id)
@@ -1938,7 +1930,7 @@ class ApproveWithdrawalView(APIView):
         
 
 class RejectWithdrawalView(APIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAdminOrSupport]
 
     def post(self, request, withdrawal_id):
         withdrawal = get_object_or_404(Withdrawal, id=withdrawal_id)
@@ -1982,7 +1974,7 @@ class BankListView(APIView):
 
 
 class RetryWithdrawalView(APIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAdminOrSupport]
 
     def post(self, request, withdrawal_id):
         withdrawal = get_object_or_404(Withdrawal, id=withdrawal_id)
