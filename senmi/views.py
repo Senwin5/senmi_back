@@ -1044,24 +1044,35 @@ class UpdateDeliveryStatusView(APIView):
                 #new_status = request.data.get('status')
                 new_status = (request.data.get('status') or "").lower().strip()
 
-                # ✅ ADDED CANCEL (NOT CHANGING ANYTHING ELSE)
-                if new_status == "cancelled":
+                # ADDED CANCEL (NOT CHANGING ANYTHING ELSE)
+                if new_status in ["cancelled", "canceled","cancel"]:
+                #if new_status == "cancelled":
 
                     if package.status != "accepted":
                         return Response({
                             "error": "You can only cancel before pickup"
                         }, status=400)
 
-                    # ✅ SAVE RIDER INFO BEFORE REMOVING
+                    # RIDER INFO BEFORE REMOVING
                     rider_user = request.user
                     rider_profile = getattr(rider_user, 'riderprofile', None)
                     rider_id = rider_profile.rider_id if rider_profile else "N/A"
 
-                    # ✅ UPDATE PACKAGE
-                    package.status = "paid"
+                    # UPDATE PACKAGE
+                   
+                    #package.status = "paid"
+                    package.status = "cancelled"
+
+                    package.failure_reason = request.data.get(
+                        'failure_reason',
+                        ''
+                    )
+
                     package.rider = None
+
                     package.save()
 
+                    notify_admin_dashboard()
                     # 🔥 EMAIL NOTIFICATION
                     try:
                         recipients = [
@@ -1161,6 +1172,29 @@ class UpdateDeliveryStatusView(APIView):
                     package.save(update_fields=['delivery_code'])
 
                 package.status = new_status
+
+                try:
+                    channel_layer = get_channel_layer()
+
+                    async_to_sync(channel_layer.group_send)(
+                        "admin_dashboard",
+                        {
+                            "type": "dashboard_update",
+                            "message": "refresh"
+                        }
+                    )
+
+                except Exception as e:
+                    logger.exception(
+                        f"Dashboard websocket failed: {e}"
+                    )
+
+
+
+                # ✅ save delivery completion time
+                if new_status == "delivered" and not package.delivered_at:
+                    package.delivered_at = now()
+
                 package.save()
 
                 # ✅ KEEP YOUR HISTORY (unchanged)
@@ -1168,14 +1202,7 @@ class UpdateDeliveryStatusView(APIView):
 
                 # ✅ NEW: BROADCAST STATUS UPDATE (correct position)
                 try:
-                    channel_layer = get_channel_layer()
-                    async_to_sync(channel_layer.group_send)(
-                        f"tracking_{package.package_id}",
-                        {
-                            "type": "send_location",
-                            "status": new_status
-                        }
-                    )
+                    notify_admin_dashboard()
                 except Exception as e:
                     logger.exception(f"WebSocket broadcast failed (status update): {e}")
 
