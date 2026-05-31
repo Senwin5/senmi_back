@@ -1,8 +1,8 @@
 # senmi/permissions.py
 from math import atan2, cos, radians, sin, sqrt
-from venv import logger
 from rest_framework.permissions import BasePermission
 from senmi_back import settings
+from venv import logger
 
 
 

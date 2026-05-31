@@ -8,8 +8,7 @@ import logging
 from firebase_admin import messaging
 import resend
 from .models import FCMDevice, Notification
-
-
+from venv import logger
 
 
 logger = logging.getLogger(__name__)
@@ -139,64 +138,6 @@ def send_fcm_notification(
             logger.exception(e)
 
     return True
-
-
-
-"""def send_fcm_notification(user, title, body, data=None):
-
-    # SAVE TO DATABASE
-    try:
-        Notification.objects.create(
-            user=user,
-            type=data.get("type") if data else "general",
-            message=body
-        )
-
-        print("✅ NOTIFICATION SAVED TO DB")
-
-    except Exception as e:
-        print("❌ DB NOTIFICATION ERROR:", str(e))
-        logger.exception(e)
-
-    # ✅ GET TOKENS
-    tokens = list(
-        FCMDevice.objects.filter(
-            user=user,
-            is_active=True
-        ).values_list("token", flat=True)
-    )
-
-    print("TOKENS:", tokens)
-
-    if not tokens:
-        print("❌ NO TOKENS FOUND")
-        return False
-
-    # ✅ SEND PUSH
-    for token in tokens:
-
-        try:
-
-            message = messaging.Message(
-                notification=messaging.Notification(
-                    title=title,
-                    body=body,
-                ),
-                data={k: str(v) for k, v in (data or {}).items()},
-                token=token,
-            )
-
-            response = messaging.send(message)
-
-            print("✅ FCM SUCCESS:", response)
-
-        except Exception as e:
-
-            print("❌ FCM ERROR:", str(e))
-            logger.exception(e)
-
-    return True"""
-
 
 
 
