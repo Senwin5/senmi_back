@@ -1048,9 +1048,9 @@ class UpdateDeliveryStatusView(APIView):
                 if new_status in ["cancelled", "canceled","cancel"]:
                 #if new_status == "cancelled":
 
-                    if package.status != "accepted":
+                    if package.status == "picked_up":
                         return Response({
-                            "error": "You can only cancel before pickup"
+                            "error": "You cannot cancel after pickup"
                         }, status=400)
 
                     # RIDER INFO BEFORE REMOVING
