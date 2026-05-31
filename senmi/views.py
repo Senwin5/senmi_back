@@ -1056,10 +1056,16 @@ class UpdateDeliveryStatusView(APIView):
                     rider_profile = getattr(rider_user, 'riderprofile', None)
                     rider_id = rider_profile.rider_id if rider_profile else "N/A"
 
-                    package.status = "paid"
+                    
                     package.failure_reason = request.data.get('failure_reason', '')
+                    package.status = "paid"
                     package.rider = None
                     package.save()
+
+                    PackageStatusHistory.objects.create(
+                        package=package,
+                        status="cancelled"
+                    )
 
                     notify_admin_dashboard()
                      
@@ -1108,7 +1114,7 @@ class UpdateDeliveryStatusView(APIView):
 
                     return Response({
                         "success": True,
-                        "message": "Cancelled"
+                        "message": "Package released and returned to available deliveries"
                     })
 
                 valid_flow = {'accepted': 'picked_up', 'picked_up': 'delivered'}
