@@ -1029,7 +1029,6 @@ class CreatePackageView(APIView):
         return Response(serializer.errors, status=400)
     
 
-
 class UpdateDeliveryStatusView(APIView):
     permission_classes = [IsAuthenticated, IsApprovedRider]
 
@@ -1045,35 +1044,25 @@ class UpdateDeliveryStatusView(APIView):
                 new_status = (request.data.get('status') or "").lower().strip()
 
                 # ADDED CANCEL (NOT CHANGING ANYTHING ELSE)
-                if new_status in ["cancelled", "canceled","cancel"]:
-                #if new_status == "cancelled":
+                if new_status in ["cancelled", "canceled", "cancel"]:
 
-                    if package.status == "picked_up":
+                    if package.status != "accepted":
                         return Response({
                             "success": False,
-                            "error": "You cannot cancel after pickup"
+                            "error": "Cancellation only allowed when package is accepted"
                         }, status=400)
 
-                    # RIDER INFO BEFORE REMOVING
                     rider_user = request.user
                     rider_profile = getattr(rider_user, 'riderprofile', None)
                     rider_id = rider_profile.rider_id if rider_profile else "N/A"
 
-                    # UPDATE PACKAGE
-                   
-                    #package.status = "paid"
                     package.status = "cancelled"
-
-                    package.failure_reason = request.data.get(
-                        'failure_reason',
-                        ''
-                    )
-
+                    package.failure_reason = request.data.get('failure_reason', '')
                     package.rider = None
-
                     package.save()
 
                     notify_admin_dashboard()
+                     
                     # 🔥 EMAIL NOTIFICATION
                     try:
                         recipients = [
@@ -1120,7 +1109,7 @@ class UpdateDeliveryStatusView(APIView):
                     return Response({
                         "success": True,
                         "message": "Cancelled"
-                    }, status=200)
+                    })
 
                 valid_flow = {'accepted': 'picked_up', 'picked_up': 'delivered'}
 
