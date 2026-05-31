@@ -153,7 +153,8 @@ class RiderProfileAdmin(admin.ModelAdmin):
                     "Senmi System"
                 ),
                 from_email=settings.EMAIL_HOST_USER,
-                recipient_list=["senmilog@gmail.com"],
+                
+                recipient_list=["senmisupport@gmail.com"],
                 fail_silently=False,
             )
 
