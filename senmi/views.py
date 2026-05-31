@@ -1120,7 +1120,7 @@ class UpdateDeliveryStatusView(APIView):
                     return Response({
                         "success": True,
                         "message": "Cancelled"
-                    })
+                    }, status=200)
 
                 valid_flow = {'accepted': 'picked_up', 'picked_up': 'delivered'}
 
