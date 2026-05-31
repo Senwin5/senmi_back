@@ -255,17 +255,23 @@ class PackageAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
 
         old_status = None
+        old_rider = None
 
         if change:
             old_obj = Package.objects.get(pk=obj.pk)
             old_status = old_obj.status
+            old_rider = old_obj.rider
+
+            # Admin manually returns package to available pool
+            if old_obj.status in ["accepted", "picked_up"] and obj.status == "paid":
+                obj.rider = None
 
         super().save_model(request, obj, form, change)
 
-        # notify only when status changes
+        # Notify only when status changes
         if change and old_status != obj.status:
 
-            # notify customer
+            # Notify customer
             send_fcm_notification(
                 obj.customer,
                 "Package Update",
@@ -277,9 +283,8 @@ class PackageAdmin(admin.ModelAdmin):
                 }
             )
 
-            # notify rider
+            # Notify rider if package still has one
             if obj.rider:
-
                 send_fcm_notification(
                     obj.rider,
                     "Delivery Update",
@@ -290,6 +295,20 @@ class PackageAdmin(admin.ModelAdmin):
                         "package_id": obj.package_id
                     }
                 )
+
+            # Notify removed rider when admin releases package
+            elif old_rider and obj.status == "paid":
+                send_fcm_notification(
+                    old_rider,
+                    "Package Reassigned",
+                    f"Package {obj.package_id} has been returned to available deliveries",
+                    {
+                        "type": "package_released",
+                        "package_id": obj.package_id
+                    }
+                )
+
+                
 
 
 @admin.register(PackageTracking)
@@ -353,3 +372,5 @@ class FCMDeviceAdmin(admin.ModelAdmin):
         "device_type",
         "is_active",
     )
+
+

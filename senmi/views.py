@@ -775,8 +775,8 @@ class AvailablePackagesView(APIView):
         rider_city = rider_profile.city.strip().lower()
 
         packages = Package.objects.filter(
-            status='paid',          # 🔥 ONLY PAID PACKAGES
-            is_paid=True,           # 🔥 DOUBLE SAFETY CHECK
+            status='paid',          
+            is_paid=True,           
             rider__isnull=True,
             pickup_address__icontains=rider_city,
             pickup_lat__isnull=False
