@@ -1050,6 +1050,7 @@ class UpdateDeliveryStatusView(APIView):
 
                     if package.status == "picked_up":
                         return Response({
+                            "success": False,
                             "error": "You cannot cancel after pickup"
                         }, status=400)
 
