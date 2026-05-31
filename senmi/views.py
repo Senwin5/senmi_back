@@ -1044,7 +1044,7 @@ class UpdateDeliveryStatusView(APIView):
                 #new_status = request.data.get('status')
                 new_status = (request.data.get('status') or "").lower().strip()
 
-                # ✅ ADDED CANCEL (NOT CHANGING ANYTHING ELSE)
+                # ADDED CANCEL (NOT CHANGING ANYTHING ELSE)
                 if new_status == "cancelled":
 
                     if package.status != "accepted":
@@ -1058,8 +1058,9 @@ class UpdateDeliveryStatusView(APIView):
                     rider_id = rider_profile.rider_id if rider_profile else "N/A"
 
                     # UPDATE PACKAGE
-                    # ✅ UPDATE PACKAGE
-                    package.status = "paid"
+                   
+                    #package.status = "paid"
+                    package.status = "cancelled"
 
                     package.failure_reason = request.data.get(
                         'failure_reason',
