@@ -1046,34 +1046,19 @@ class UpdateDeliveryStatusView(APIView):
                 # ADDED CANCEL (NOT CHANGING ANYTHING ELSE)
                 if new_status in ["cancelled", "canceled", "cancel"]:
 
-                    """if package.status != "accepted":
+                    if package.status != "accepted":
                         return Response({
                             "success": False,
                             "error": "Cancellation only allowed when package is accepted"
-                        }, status=400)"""
-                    
-                    if package.status == "picked_up":
-                        return Response({
-                            "success": False,
-                            "error": "You cannot cancel after pickup"
                         }, status=400)
 
                     rider_user = request.user
                     rider_profile = getattr(rider_user, 'riderprofile', None)
                     rider_id = rider_profile.rider_id if rider_profile else "N/A"
 
-                    """package.status = "cancelled"
+                    package.status = "paid"
                     package.failure_reason = request.data.get('failure_reason', '')
                     package.rider = None
-                    package.save()"""
-
-
-                    package.status = "paid"      # ← change this
-                    package.rider = None
-                    package.failure_reason = request.data.get(
-                        "failure_reason",
-                        ""
-                    )
                     package.save()
 
                     notify_admin_dashboard()
