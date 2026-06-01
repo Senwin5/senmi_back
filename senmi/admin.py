@@ -298,7 +298,7 @@ class PackageAdmin(SimpleHistoryAdmin):
     )
 
     history_list_display = ["status", "rider", "is_paid"]
-    
+
     list_filter = ('status', 'rider', 'is_paid')
 
     search_fields = (
@@ -387,6 +387,21 @@ class PackageAdmin(SimpleHistoryAdmin):
 
     mark_paid.short_description = "Mark as paid"
    
+
+
+HistoricalPackage = Package.history.model
+
+@admin.register(HistoricalPackage)
+class HistoricalPackageAdmin(admin.ModelAdmin):
+    list_display = (
+        "package_id",
+        "status",
+        "history_type",
+        "history_date",
+        "history_user",
+    )
+
+    ordering = ("-history_date",)
 
 
 @admin.register(PackageTracking)
