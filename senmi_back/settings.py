@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'senmi',
     'legal',
+    'simple_history',
     'rest_framework',
     'anymail',
     'channels',
@@ -66,7 +67,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'simple_history.middleware.HistoryRequestMiddleware',
 ]
+
 
 CORS_ALLOW_ALL_ORIGINS = True
 

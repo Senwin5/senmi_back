@@ -393,10 +393,7 @@ class PackageTrackingAdmin(admin.ModelAdmin):
     search_fields = ('package__description', 'rider__email')
     ordering = ('-timestamp',)
 
-"""@admin.register(PackageStatusHistory)
-class PackageStatusHistoryAdmin(admin.ModelAdmin):
-    list_display = ('package','timestamp')
-    ordering = ('-timestamp',)"""
+
 
 @admin.register(RiderWallet)
 class RiderWalletAdmin(admin.ModelAdmin):

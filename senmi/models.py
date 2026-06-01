@@ -300,7 +300,6 @@ class RiderRating(models.Model):
     rider = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='ratings')
     customer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     package = models.OneToOneField(Package, on_delete=models.CASCADE)
-
     rating = models.IntegerField()  # 1–5 stars
     comment = models.TextField(blank=True)
 
