@@ -44,8 +44,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from .utils import send_email
 from .models import (
-    FCMDevice, Package, PackageStatusHistory, PackageTracking,
-    RiderRating, RiderWallet, RiderProfile,Withdrawal
+    FCMDevice, Package, PackageTracking,
+    RiderRating, RiderWallet, RiderProfile,Withdrawal #, PackageStatusHistory
 )
 from .serializers import (
     RegisterSerializer, RiderProfileSerializer, CustomLoginSerializer,
@@ -850,10 +850,10 @@ class AcceptPackageView(APIView):
                 package.status = 'accepted'
                 package.save()
 
-                PackageStatusHistory.objects.create(
+                """PackageStatusHistory.objects.create(
                     package=package,
                     status='accepted'
-                )
+                )"""
 
                 # =========================
                 # 🔔 NOTIFY OTHER RIDERS
@@ -1062,11 +1062,6 @@ class UpdateDeliveryStatusView(APIView):
                     package.rider = None
                     package.save()
 
-                    PackageStatusHistory.objects.create(
-                        package=package,
-                        status="cancelled"
-                    )
-
                     notify_admin_dashboard()
                      
                     # 🔥 EMAIL NOTIFICATION
@@ -1193,10 +1188,8 @@ class UpdateDeliveryStatusView(APIView):
 
                 package.save()
 
-                # ✅ KEEP YOUR HISTORY (unchanged)
-                PackageStatusHistory.objects.create(package=package, status=new_status)
-
-                # ✅ NEW: BROADCAST STATUS UPDATE (correct position)
+               
+                #PackageStatusHistory.objects.create(package=package, status=new_status)
                 try:
                     notify_admin_dashboard()
                 except Exception as e:
@@ -2123,16 +2116,6 @@ class RateRiderView(APIView):
 
         return Response({"message": "Rating submitted"})
 
-
-# ------------------------------
-# Package Timeline & Admin Search
-# ------------------------------
-class PackageTimelineView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request, package_id):
-        history = PackageStatusHistory.objects.filter(package_id=package_id).order_by('timestamp')
-        return Response([{"status": h.status, "time": h.timestamp} for h in history])
 
 
 # ------------------------------

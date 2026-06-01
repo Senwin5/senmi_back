@@ -2,12 +2,13 @@ import uuid
 from django.contrib.auth import get_user_model
 from django.contrib import admin
 from django.conf import settings
+from simple_history.admin import SimpleHistoryAdmin
 from django.utils import timezone
 from .models import FCMDevice, Notification, User, RiderProfile,Withdrawal
 from .utils import send_email, send_fcm_notification
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.core.exceptions import ValidationError
-from .models import User,RiderWallet, Package, PackageTracking, PackageStatusHistory
+from .models import User,RiderWallet, Package, PackageTracking 
 
 
 @admin.action(description="Deactivate selected users")
@@ -280,9 +281,9 @@ class RiderProfileAdmin(admin.ModelAdmin):
 
 
 # -----------------------------
-# Package, RiderWallet, PackageTracking, PackageStatusHistory admins
+# Package, RiderWallet, PackageTracking, admins
 @admin.register(Package)
-class PackageAdmin(admin.ModelAdmin):
+class PackageAdmin(SimpleHistoryAdmin):
 
     list_display = (
         'package_id',
@@ -392,10 +393,10 @@ class PackageTrackingAdmin(admin.ModelAdmin):
     search_fields = ('package__description', 'rider__email')
     ordering = ('-timestamp',)
 
-@admin.register(PackageStatusHistory)
+"""@admin.register(PackageStatusHistory)
 class PackageStatusHistoryAdmin(admin.ModelAdmin):
     list_display = ('package','timestamp')
-    ordering = ('-timestamp',)
+    ordering = ('-timestamp',)"""
 
 @admin.register(RiderWallet)
 class RiderWalletAdmin(admin.ModelAdmin):

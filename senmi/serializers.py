@@ -5,7 +5,7 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.db import IntegrityError
-from .models import PackageStatusHistory, User, RiderProfile, Package
+from .models import User, RiderProfile, Package 
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
@@ -87,20 +87,6 @@ class RiderProfileSerializer(serializers.ModelSerializer):
 
         return data
 
- 
-
-
-class PackageHistorySerializer(
-    serializers.ModelSerializer
-):
-    class Meta:
-        model = PackageStatusHistory
-
-        fields = [
-            'status',
-            'timestamp',
-        ]
-
 
 
 class PackageSerializer(serializers.ModelSerializer):
@@ -115,7 +101,7 @@ class PackageSerializer(serializers.ModelSerializer):
 
     # ✅ ADD THIS (only change)
     delivery_code = serializers.SerializerMethodField()
-    history = PackageHistorySerializer(many=True, read_only=True)
+    #history = PackageHistorySerializer(many=True, read_only=True)
 
     rider_profile_picture = serializers.SerializerMethodField()
     vehicle_number = serializers.SerializerMethodField()
@@ -197,17 +183,6 @@ class PackageSerializer(serializers.ModelSerializer):
         return None
 
 
-
-class PackageHistorySerializer(
-    serializers.ModelSerializer
-):
-    class Meta:
-        model = PackageStatusHistory
-
-        fields = [
-            'status',
-            'timestamp',
-        ]
         
 
 class CustomLoginSerializer(TokenObtainPairSerializer):

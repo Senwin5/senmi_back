@@ -307,11 +307,6 @@ class RiderRating(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
 
-class PackageStatusHistory(models.Model):
-    package = models.ForeignKey(Package, on_delete=models.CASCADE, related_name='history')
-    status = models.CharField(max_length=20)
-    timestamp = models.DateTimeField(auto_now_add=True)
-
 
 class Withdrawal(models.Model):
     STATUS = [
