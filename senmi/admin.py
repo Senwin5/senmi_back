@@ -329,7 +329,6 @@ class PackageAdmin(SimpleHistoryAdmin):
         'refund_packages'
     ]
 
-    # ---------------- SAFE REFUND ----------------
     @admin.action(description="Refund selected packages")
     def refund_packages(self, request, queryset):
 
@@ -339,15 +338,14 @@ class PackageAdmin(SimpleHistoryAdmin):
             refund_status="refunded"
         )
 
-        queryset.update(
-            refund_status="refunded",
-            refunded_at=timezone.now(),
-            status="cancelled",
-            is_paid=False,
-            rider=None
-        )
+        for package in queryset:
+            package.refund_status = "refunded"
+            package.refunded_at = timezone.now()
+            package.status = "cancelled"
+            package.is_paid = False
+            package.rider = None
+            package.save()
 
-    # ---------------- SAVE ----------------
     def save_model(self, request, obj, form, change):
 
         if change:
@@ -358,39 +356,53 @@ class PackageAdmin(SimpleHistoryAdmin):
 
         super().save_model(request, obj, form, change)
 
-    # ---------------- ACTIONS ----------------
-
     def assign_random_rider(self, request, queryset):
-        rider = User.objects.filter(role="rider", is_active=True).first()
+        rider = User.objects.filter(
+            role="rider",
+            is_active=True
+        ).first()
+
         if rider:
-            queryset.update(rider=rider, status="accepted")
+            for package in queryset:
+                package.rider = rider
+                package.status = "accepted"
+                package.save()
 
     assign_random_rider.short_description = "Assign to available rider"
 
     def release_packages(self, request, queryset):
-        queryset.update(rider=None, status="paid")
+        for package in queryset:
+            package.rider = None
+            package.status = "paid"
+            package.save()
 
     release_packages.short_description = "Release packages back to pool"
 
     def force_delivered(self, request, queryset):
-        queryset.update(status="delivered")
+        for package in queryset:
+            package.status = "delivered"
+            package.save()
 
     force_delivered.short_description = "Force mark as delivered"
 
     def cancel_packages(self, request, queryset):
-        queryset.update(status="cancelled", rider=None)
+        for package in queryset:
+            package.status = "cancelled"
+            package.rider = None
+            package.save()
 
     cancel_packages.short_description = "Cancel selected packages"
 
     def mark_paid(self, request, queryset):
-        queryset.update(is_paid=True)
+        for package in queryset:
+            package.is_paid = True
+            package.save()
 
     mark_paid.short_description = "Mark as paid"
-   
+
 
 
 HistoricalPackage = Package.history.model
-
 @admin.register(HistoricalPackage)
 class HistoricalPackageAdmin(admin.ModelAdmin):
     list_display = (
@@ -402,6 +414,7 @@ class HistoricalPackageAdmin(admin.ModelAdmin):
     )
 
     ordering = ("-history_date",)
+
 
 
 @admin.register(PackageTracking)
