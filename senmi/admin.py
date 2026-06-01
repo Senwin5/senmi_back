@@ -297,6 +297,7 @@ class PackageAdmin(admin.ModelAdmin):
     )
 
     list_filter = ('status', 'rider', 'is_paid')
+
     search_fields = (
         'package_id',
         'customer__email',
@@ -325,23 +326,36 @@ class PackageAdmin(admin.ModelAdmin):
         'refund_packages'
     ]
 
+    # ---------------- SAFE REFUND ----------------
+    @admin.action(description="Refund selected packages")
+    def refund_packages(self, request, queryset):
+
+        queryset = queryset.exclude(
+            status="delivered"
+        ).exclude(
+            refund_status="refunded"
+        )
+
+        queryset.update(
+            refund_status="refunded",
+            refunded_at=timezone.now(),
+            status="cancelled",
+            is_paid=False,
+            rider=None
+        )
+
+    # ---------------- SAVE ----------------
     def save_model(self, request, obj, form, change):
-        old_status = None
-        old_rider = None
 
         if change:
             old_obj = Package.objects.get(pk=obj.pk)
-            old_status = old_obj.status
-            old_rider = old_obj.rider
 
             if old_obj.status in ["accepted", "picked_up"] and obj.status == "paid":
                 obj.rider = None
 
         super().save_model(request, obj, form, change)
 
-    # -------------------------
-    # ACTIONS (SAFE VERSION)
-    # -------------------------
+    # ---------------- ACTIONS ----------------
 
     def assign_random_rider(self, request, queryset):
         rider = User.objects.filter(role="rider", is_active=True).first()
@@ -369,18 +383,7 @@ class PackageAdmin(admin.ModelAdmin):
         queryset.update(is_paid=True)
 
     mark_paid.short_description = "Mark as paid"
-
-    @admin.action(description="Refund selected packages")
-    def refund_packages(modeladmin, request, queryset):
-        queryset.update(
-            refund_status="refunded",
-            refunded_at=timezone.now(),
-            status="cancelled",
-            is_paid=False
-        )
-
-    
-                
+   
 
 
 @admin.register(PackageTracking)

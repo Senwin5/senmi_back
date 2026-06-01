@@ -6,6 +6,7 @@ from django.conf import settings
 from decimal import Decimal
 from django.contrib.auth.models import AbstractUser
 import uuid
+from simple_history.models import HistoricalRecords
 from io import BytesIO
 from PIL import Image
 from cloudinary.models import CloudinaryField
@@ -173,12 +174,9 @@ class Package(models.Model):
         choices=PAYMENT_TYPE_CHOICES,
         default='sender'
     )
-
     customer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='orders')
     rider = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='deliveries')
-
     description = models.CharField(max_length=255)
-
     pickup_address = models.TextField()
     delivery_address = models.TextField()
     package_id = models.CharField(max_length=20, unique=True, blank=True)
@@ -186,34 +184,36 @@ class Package(models.Model):
     pickup_lng = models.FloatField(null=True, blank=True)
     delivery_lat = models.FloatField(null=True, blank=True)
     delivery_lng = models.FloatField(null=True, blank=True)
-
     receiver_name = models.CharField(max_length=255, blank=True)
     receiver_phone = models.CharField(max_length=20, blank=True)
-
     price = models.DecimalField(max_digits=10, decimal_places=2)
     commission = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     rider_earning = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     payment_reference = models.CharField(max_length=100, blank=True, null=True)
     is_paid = models.BooleanField(default=False)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-
     delivery_code = models.CharField(max_length=6, blank=True, null=True)
-
     created_at = models.DateTimeField(auto_now_add=True)
-    refund_status = models.CharField(max_length=20,choices=[('none', 'None'),('pending', 'Pending'),('refunded', 'Refunded'),],
-    default='none')
-
+    refund_status = models.CharField(
+        max_length=20,
+        choices=[('none', 'None'), ('pending', 'Pending'), ('refunded', 'Refunded')],
+        default='none'
+    )
     refund_reason = models.TextField(null=True, blank=True)
+    refund_method = models.CharField(
+        max_length=20,
+        choices=[('manual', 'Manual Bank Transfer'), ('wallet', 'Wallet Refund')],
+        default='manual'
+    )
     refunded_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
     failure_reason = models.TextField(blank=True)
     history = HistoricalRecords()
-    delivered_at = models.DateTimeField(null=True,blank=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
 
     def is_available(self):
         return self.status == 'pending' and self.rider is None
 
-    # ✅ helper method
     def generate_unique_delivery_code(self):
         while True:
             code = f"{random.randint(0, 999999):06d}"
@@ -223,54 +223,44 @@ class Package(models.Model):
             ).exists():
                 return code
 
-    # ✅ FIXED SAVE METHOD (ONLY FIXED HERE)
     def save(self, *args, **kwargs):
         if not self.package_id:
             self.package_id = f"PKG-{uuid.uuid4().hex[:8].upper()}"
 
-        # 🔥 SAFE DECIMAL HANDLING (NO STRUCTURE CHANGE)
         if self.price is None:
             raise ValueError("Price is required before saving package")
 
-        price = self.price  # Django already gives Decimal
+        price = self.price
 
-        # commission calculation
         base_fee = Decimal('200')
         percentage = Decimal('0.10')
 
         self.commission = base_fee + (price * percentage)
-
-        # rider earning calculation
         self.rider_earning = price - self.commission
 
-        # prevent negative earnings
         if self.rider_earning < 0:
             self.rider_earning = Decimal('0')
 
-        # delivery code
         if not self.delivery_code:
             self.delivery_code = self.generate_unique_delivery_code()
-        
+
         if self.is_paid and self.status == "pending":
             self.status = "paid"
 
         super().save(*args, **kwargs)
 
-    # ✅ FIXED: now properly OUTSIDE save()
     def hide_delivery_code(self, user):
         if user.role != "customer":
             return None
         return self.delivery_code
 
-    # ✅ FIXED: properly OUTSIDE save()
     def get_delivery_code_for_user(self, user):
         if user.role == "customer" and self.customer_id == user.id:
             return self.delivery_code
         return None
-
+    
     class Meta:
         ordering = ['-created_at']
-
 
         
 class PackageTracking(models.Model):
