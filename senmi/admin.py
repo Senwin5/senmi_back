@@ -297,6 +297,8 @@ class PackageAdmin(SimpleHistoryAdmin):
         'created_at'
     )
 
+    history_list_display = ["status", "rider", "is_paid"]
+    
     list_filter = ('status', 'rider', 'is_paid')
 
     search_fields = (
