@@ -200,8 +200,14 @@ class Package(models.Model):
     delivery_code = models.CharField(max_length=6, blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
+    refund_status = models.CharField(max_length=20,choices=[('none', 'None'),('pending', 'Pending'),('refunded', 'Refunded'),],
+    default='none')
+
+    refund_reason = models.TextField(null=True, blank=True)
+    refunded_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
     failure_reason = models.TextField(blank=True)
+    history = HistoricalRecords()
     delivered_at = models.DateTimeField(null=True,blank=True)
 
     def is_available(self):

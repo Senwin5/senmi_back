@@ -2,13 +2,22 @@ import uuid
 from django.contrib.auth import get_user_model
 from django.contrib import admin
 from django.conf import settings
+from django.utils import timezone
 from .models import FCMDevice, Notification, User, RiderProfile,Withdrawal
 from .utils import send_email, send_fcm_notification
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.core.exceptions import ValidationError
 from .models import User,RiderWallet, Package, PackageTracking, PackageStatusHistory
 
-from senmi.utils import send_fcm_notification
+
+@admin.action(description="Deactivate selected users")
+def deactivate_users(modeladmin, request, queryset):
+    queryset.update(is_active=False)
+
+
+@admin.action(description="Activate selected users")
+def activate_users(modeladmin, request, queryset):
+    queryset.update(is_active=True)
 
 # -----------------------------
 # Inlines for User admin
@@ -63,12 +72,14 @@ class UserAdmin(BaseUserAdmin):
     )
 
     list_filter = ('role', 'is_staff', 'is_active')
-
     search_fields = ('username', 'email', 'user_id')
-
     ordering = ('-is_superuser', '-is_staff', 'id')
-
     readonly_fields = ('id', 'user_id')
+
+    list_per_page = 50
+    date_hierarchy = "date_joined"
+
+    actions = [deactivate_users, activate_users]
 
     fieldsets = BaseUserAdmin.fieldsets + (
         (
@@ -102,15 +113,7 @@ class UserAdmin(BaseUserAdmin):
         PackageInline,
         PackageAsRiderInline,
         PackageTrackingInline,
-        
     ]
-    @admin.action(description="Deactivate selected users")
-    def deactivate_users(modeladmin, request, queryset):
-        queryset.update(is_active=False)
-
-    @admin.action(description="Activate selected users")
-    def activate_users(modeladmin, request, queryset):
-        queryset.update(is_active=True)
 
 
 # -----------------------------
@@ -122,6 +125,9 @@ class RiderProfileAdmin(admin.ModelAdmin):
     search_fields = ('user__email', 'full_name', 'phone_number')
     readonly_fields = ('id', 'rider_id')
     ordering = ('-created_at',)
+
+    list_per_page = 50
+    date_hierarchy = "created_at"
 
     def save_model(self, request, obj, form, change):
         # 0️⃣ Ensure rider_id exists
@@ -291,7 +297,6 @@ class PackageAdmin(admin.ModelAdmin):
     )
 
     list_filter = ('status', 'rider', 'is_paid')
-
     search_fields = (
         'package_id',
         'customer__email',
@@ -299,17 +304,9 @@ class PackageAdmin(admin.ModelAdmin):
         'description'
     )
 
-    # 🔥 ADD THESE HERE
-    list_editable = ('status', 'rider')
+    list_editable = ('status',)
     list_per_page = 50
     date_hierarchy = 'created_at'
-
-    actions = [
-        'assign_rider',
-        'release_packages',
-        'force_delivered',
-        'cancel_packages'
-    ]
 
     readonly_fields = (
         'commission',
@@ -318,6 +315,15 @@ class PackageAdmin(admin.ModelAdmin):
     )
 
     ordering = ('-created_at',)
+
+    actions = [
+        'assign_random_rider',
+        'release_packages',
+        'force_delivered',
+        'cancel_packages',
+        'mark_paid',
+        'refund_packages'
+    ]
 
     def save_model(self, request, obj, form, change):
         old_status = None
@@ -333,19 +339,16 @@ class PackageAdmin(admin.ModelAdmin):
 
         super().save_model(request, obj, form, change)
 
-    # =========================
-    # 🔥 ACTIONS GO HERE
-    # =========================
+    # -------------------------
+    # ACTIONS (SAFE VERSION)
+    # -------------------------
 
-    def assign_rider(self, request, queryset):
-        rider_id = request.POST.get("rider_id")
-        try:
-            rider = User.objects.get(id=rider_id)
+    def assign_random_rider(self, request, queryset):
+        rider = User.objects.filter(role="rider", is_active=True).first()
+        if rider:
             queryset.update(rider=rider, status="accepted")
-        except:
-            self.message_user(request, "Invalid rider ID")
 
-    assign_rider.short_description = "Assign selected packages to rider"
+    assign_random_rider.short_description = "Assign to available rider"
 
     def release_packages(self, request, queryset):
         queryset.update(rider=None, status="paid")
@@ -362,6 +365,21 @@ class PackageAdmin(admin.ModelAdmin):
 
     cancel_packages.short_description = "Cancel selected packages"
 
+    def mark_paid(self, request, queryset):
+        queryset.update(is_paid=True)
+
+    mark_paid.short_description = "Mark as paid"
+
+    @admin.action(description="Refund selected packages")
+    def refund_packages(modeladmin, request, queryset):
+        queryset.update(
+            refund_status="refunded",
+            refunded_at=timezone.now(),
+            status="cancelled",
+            is_paid=False
+        )
+
+    
                 
 
 
@@ -383,14 +401,26 @@ class RiderWalletAdmin(admin.ModelAdmin):
 
 @admin.register(Withdrawal)
 class WithdrawalAdmin(admin.ModelAdmin):
-    list_display = ("get_rider_id","rider_email","amount","status","created_at")
+
+    list_display = ("get_rider_id", "rider_email", "amount", "status", "created_at")
 
     list_filter = ("status",)
-    search_fields = ("rider__email","rider__riderprofile__rider_id","bank_account")
+    search_fields = ("rider__email", "rider__riderprofile__rider_id", "bank_account")
+
+    list_editable = ("status",)
+    list_per_page = 50
+    date_hierarchy = "created_at"
+
+    actions = ["approve_withdrawals", "reject_withdrawals"]
+
+    def approve_withdrawals(self, request, queryset):
+        queryset.update(status="approved")
+
+    def reject_withdrawals(self, request, queryset):
+        queryset.update(status="rejected")
 
     def get_rider_id(self, obj):
         return obj.rider.riderprofile.rider_id
-    get_rider_id.short_description = "Rider ID"
 
     def rider_email(self, obj):
         return obj.rider.email
