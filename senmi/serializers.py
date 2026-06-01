@@ -101,7 +101,6 @@ class PackageSerializer(serializers.ModelSerializer):
 
     # ✅ ADD THIS (only change)
     delivery_code = serializers.SerializerMethodField()
-    #history = PackageHistorySerializer(many=True, read_only=True)
 
     rider_profile_picture = serializers.SerializerMethodField()
     vehicle_number = serializers.SerializerMethodField()
@@ -136,7 +135,6 @@ class PackageSerializer(serializers.ModelSerializer):
              # extra info
             'rider_profile_picture',
             'vehicle_number',
-            'history',
         ]
 
         read_only_fields = [
