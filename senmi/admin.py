@@ -4,8 +4,9 @@ from django.contrib import admin
 from django.conf import settings
 from .models import FCMDevice, Notification, User, RiderProfile,Withdrawal
 from .utils import send_email, send_fcm_notification
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.core.exceptions import ValidationError
-from .models import RiderWallet, Package, PackageTracking, PackageStatusHistory
+from .models import User,RiderWallet, Package, PackageTracking, PackageStatusHistory
 
 from senmi.utils import send_fcm_notification
 
@@ -44,23 +45,68 @@ class PackageTrackingInline(admin.TabularInline):
     show_change_link = True
     ordering = ('-timestamp',)
 
-# -----------------------------
+
+
+
 # Customize User admin
 
 @admin.register(User)
-class UserAdmin(admin.ModelAdmin):
-    list_display = ('user_id', 'username', 'email', 'role', 'is_staff', 'is_active')
+class UserAdmin(BaseUserAdmin):
+
+    list_display = (
+        'user_id',
+        'email',
+        'username',
+        'role',
+        'is_staff',
+        'is_active',
+    )
+
     list_filter = ('role', 'is_staff', 'is_active')
+
     search_fields = ('username', 'email', 'user_id')
+
     ordering = ('-is_superuser', '-is_staff', 'id')
+
     readonly_fields = ('id', 'user_id')
 
-    inlines = [RiderWalletInline, PackageInline, PackageAsRiderInline, PackageTrackingInline]
+    fieldsets = BaseUserAdmin.fieldsets + (
+        (
+            "Senmi",
+            {
+                "fields": (
+                    "user_id",
+                    "role",
+                    "phone_number",
+                )
+            },
+        ),
+    )
+
+    add_fieldsets = BaseUserAdmin.add_fieldsets + (
+        (
+            None,
+            {
+                "fields": (
+                    "email",
+                    "username",
+                    "role",
+                    "phone_number",
+                )
+            },
+        ),
+    )
+
+    inlines = [
+        RiderWalletInline,
+        PackageInline,
+        PackageAsRiderInline,
+        PackageTrackingInline,
+    ]
+    
 
 # -----------------------------
 # Customize RiderProfile admin
-
-
 @admin.register(RiderProfile)
 class RiderProfileAdmin(admin.ModelAdmin):
     list_display = ('rider_id', 'user', 'full_name', 'phone_number', 'status', 'rejection_reason')
