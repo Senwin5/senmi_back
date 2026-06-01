@@ -103,7 +103,7 @@ class UserAdmin(BaseUserAdmin):
         PackageAsRiderInline,
         PackageTrackingInline,
     ]
-    
+
 
 # -----------------------------
 # Customize RiderProfile admin
@@ -282,13 +282,26 @@ class PackageAdmin(admin.ModelAdmin):
         'created_at'
     )
 
-    list_filter = ('status', 'rider')
+    list_filter = ('status', 'rider', 'is_paid')
 
     search_fields = (
+        'package_id',
         'customer__email',
         'rider__email',
         'description'
     )
+
+    # 🔥 ADD THESE HERE
+    list_editable = ('status', 'rider')
+    list_per_page = 50
+    date_hierarchy = 'created_at'
+
+    actions = [
+        'assign_rider',
+        'release_packages',
+        'force_delivered',
+        'cancel_packages'
+    ]
 
     readonly_fields = (
         'commission',
@@ -299,7 +312,6 @@ class PackageAdmin(admin.ModelAdmin):
     ordering = ('-created_at',)
 
     def save_model(self, request, obj, form, change):
-
         old_status = None
         old_rider = None
 
@@ -308,51 +320,39 @@ class PackageAdmin(admin.ModelAdmin):
             old_status = old_obj.status
             old_rider = old_obj.rider
 
-            # Admin manually returns package to available pool
             if old_obj.status in ["accepted", "picked_up"] and obj.status == "paid":
                 obj.rider = None
 
         super().save_model(request, obj, form, change)
 
-        # Notify only when status changes
-        if change and old_status != obj.status:
+    # =========================
+    # 🔥 ACTIONS GO HERE
+    # =========================
 
-            # Notify customer
-            send_fcm_notification(
-                obj.customer,
-                "Package Update",
-                f"Your package is now {obj.status}",
-                {
-                    "type": "package_status",
-                    "status": obj.status,
-                    "package_id": obj.package_id
-                }
-            )
+    def assign_rider(self, request, queryset):
+        rider_id = request.POST.get("rider_id")
+        try:
+            rider = User.objects.get(id=rider_id)
+            queryset.update(rider=rider, status="accepted")
+        except:
+            self.message_user(request, "Invalid rider ID")
 
-            # Notify rider if package still has one
-            if obj.rider:
-                send_fcm_notification(
-                    obj.rider,
-                    "Delivery Update",
-                    f"Package updated to {obj.status}",
-                    {
-                        "type": "delivery_update",
-                        "status": obj.status,
-                        "package_id": obj.package_id
-                    }
-                )
+    assign_rider.short_description = "Assign selected packages to rider"
 
-            # Notify removed rider when admin releases package
-            elif old_rider and obj.status == "paid":
-                send_fcm_notification(
-                    old_rider,
-                    "Package Reassigned",
-                    f"Package {obj.package_id} has been returned to available deliveries",
-                    {
-                        "type": "package_released",
-                        "package_id": obj.package_id
-                    }
-                )
+    def release_packages(self, request, queryset):
+        queryset.update(rider=None, status="paid")
+
+    release_packages.short_description = "Release packages back to pool"
+
+    def force_delivered(self, request, queryset):
+        queryset.update(status="delivered")
+
+    force_delivered.short_description = "Force mark as delivered"
+
+    def cancel_packages(self, request, queryset):
+        queryset.update(status="cancelled", rider=None)
+
+    cancel_packages.short_description = "Cancel selected packages"
 
                 
 
