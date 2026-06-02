@@ -495,3 +495,5 @@ class PricingConfigAdmin(admin.ModelAdmin):
         "is_active",
         "updated_at",
     )
+
+    list_editable = ("base_fee", "per_km_rate", "fuel_multiplier", "is_active")

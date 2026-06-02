@@ -7,6 +7,8 @@ from channels.layers import get_channel_layer
 import logging
 from firebase_admin import messaging
 import resend
+
+from senmi_back import settings
 from .models import FCMDevice, Notification
 from venv import logger
 
@@ -193,12 +195,21 @@ def get_time_multiplier(config):
 
 def calculate_price(distance_km):
     config = get_active_pricing()
+
+    # fallback if admin config is missing
+    base_fee = config.base_fee if config else settings.BASE_FEE
+    per_km_rate = config.per_km_rate if config else settings.PER_KM_RATE
+    fuel_multiplier = config.fuel_multiplier if config else settings.FUEL_MULTIPLIER
+
     if not config:
-        return 0
+        return (base_fee + (distance_km * per_km_rate)) * fuel_multiplier
 
     time_multiplier = get_time_multiplier(config)
 
     return (
-        config.base_fee +
-        (distance_km * config.per_km_rate)
-    ) * config.fuel_multiplier * time_multiplier
+        (base_fee + (distance_km * per_km_rate))
+        * fuel_multiplier
+        * time_multiplier
+    )
+
+
