@@ -348,12 +348,12 @@ class Notification(models.Model):
 class PricingConfig(models.Model):
     name = models.CharField(max_length=50, default="Default Pricing")
 
-    base_fee = models.IntegerField(default=920)
-    per_km_rate = models.IntegerField(default=170)
+    base_fee = models.IntegerField(default=1000)
+    per_km_rate = models.IntegerField(default=181)
     fuel_multiplier = models.FloatField(default=1.2)
 
-    morning_multiplier = models.FloatField(default=1.0)
-    afternoon_multiplier = models.FloatField(default=1.1)
+    morning_multiplier = models.FloatField(default=1.1)
+    afternoon_multiplier = models.FloatField(default=1.2)
     evening_multiplier = models.FloatField(default=1.3)
     night_multiplier = models.FloatField(default=1.2)
 
