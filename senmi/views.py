@@ -1339,11 +1339,65 @@ class InitializeReceiverPaymentView(APIView):
         else:
             return Response({"error": "Invalid payment attempt"}, status=400)
 
-        # 🔥 already paid
+        # PACKAGE ALREADY PAID
+       
         if package.is_paid:
-            #return Response({"message": "Package already paid"}, status=200)
-            return Response({"already_paid": True,"message": "Package already paid"}, status=200)
+            return Response({
+                "already_paid": True,
+                "message": "Payment has already been made for this package."
+            }, status=200)
 
+
+        
+        # PAYMENT LINK ALREADY EXISTS
+     
+        if package.payment_initialized and package.payment_reference:
+
+            if package.is_paid:
+                return Response({
+                    "already_paid": True,
+                    "message": "Payment has already been made for this package."
+                }, status=200)
+
+            verify_url = f"https://api.paystack.co/transaction/verify/{package.payment_reference}"
+
+            verify_res = requests.get(
+                verify_url,
+                headers={
+                    "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"
+                },
+                timeout=10
+            )
+
+            verify_data = verify_res.json()
+
+            
+            # PAYMENT SUCCESSFUL
+            if (
+                verify_data.get("status")
+                and verify_data["data"]["status"] == "success"
+            ):
+
+                package.is_paid = True
+                package.status = "paid"
+
+                package.save(update_fields=[
+                    "is_paid",
+                    "status"
+                ])
+
+                return Response({
+                    "already_paid": True,
+                    "message": "Payment has already been made for this package."
+                })
+
+       
+            # PAYMENT STILL PENDING
+            return Response({
+                "payment_url": package.payment_url,
+                "message": "Existing payment link reused."
+            })
+        
         url = "https://api.paystack.co/transaction/initialize"
         headers = {
             "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
@@ -1399,9 +1453,18 @@ class InitializeReceiverPaymentView(APIView):
         # =========================
         if res_data.get("status"):
 
-            # 🔥 FIXED: always overwrite old reference safely
+            # FIXED: always overwrite old reference safely
             package.payment_reference = res_data["data"]["reference"]
-            package.save(update_fields=['payment_reference'])
+
+            package.payment_url = res_data["data"]["authorization_url"]
+
+            package.payment_initialized = True
+
+            package.save(update_fields=[
+                'payment_reference',
+                'payment_url',
+                'payment_initialized'
+            ])
 
             # 🔥 EMAIL (UNCHANGED)
            
@@ -1464,6 +1527,8 @@ class PaystackWebhookView(APIView):
                     return Response(status=200)
 
                 package.is_paid = True
+                package.status = "paid"
+                package.payment_completed_at = timezone.now()
 
                 send_fcm_notification(
                     package.customer,
@@ -1472,7 +1537,7 @@ class PaystackWebhookView(APIView):
                     {"type": "payment_success"}
                 )
                 package.status = "paid" 
-                package.save(update_fields=['is_paid','status'])
+                package.save(update_fields=['is_paid','status','payment_completed_at'])
                
                 notify_admin_dashboard()
                 logger.info(f"Package {package.id} marked as paid via webhook.")
@@ -2262,7 +2327,13 @@ class PaymentCallbackView(APIView):
 
                 package.is_paid = True
                 package.status = "paid"
-                package.save(update_fields=["is_paid", "status"])
+                package.payment_completed_at = timezone.now()
+
+                package.save(update_fields=[
+                    "is_paid",
+                    "status",
+                    "payment_completed_at"
+                ])
 
                 notify_admin_dashboard()
 

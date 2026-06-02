@@ -190,15 +190,14 @@ class Package(models.Model):
     commission = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     rider_earning = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     payment_reference = models.CharField(max_length=100, blank=True, null=True)
+    payment_url = models.URLField( null=True,blank=True)
+    payment_initialized = models.BooleanField(default=False)
+    payment_completed_at = models.DateTimeField(null=True,blank=True)
     is_paid = models.BooleanField(default=False)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     delivery_code = models.CharField(max_length=6, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    refund_status = models.CharField(
-        max_length=20,
-        choices=[('none', 'None'), ('pending', 'Pending'), ('refunded', 'Refunded')],
-        default='none'
-    )
+    refund_status = models.CharField(max_length=20,choices=[('none', 'None'), ('pending', 'Pending'), ('refunded', 'Refunded')],default='none')
     refund_reason = models.TextField(null=True, blank=True)
     refund_method = models.CharField(
         max_length=20,
@@ -261,6 +260,7 @@ class Package(models.Model):
     
     class Meta:
         ordering = ['-created_at']
+
 
         
 class PackageTracking(models.Model):
