@@ -146,7 +146,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+#TIME_ZONE = 'UTC'
 
 USE_I18N = True
 
@@ -212,6 +212,9 @@ CSRF_TRUSTED_ORIGINS = [
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
+
+TIME_ZONE = 'Africa/Lagos'
+USE_TZ = True
 
 # Commission rate applied to all packages (e.g., 5%)
 COMMISSION_RATE = float(os.getenv("COMMISSION_RATE", 0.05))  
