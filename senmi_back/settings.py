@@ -220,7 +220,7 @@ USE_TZ = True
 COMMISSION_RATE = float(os.getenv("COMMISSION_RATE", 0.05))  
 # settings.py
 BASE_FEE = 1000          # starting price (adjust anytime)
-PER_KM_RATE = 200       # cost per km (fuel dependent)
+PER_KM_RATE = 220       # cost per km (fuel dependent)
 FUEL_MULTIPLIER = 1.35   # can increase during fuel hike
 
 

@@ -519,7 +519,7 @@ def review_rider(request, rider_id):
 
 
 #Flutter to build 
-class AdminNotificationView(APIView):
+"""class AdminNotificationView(APIView):
     permission_classes = [IsAdminOrSupport]
     def post(self, request):
 
@@ -541,8 +541,68 @@ class AdminNotificationView(APIView):
             "success": True,
             "sent_devices": sent,
             "target": target
-        })
+        })"""
+from .models import Notification
 
+class AdminNotificationView(APIView):
+    permission_classes = [IsAdminOrSupport]
+
+    def post(self, request):
+        title = request.data.get("title")
+        body = request.data.get("body")
+        target = request.data.get("target", "all")
+        user_id = request.data.get("user_id", None)
+
+        if not title or not body:
+            return Response({"error": "title and body required"}, status=400)
+
+        data = {
+            "type": "admin_message",
+            "title": title,
+            "body": body
+        }
+
+        # SINGLE USER
+        if target == "single" and user_id:
+            user = User.objects.filter(id=user_id).first()
+
+            if not user:
+                return Response({"error": "User not found"}, status=404)
+
+            send_fcm_notification(
+                user=user,
+                title=title,
+                body=body,
+                data=data
+            )
+
+            # ✅ SAVE NOTIFICATION
+            Notification.objects.create(
+                user=user,
+                message=body,
+                type="admin_message"
+            )
+
+        else:
+            # ALL USERS (optional loop save)
+            users = User.objects.all()
+
+            for user in users:
+                send_fcm_notification(
+                    user=user,
+                    title=title,
+                    body=body,
+                    data=data
+                )
+
+                Notification.objects.create(
+                    user=user,
+                    message=body,
+                    type="admin_message"
+                )
+
+        return Response({"success": True, "target": target})
+    
         
 
 from django.db import IntegrityError
