@@ -1380,10 +1380,12 @@ class InitializeReceiverPaymentView(APIView):
 
                 package.is_paid = True
                 package.status = "paid"
+                package.payment_completed_at = timezone.now()
 
                 package.save(update_fields=[
                     "is_paid",
-                    "status"
+                    "status",
+                    "payment_completed_at"
                 ])
 
                 return Response({
@@ -1529,6 +1531,12 @@ class PaystackWebhookView(APIView):
                 package.is_paid = True
                 package.status = "paid"
                 package.payment_completed_at = timezone.now()
+
+                package.save(update_fields=[
+                    "is_paid",
+                    "status",
+                    "payment_completed_at"
+                ])
 
                 send_fcm_notification(
                     package.customer,
