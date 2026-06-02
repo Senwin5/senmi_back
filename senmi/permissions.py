@@ -1,5 +1,5 @@
 # senmi/permissions.py
-"""from math import atan2, cos, radians, sin, sqrt
+from math import atan2, cos, radians, sin, sqrt
 from rest_framework.permissions import BasePermission
 from senmi_back import settings
 from venv import logger
@@ -31,12 +31,12 @@ def calculate_price(distance_km):
     base_fee = settings.BASE_FEE
     per_km_rate = settings.PER_KM_RATE
     multiplier = settings.FUEL_MULTIPLIER
-    return (base_fee + (distance_km * per_km_rate)) * multiplier"""
+    return (base_fee + (distance_km * per_km_rate)) * multiplier
 
 
 # senmi/permissions.py
 
-from math import atan2, cos, radians, sin, sqrt
+"""from math import atan2, cos, radians, sin, sqrt
 from django.utils import timezone
 from django.conf import settings
 from rest_framework.permissions import BasePermission
@@ -109,6 +109,6 @@ def calculate_price(distance_km):
         (base_fee + (distance_km * per_km_rate))
         * fuel_multiplier
         * time_multiplier
-    )
+    )"""
 
 
