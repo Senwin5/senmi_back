@@ -2401,12 +2401,20 @@ class PaymentCallbackView(APIView):
             return redirect(
                 f"https://www.senmi.com.ng/api/payment-success/?reference={reference}"
             )
-
+        if package.is_paid:
+            return redirect(
+                f"https://www.senmi.com.ng/api/payment-success/"
+                f"?package_id={package.package_id}"
+                f"&delivery_code={package.delivery_code}"
+            )
 
 
 
 def payment_success(request):
-    return HttpResponse("""
+    package_id = request.GET.get("package_id", "")
+    delivery_code = request.GET.get("delivery_code", "")
+
+    return HttpResponse(f"""
     <html>
     <head>
         <title>Payment Successful</title>
@@ -2423,19 +2431,21 @@ def payment_success(request):
         background:#f5f5f5;
     ">
 
-        <h1 style="color:green;"> Payment Successful</h1>
+        <h1 style="color:green;">Payment Successful</h1>
 
         <p>Your package payment was completed successfully.</p>
 
-        <button onclick="window.location.href='senmi://payment-success'"
-        style="
-            padding:14px 24px;
-            border:none;
-            background:green;
-            color:white;
-            border-radius:8px;
-            font-size:16px;
-        ">
+        <button
+            onclick="window.location.href='senmi://payment-success?package_id={package_id}&delivery_code={delivery_code}'"
+            style="
+                padding:14px 24px;
+                border:none;
+                background:green;
+                color:white;
+                border-radius:8px;
+                font-size:16px;
+            "
+        >
             Continue
         </button>
 
