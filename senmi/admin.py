@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.conf import settings
 from simple_history.admin import SimpleHistoryAdmin
 from django.utils import timezone
-from .models import FCMDevice, Notification, User, RiderProfile,Withdrawal
+from .models import FCMDevice, Notification, PricingConfig, User, RiderProfile,Withdrawal
 from .utils import send_email, send_fcm_notification
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.core.exceptions import ValidationError
@@ -465,10 +465,6 @@ class NotificationAdmin(admin.ModelAdmin):
     ordering = ('-created_at',)
 
 
-
-
-    
-
 @admin.register(FCMDevice)
 class FCMDeviceAdmin(admin.ModelAdmin):
     list_display = (
@@ -489,3 +485,13 @@ class FCMDeviceAdmin(admin.ModelAdmin):
     )
 
 
+@admin.register(PricingConfig)
+class PricingConfigAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "base_fee",
+        "per_km_rate",
+        "fuel_multiplier",
+        "is_active",
+        "updated_at",
+    )

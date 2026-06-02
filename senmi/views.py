@@ -19,8 +19,9 @@ from rest_framework.parsers import JSONParser
 from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from senmi.permissions import IsAdminOrSupport, calculate_distance, calculate_price
-from senmi.utils import send_email
+from senmi.permissions import IsAdminOrSupport
+from senmi.utils import calculate_distance, calculate_price
+from senmi.utils import calculate_price,send_email
 from django.utils.decorators import method_decorator
 from django.db import IntegrityError, transaction
 from django.db.models import Q, Avg, Count, Prefetch

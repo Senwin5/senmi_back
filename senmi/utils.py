@@ -158,3 +158,47 @@ def notify_admin_dashboard():
         logger.exception(f"Dashboard notification failed: {e}")
 
    
+
+from math import atan2, cos, radians, sin, sqrt
+from django.utils import timezone
+from .models import PricingConfig
+
+
+def calculate_distance(lat1, lng1, lat2, lng2):
+    R = 6371.0
+    dlat = radians(lat2 - lat1)
+    dlng = radians(lng2 - lng1)
+
+    a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlng/2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    return R * c
+
+
+def get_active_pricing():
+    return PricingConfig.objects.filter(is_active=True).first()
+
+
+def get_time_multiplier(config):
+    hour = timezone.localtime().hour
+
+    if 6 <= hour < 11:
+        return config.morning_multiplier
+    elif 11 <= hour < 15:
+        return config.afternoon_multiplier
+    elif 15 <= hour < 22:
+        return config.evening_multiplier
+    else:
+        return config.night_multiplier
+
+
+def calculate_price(distance_km):
+    config = get_active_pricing()
+    if not config:
+        return 0
+
+    time_multiplier = get_time_multiplier(config)
+
+    return (
+        config.base_fee +
+        (distance_km * config.per_km_rate)
+    ) * config.fuel_multiplier * time_multiplier

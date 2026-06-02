@@ -261,7 +261,6 @@ class Package(models.Model):
     class Meta:
         ordering = ['-created_at']
 
-
         
 class PackageTracking(models.Model):
     package = models.ForeignKey(Package, on_delete=models.CASCADE, related_name='tracking_entries')
@@ -344,3 +343,22 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"{self.user.email} - {self.type}"
+    
+
+class PricingConfig(models.Model):
+    name = models.CharField(max_length=50, default="Default Pricing")
+
+    base_fee = models.IntegerField(default=800)
+    per_km_rate = models.IntegerField(default=120)
+    fuel_multiplier = models.FloatField(default=1.2)
+
+    morning_multiplier = models.FloatField(default=1.0)
+    afternoon_multiplier = models.FloatField(default=1.1)
+    evening_multiplier = models.FloatField(default=1.4)
+    night_multiplier = models.FloatField(default=1.0)
+
+    is_active = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
