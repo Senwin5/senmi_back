@@ -2399,10 +2399,6 @@ class PaymentCallbackView(APIView):
         
         if package.is_paid:
             return redirect(
-                f"https://www.senmi.com.ng/api/payment-success/?reference={reference}"
-            )
-        if package.is_paid:
-            return redirect(
                 f"https://www.senmi.com.ng/api/payment-success/"
                 f"?package_id={package.package_id}"
                 f"&delivery_code={package.delivery_code}"
