@@ -10,6 +10,7 @@ import requests
 from venv import logger
 from decimal import Decimal, InvalidOperation
 import re
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.db.models.functions import TruncDate,TruncMonth,ExtractHour
 from django.db.models import Sum, Count, Avg, F, DurationField, ExpressionWrapper
@@ -518,30 +519,6 @@ def review_rider(request, rider_id):
 
 
 
-#Flutter to build 
-"""class AdminNotificationView(APIView):
-    permission_classes = [IsAdminOrSupport]
-    def post(self, request):
-
-        title = request.data.get("title")
-        body = request.data.get("body")
-        target = request.data.get("target", "all")
-
-        if not title or not body:
-            return Response({"error": "title and body required"}, status=400)
-
-        sent = send_fcm_notification(
-            title=title,
-            body=body,
-            target=target,
-            data={"type": "admin_broadcast"}
-        )
-
-        return Response({
-            "success": True,
-            "sent_devices": sent,
-            "target": target
-        })"""
 from .models import Notification
 
 class AdminNotificationView(APIView):
@@ -602,8 +579,26 @@ class AdminNotificationView(APIView):
                 )
 
         return Response({"success": True, "target": target})
+
+
+
+@api_view(['GET'])
+@permission_classes([IsAdminOrSupport])
+def admin_notifications(request):
+
+    notifications = Notification.objects.all().order_by("-id")[:100]
+
+    return Response([
+        {
+            "id": n.id,
+            "message": n.message,
+            "type": n.type,
+            "created_at": n.created_at,
+            "user": n.user.username if n.user else "All Users"
+        }
+        for n in notifications
+    ])
     
-        
 
 from django.db import IntegrityError
 
