@@ -528,7 +528,7 @@ class AdminNotificationView(APIView):
         title = request.data.get("title")
         body = request.data.get("body")
         target = request.data.get("target", "all")
-        user_id = request.data.get("user_id", None)
+        user_id = request.data.get("user_id")
 
         if not title or not body:
             return Response({"error": "title and body required"}, status=400)
@@ -539,13 +539,28 @@ class AdminNotificationView(APIView):
             "body": body
         }
 
-        # SINGLE USER
-        if target == "single" and user_id:
-            user = User.objects.filter(id=user_id).first()
+        # =========================
+        # 🎯 SELECT USERS CLEANLY
+        # =========================
+        if target == "single":
+            users = User.objects.filter(id=user_id)
 
-            if not user:
+            if not users.exists():
                 return Response({"error": "User not found"}, status=404)
 
+        elif target == "riders":
+            users = User.objects.filter(role="rider")
+
+        elif target == "customers":
+            users = User.objects.filter(role="customer")
+
+        else:
+            users = User.objects.all()
+
+        # =========================
+        # 📤 SEND + SAVE
+        # =========================
+        for user in users:
             send_fcm_notification(
                 user=user,
                 title=title,
@@ -553,37 +568,23 @@ class AdminNotificationView(APIView):
                 data=data
             )
 
-            # ✅ SAVE NOTIFICATION
             Notification.objects.create(
                 user=user,
                 message=body,
                 type="admin_message"
             )
 
-        else:
-            # ALL USERS (optional loop save)
-            users = User.objects.all()
-
-            for user in users:
-                send_fcm_notification(
-                    user=user,
-                    title=title,
-                    body=body,
-                    data=data
-                )
-
-                Notification.objects.create(
-                    user=user,
-                    message=body,
-                    type="admin_message"
-                )
-
-        return Response({"success": True, "target": target})
-
-
+        return Response({
+            "success": True,
+            "target": target,
+            "count": users.count()
+        })
+    
 
 from django.core.paginator import Paginator
 
+
+from django.core.paginator import Paginator
 
 @api_view(['GET'])
 @permission_classes([IsAdminOrSupport])
@@ -592,14 +593,11 @@ def admin_notifications(request):
     page = int(request.GET.get("page", 1))
     limit = int(request.GET.get("limit", 20))
 
-    start = (page - 1) * limit
-    end = start + limit
-
     qs = Notification.objects.all().order_by("-id")
 
-    total = qs.count()
+    paginator = Paginator(qs, limit)
 
-    data = qs[start:end]
+    page_obj = paginator.get_page(page)
 
     return Response({
         "results": [
@@ -609,11 +607,12 @@ def admin_notifications(request):
                 "user": n.user.username if n.user else "All Users",
                 "created_at": n.created_at,
             }
-            for n in data
+            for n in page_obj.object_list
         ],
-        "has_next": end < total,
+        "has_next": page_obj.has_next(),
         "page": page,
     })
+
   
 
 from django.db import IntegrityError

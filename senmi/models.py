@@ -334,7 +334,7 @@ class Withdrawal(models.Model):
      return f"{self.rider.riderprofile.rider_id} - {self.amount} - {self.status}"
 
 
-class Notification(models.Model):
+"""class Notification(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     type = models.CharField(max_length=50)
     message = models.TextField()
@@ -342,7 +342,23 @@ class Notification(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.user.email} - {self.type}"
+        return f"{self.user.email} - {self.type}"""
+
+
+class Notification(models.Model):
+    TARGET_CHOICES = [
+        ("all", "All"),
+        ("riders", "Riders"),
+        ("customers", "Customers"),
+        ("single", "Single User"),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    type = models.CharField(max_length=50)
+    message = models.TextField()
+    target = models.CharField(max_length=20, choices=TARGET_CHOICES, default="all")
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
     
 
 class PricingConfig(models.Model):
