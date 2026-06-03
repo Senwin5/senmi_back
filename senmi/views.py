@@ -582,23 +582,39 @@ class AdminNotificationView(APIView):
 
 
 
+from django.core.paginator import Paginator
+
+
 @api_view(['GET'])
 @permission_classes([IsAdminOrSupport])
 def admin_notifications(request):
 
-    notifications = Notification.objects.all().order_by("-id")[:100]
+    page = int(request.GET.get("page", 1))
+    limit = int(request.GET.get("limit", 20))
 
-    return Response([
-        {
-            "id": n.id,
-            "message": n.message,
-            "type": n.type,
-            "created_at": n.created_at,
-            "user": n.user.username if n.user else "All Users"
-        }
-        for n in notifications
-    ])
-    
+    start = (page - 1) * limit
+    end = start + limit
+
+    qs = Notification.objects.all().order_by("-id")
+
+    total = qs.count()
+
+    data = qs[start:end]
+
+    return Response({
+        "results": [
+            {
+                "id": n.id,
+                "message": n.message,
+                "user": n.user.username if n.user else "All Users",
+                "created_at": n.created_at,
+            }
+            for n in data
+        ],
+        "has_next": end < total,
+        "page": page,
+    })
+  
 
 from django.db import IntegrityError
 

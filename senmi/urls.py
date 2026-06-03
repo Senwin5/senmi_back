@@ -2,12 +2,13 @@
 from django.urls import path
 
 from senmi.views import AdminNotificationView
-from .views import AdminPackagesView, AdminRidersListView, AdminUserSearchView, AdminWithdrawalsView, AvailableRidersView, admin_notifications, delete_package, save_fcm_token, search_package
+from .views import AdminPackagesView, AdminRidersListView, AdminUserSearchView, AdminWithdrawalsView 
+from .views import admin_notifications, delete_package, save_fcm_token, search_package,AvailableRidersView
 from .views import AcceptPackageView,UpdateDeliveryStatusView,CustomLoginView,RegisterView,calculate_price_view
 from .views import ApproveWithdrawalView, CustomerPackagesView, HardDeleteUserView, RejectWithdrawalView
 from .views import AvailablePackagesView,PaystackWebhookView,RiderEarningsView,RiderStatusView,ResolveAccountView, RetryWithdrawalView
 from .views import LogoutView, PackageDetailView, PaymentCallbackView, BankListView, CreatePackageView
-from .views import RiderProfileUpdateView, RiderWalletView, RiderWithdrawView,RateRiderView,  TrackPackageView
+from .views import RiderProfileUpdateView, RiderWalletView, RiderWithdrawView,RateRiderView, TrackPackageView
 from .views import UpdateLocationView, UserProfileView, review_rider, InitializeReceiverPaymentView
 from senmi import views
 
