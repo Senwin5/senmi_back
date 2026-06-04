@@ -113,6 +113,7 @@ class AdminRidersListView(APIView):
         riders = RiderProfile.objects.select_related('user').all()
         data = [{
             "id": r.id,
+            "rider_id": r.rider_id,
             "username": r.user.username,
             "email": r.user.email,
             "status": r.status,
