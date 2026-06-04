@@ -1,60 +1,46 @@
-from datetime import timezone
-from gc import get_stats
-import random
-import uuid
 import hashlib
 import hmac
 import json
 import logging
-import requests
-from venv import logger
-from decimal import Decimal, InvalidOperation
+import random
 import re
-from django.contrib.auth import get_user_model
-from django.utils import timezone
-from django.db.models.functions import TruncDate,TruncMonth,ExtractHour
-from django.db.models import Sum, Count, Avg, F, DurationField, ExpressionWrapper
-from django.utils.timezone import now
-from django.shortcuts import redirect
-from rest_framework.parsers import JSONParser
+import requests
+import uuid
+from datetime import timezone
+from decimal import Decimal, InvalidOperation
+from gc import get_stats
+from venv import logger
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from django.conf import settings
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from senmi.permissions import IsAdminOrSupport
-from senmi.utils import calculate_distance, calculate_price
-from senmi.utils import calculate_price,send_email
-from django.utils.decorators import method_decorator
+from django.contrib.auth import authenticate, get_user_model
 from django.db import IntegrityError, transaction
-from django.db.models import Q, Avg, Count, Prefetch
-from django.contrib.auth import authenticate
-from rest_framework.views import APIView
-from rest_framework.response import Response
+from django.db.models import (Avg,Count,DurationField,ExpressionWrapper,F,Prefetch,Q,Sum,)
+from django.db.models.functions import (ExtractHour,TruncDate,TruncMonth,)
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect
+from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.utils.timezone import now
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
-from rest_framework.permissions import BasePermission, IsAuthenticated
+from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import JSONParser
+from rest_framework.permissions import (AllowAny,BasePermission,IsAuthenticated,)
+from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
-from django.shortcuts import get_object_or_404
+from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
-from rest_framework.authentication import TokenAuthentication
-from django.http import HttpResponse
-from channels.layers import get_channel_layer
-from .utils import  notify_admin_dashboard, send_fcm_notification 
-from rest_framework.pagination import PageNumberPagination
-from asgiref.sync import async_to_sync
-from .serializers import AdminAnalyticsSerializer, UserSerializer
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
-from .utils import send_email
-from .models import (
-    FCMDevice, Package, PackageTracking,
-    RiderRating, RiderWallet, RiderProfile,Withdrawal #, PackageStatusHistory
-)
-from .serializers import (
-    RegisterSerializer, RiderProfileSerializer, CustomLoginSerializer,
-    PackageSerializer
-)
 from senmi.models import User
+from senmi.permissions import IsAdminOrSupport
+from senmi.utils import (calculate_distance,calculate_price,send_email,)
+from .models import (FCMDevice,Package,PackageTracking,RiderProfile,RiderRating,RiderWallet,Withdrawal,)
+from .serializers import (AdminAnalyticsSerializer,CustomLoginSerializer,PackageSerializer,RegisterSerializer,RiderProfileSerializer,UserSerializer,)
+from .utils import (notify_admin_dashboard,send_fcm_notification,)
+
 
 
 # ------------------------------
@@ -175,6 +161,105 @@ class AdminPackagesView(APIView):
 
         return Response(serializer.data)
     
+
+
+@api_view(['GET'])
+@permission_classes([IsAdminOrSupport])
+def admin_customers(request):
+
+    customers = (
+        User.objects.filter(role='customer')
+        .annotate(
+            total_packages=Count('orders'),
+            total_spent=Sum('orders__price')
+        )
+        .order_by('-date_joined')
+    )
+
+    results = []
+
+    for customer in customers:
+        results.append({
+            "id": customer.id,
+            "user_id": customer.user_id,
+            "username": customer.username,
+            "email": customer.email,
+            "phone_number": customer.phone_number,
+            "date_joined": customer.date_joined,
+            "total_packages": customer.total_packages,
+            "total_spent": customer.total_spent or 0,
+        })
+
+    return Response(results)
+
+
+@api_view(['GET'])
+@permission_classes([IsAdminOrSupport])
+def admin_customer_detail(request, customer_id):
+
+    try:
+        customer = User.objects.get(
+            id=customer_id,
+            role='customer'
+        )
+
+    except User.DoesNotExist:
+        return Response(
+            {"error": "Customer not found"},
+            status=404
+        )
+
+    packages = Package.objects.filter(customer=customer)
+
+    delivered = packages.filter(status='delivered').count()
+    pending = packages.filter(status='pending').count()
+    paid = packages.filter(status='paid').count()
+    cancelled = packages.filter(status='cancelled').count()
+
+    total_spent = packages.aggregate(
+        total=Sum('price')
+    )['total'] or 0
+
+    recent_packages = packages.order_by(
+        '-created_at'
+    )[:10]
+
+    package_data = []
+
+    for p in recent_packages:
+        package_data.append({
+            "package_id": p.package_id,
+            "description": p.description,
+            "status": p.status,
+            "price": p.price,
+            "created_at": p.created_at,
+            "pickup_lat": p.pickup_lat,
+            "pickup_lng": p.pickup_lng,
+            "delivery_lat": p.delivery_lat,
+            "delivery_lng": p.delivery_lng,
+        })
+
+    return Response({
+        "id": customer.id,
+        "user_id": customer.user_id,
+        "username": customer.username,
+        "email": customer.email,
+        "phone_number": customer.phone_number,
+        "date_joined": customer.date_joined,
+        "last_login": customer.last_login,
+
+        "total_packages": packages.count(),
+        "delivered_packages": delivered,
+        "pending_packages": pending,
+        "paid_packages": paid,
+        "cancelled_packages": cancelled,
+
+        "total_spent": total_spent,
+
+        "recent_packages": package_data,
+    })
+
+
 
 class AvailableRidersView(APIView):
     permission_classes = [IsAuthenticated]
@@ -528,7 +613,7 @@ class AdminNotificationView(APIView):
         title = request.data.get("title")
         body = request.data.get("body")
         target = request.data.get("target", "all")
-        user_id = request.data.get("user_id")
+        user_id = request.data.get("user_id", None)
 
         if not title or not body:
             return Response({"error": "title and body required"}, status=400)
@@ -540,13 +625,10 @@ class AdminNotificationView(APIView):
         }
 
         # =========================
-        # 🎯 SELECT USERS CLEANLY
+        # SELECT USERS
         # =========================
         if target == "single":
             users = User.objects.filter(id=user_id)
-
-            if not users.exists():
-                return Response({"error": "User not found"}, status=404)
 
         elif target == "riders":
             users = User.objects.filter(role="rider")
@@ -558,30 +640,45 @@ class AdminNotificationView(APIView):
             users = User.objects.all()
 
         # =========================
-        # 📤 SEND + SAVE
+        # SEND + SAVE (NO DUPLICATES)
         # =========================
-        for user in users:
-            send_fcm_notification(
-                user=user,
-                title=title,
-                body=body,
-                data=data
-            )
+        created_count = 0
 
-            Notification.objects.create(
-                user=user,
-                message=body,
-                type="admin_message"
-            )
+        with transaction.atomic():
+            for user in users.distinct():
+
+                # 🔥 prevent duplicate DB spam
+                exists = Notification.objects.filter(
+                    user=user,
+                    message=body,
+                    type="admin_message"
+                ).exists()
+
+                if exists:
+                    continue
+
+                send_fcm_notification(
+                    user=user,
+                    title=title,
+                    body=body,
+                    data=data
+                )
+
+                Notification.objects.create(
+                    user=user,
+                    message=body,
+                    type="admin_message"
+                )
+
+                created_count += 1
 
         return Response({
             "success": True,
             "target": target,
-            "count": users.count()
+            "count": created_count
         })
     
 
-from django.core.paginator import Paginator
 
 
 from django.core.paginator import Paginator
@@ -593,10 +690,9 @@ def admin_notifications(request):
     page = int(request.GET.get("page", 1))
     limit = int(request.GET.get("limit", 20))
 
-    qs = Notification.objects.all().order_by("-id")
+    qs = Notification.objects.all().order_by("-created_at")
 
     paginator = Paginator(qs, limit)
-
     page_obj = paginator.get_page(page)
 
     return Response({

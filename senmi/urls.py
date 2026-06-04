@@ -3,7 +3,7 @@ from django.urls import path
 
 from senmi.views import AdminNotificationView
 from .views import AdminPackagesView, AdminRidersListView, AdminUserSearchView, AdminWithdrawalsView 
-from .views import admin_notifications, delete_package, save_fcm_token, search_package,AvailableRidersView
+from .views import admin_notifications,delete_package, save_fcm_token, search_package,AvailableRidersView
 from .views import AcceptPackageView,UpdateDeliveryStatusView,CustomLoginView,RegisterView,calculate_price_view
 from .views import ApproveWithdrawalView, CustomerPackagesView, HardDeleteUserView, RejectWithdrawalView
 from .views import AvailablePackagesView,PaystackWebhookView,RiderEarningsView,RiderStatusView,ResolveAccountView, RetryWithdrawalView
@@ -24,6 +24,8 @@ urlpatterns = [
     path('api/admin/analytics/',views.admin_analytics,name='admin_analytics'),
     path('api/admin/dashboard/',views.admin_dashboard,name='admin_dashboard'),
     path('api/admin/available-riders/',AvailableRidersView.as_view(),),
+    path("api/admin/customers/",views.admin_customers,),
+    path("api/admin/customers/<int:customer_id>/",views.admin_customer_detail,),
     path('api/packages/', AvailablePackagesView.as_view()),
     path('api/packages/<str:package_id>/accept/', AcceptPackageView.as_view()),
     path('api/create-package/', CreatePackageView.as_view()),
@@ -58,6 +60,7 @@ urlpatterns = [
     path('api/save-fcm-token/', save_fcm_token),
     path("api/send-notification/",AdminNotificationView.as_view(),name="admin-send-notification"),
     path("api/admin-notifications/",admin_notifications,name="admin-notifications"),
+    path("api/admin/customers/",views.admin_customers,name="admin_customers",)
  
     
 ]
