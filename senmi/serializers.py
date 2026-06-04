@@ -57,6 +57,7 @@ class RiderProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = RiderProfile
         fields = [
+            'rider_id',
             'full_name',
             'phone_number',
             'vehicle_number',
