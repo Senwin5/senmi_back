@@ -2134,6 +2134,26 @@ class AdminWithdrawalsView(APIView):
         return Response(data)
     
 
+
+class AdminRiderWalletView(APIView):
+    permission_classes = [IsAdminOrSupport]
+
+    def get(self, request):
+        wallets = RiderWallet.objects.select_related("rider").all()
+
+        data = [
+            {
+                "rider_id": w.rider.id,
+                "email": w.rider.email,
+                "balance": float(w.balance),
+                "total_earned": float(w.total_earned),
+            }
+            for w in wallets
+        ]
+
+        return Response(data)
+    
+    
 class ApproveWithdrawalView(APIView):
     permission_classes = [IsAdminOrSupport]
 
