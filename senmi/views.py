@@ -472,6 +472,12 @@ def admin_dashboard(request):
         status='delivered'
     ).count()
 
+    wallet_count = RiderWallet.objects.count()
+
+    pending_withdrawals = Withdrawal.objects.filter(
+        status="processing"
+    ).count()
+
     # =========================
     # ALERTS
     # =========================
@@ -499,13 +505,17 @@ def admin_dashboard(request):
         alerts.append("High delivery load detected")
 
     data = {
-        "total_riders": total_riders,
-        "pending_riders": pending_riders,
-        "active_deliveries": active_deliveries,
-        "completed_deliveries": completed_deliveries,
-        "available_packages": available_packages,
-        "alerts": alerts,
-    }
+    "total_riders": total_riders,
+    "pending_riders": pending_riders,
+    "active_deliveries": active_deliveries,
+    "completed_deliveries": completed_deliveries,
+    "available_packages": available_packages,
+
+    "wallet_count": wallet_count,
+    "pending_withdrawals": pending_withdrawals,
+
+    "alerts": alerts,
+}
 
     return Response(data)
 
@@ -2153,7 +2163,7 @@ class AdminRiderWalletView(APIView):
 
         return Response(data)
     
-    
+
 class ApproveWithdrawalView(APIView):
     permission_classes = [IsAdminOrSupport]
 
