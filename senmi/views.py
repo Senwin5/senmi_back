@@ -108,6 +108,7 @@ class UserProfileView(APIView):
 # ------------------------------
 class AdminRidersListView(APIView):
     permission_classes = [IsAdminOrSupport]
+
     def get(self, request):
         riders = RiderProfile.objects.select_related('user').all()
         data = [{
@@ -118,6 +119,7 @@ class AdminRidersListView(APIView):
             "status": r.status,
             "phone": r.phone_number,
             "city": r.city,
+            "address": r.address,
             "profile_picture": r.profile_picture.url if r.profile_picture else None,
             "rider_image_1": r.rider_image_1.url if r.rider_image_1 else None,
             "rider_image_with_vehicle": r.rider_image_with_vehicle.url if r.rider_image_with_vehicle else None,
