@@ -50,7 +50,7 @@ class UserSerializer(serializers.ModelSerializer):
 class RiderProfileSerializer(serializers.ModelSerializer):
     email = serializers.CharField(source='user.email', read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
-    phone_number = serializers.CharField(source='user.phone_number', read_only=True)
+
     #profile_picture = serializers.SerializerMethodField()
     profile_picture = serializers.ImageField(required=False)
 
