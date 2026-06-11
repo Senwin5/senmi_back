@@ -203,7 +203,7 @@ class CustomLoginSerializer(TokenObtainPairSerializer):
         user = authenticate(**authenticate_kwargs)
 
         if user is None:
-            raise AuthenticationFailed("Invalid credentials")
+            raise AuthenticationFailed("Invalid credentials check email and password")
 
         # Step 2: Block riders if profile incomplete
         if user.role == 'rider':
