@@ -35,9 +35,11 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from senmi.models import User
+from django.contrib.auth.password_validation import validate_password
+
 from senmi.permissions import IsAdminOrSupport
 from senmi.utils import (calculate_distance,calculate_price,send_email,)
-from .models import (FCMDevice,Package,PackageTracking,RiderProfile,RiderRating,RiderWallet,Withdrawal,)
+from .models import (FCMDevice,Package,PackageTracking, PasswordResetOTP,RiderProfile,RiderRating,RiderWallet,Withdrawal,)
 from .serializers import (AdminAnalyticsSerializer,CustomLoginSerializer,PackageSerializer,RegisterSerializer,RiderProfileSerializer,UserSerializer,)
 from .utils import (notify_admin_dashboard,send_fcm_notification,)
 
@@ -143,7 +145,113 @@ class RegisterView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 
+#Forgot Password View
+class ForgotPasswordView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+
+        email = request.data.get("email")
+
+        if not email:
+            return Response(
+                {"error": "Email is required"},
+                status=400
+            )
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "User not found"},
+                status=404
+            )
+
+        otp = str(random.randint(100000, 999999))
+
+        PasswordResetOTP.objects.filter(user=user).delete()
+
+        PasswordResetOTP.objects.create(
+            user=user,
+            otp=otp
+        )
+
+        send_email(
+            subject="Password Reset OTP",
+            message=f"""
+Your Senmi password reset code is:
+
+{otp}
+
+This code expires in 10 minutes.
+            """,
+            recipients=[email]
+        )
+
+        return Response({
+            "success": True,
+            "message": "OTP sent successfully"
+        })
     
+    
+
+#Reset Password View
+class ResetPasswordView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+
+        email = request.data.get("email")
+        otp = request.data.get("otp")
+        password = request.data.get("password")
+
+        if not all([email, otp, password]):
+            return Response(
+                {"error": "Email, OTP and password are required"},
+                status=400
+            )
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "User not found"},
+                status=404
+            )
+
+        try:
+            reset = PasswordResetOTP.objects.get(
+                user=user,
+                otp=otp
+            )
+        except PasswordResetOTP.DoesNotExist:
+            return Response(
+                {"error": "Invalid OTP"},
+                status=400
+            )
+
+        if reset.is_expired():
+            reset.delete()
+
+            return Response(
+                {"error": "OTP expired"},
+                status=400
+            )
+
+        validate_password(password)
+
+        user.set_password(password)
+        user.save()
+
+        reset.delete()
+
+        return Response({
+            "success": True,
+            "message": "Password updated successfully"
+        })
+    
+
+
 class RiderLoginAPIView(APIView):
     throttle_classes = [LoginThrottle]
 
