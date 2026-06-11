@@ -67,6 +67,83 @@ class LoginThrottle(UserRateThrottle):
     rate = '5/min'
 
 
+
+
+
+# ------------------------------
+# Registration
+# ------------------------------
+class RegisterView(APIView):
+    throttle_classes = [LoginThrottle]
+
+    def post(self, request):
+        serializer = RegisterSerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                user = serializer.save()
+                # 🔔 LIVE NOTIFICATIONS (safe block)
+                try:
+                    send_fcm_notification(
+                        user,
+                        "Welcome ",
+                        "Account created successfully",
+                        {"type": "account_created"}
+                    )
+
+                    admins = User.objects.filter(is_superuser=True)
+
+                    for admin in admins:
+                        send_fcm_notification(
+                            admin,
+                            "New User 👤",
+                            f"New user registered: {user.email}",
+                            {"type": "new_user"}
+                        )
+
+                except Exception as e:
+                    logger.exception(f"Live notification failed: {e}")
+                
+               
+            except IntegrityError as e:
+                if 'email' in str(e).lower():
+                    return Response(
+                        {"error": "User with this email already exists."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                return Response(
+                    {"error": "Database error: " + str(e)},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+            
+            try:
+                recipients = [user.email] +  [settings.NOTIFY_EMAIL]
+                send_email(
+                    subject="Welcome to Senmi!",
+                    message=f"Hello {user.username}, Your account has been created successfully as a {user.role.capitalize()}. Kindly complete your profile for approval by the admin",
+                    recipients=recipients
+                )
+             
+            except Exception as e:
+                logger.exception(f"Registration email failed for {user.email}: {str(e)}")
+
+            # Return JWT
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                "success": True,
+                "message": "User created successfully",
+                "user_id": user.id,
+                "role": user.role,
+                "username": user.username,
+                "access": str(refresh.access_token),
+                "refresh": str(refresh)
+                
+            }, status=status.HTTP_201_CREATED)
+        print(serializer.errors)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+    
 class RiderLoginAPIView(APIView):
     throttle_classes = [LoginThrottle]
 
@@ -775,78 +852,6 @@ def save_fcm_token(request):
             "error": str(e)
         }, status=500)
 
-# ------------------------------
-# Registration
-# ------------------------------
-class RegisterView(APIView):
-    throttle_classes = [LoginThrottle]
-
-    def post(self, request):
-        serializer = RegisterSerializer(data=request.data)
-        if serializer.is_valid():
-            try:
-                user = serializer.save()
-                # 🔔 LIVE NOTIFICATIONS (safe block)
-                try:
-                    send_fcm_notification(
-                        user,
-                        "Welcome ",
-                        "Account created successfully",
-                        {"type": "account_created"}
-                    )
-
-                    admins = User.objects.filter(is_superuser=True)
-
-                    for admin in admins:
-                        send_fcm_notification(
-                            admin,
-                            "New User 👤",
-                            f"New user registered: {user.email}",
-                            {"type": "new_user"}
-                        )
-
-                except Exception as e:
-                    logger.exception(f"Live notification failed: {e}")
-                
-               
-            except IntegrityError as e:
-                if 'email' in str(e).lower():
-                    return Response(
-                        {"error": "User with this email already exists."},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                return Response(
-                    {"error": "Database error: " + str(e)},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-
-            
-            try:
-                recipients = [user.email] +  [settings.NOTIFY_EMAIL]
-                send_email(
-                    subject="Welcome to Senmi!",
-                    message=f"Hello {user.username}, Your account has been created successfully as a {user.role.capitalize()}. Kindly complete your profile for approval by the admin",
-                    recipients=recipients
-                )
-             
-            except Exception as e:
-                logger.exception(f"Registration email failed for {user.email}: {str(e)}")
-
-            # Return JWT
-            refresh = RefreshToken.for_user(user)
-            return Response({
-                "success": True,
-                "message": "User created successfully",
-                "user_id": user.id,
-                "role": user.role,
-                "username": user.username,
-                "access": str(refresh.access_token),
-                "refresh": str(refresh)
-                
-            }, status=status.HTTP_201_CREATED)
-        print(serializer.errors)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
 
 # ------------------------------
 # Rider Profile

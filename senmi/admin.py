@@ -117,6 +117,12 @@ class UserAdmin(BaseUserAdmin):
     ]
 
 
+class PasswordResetOTPAdmin(admin.ModelAdmin):
+    list_display = ('user', 'otp','created_at')
+    ordering = ('-created_at',)
+
+
+
 # -----------------------------
 # Customize RiderProfile admin
 @admin.register(RiderProfile)
