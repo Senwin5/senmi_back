@@ -1,5 +1,6 @@
 # senmi/models.py
-from datetime import timedelta, timezone
+from datetime import timedelta
+from django.utils import timezone
 import random
 from django.db.models import Q
 from django.db import models
