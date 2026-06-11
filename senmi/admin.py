@@ -8,7 +8,7 @@ from .models import FCMDevice, Notification, PricingConfig, User, RiderProfile,W
 from .utils import send_email, send_fcm_notification
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.core.exceptions import ValidationError
-from .models import User,RiderWallet, Package, PackageTracking 
+from .models import User,RiderWallet, Package, PackageTracking,PasswordResetOTP
 
 
 @admin.action(description="Deactivate selected users")
@@ -116,7 +116,7 @@ class UserAdmin(BaseUserAdmin):
         PackageTrackingInline,
     ]
 
-
+@admin.register(PasswordResetOTP)
 class PasswordResetOTPAdmin(admin.ModelAdmin):
     list_display = ('user', 'otp','created_at')
     ordering = ('-created_at',)
