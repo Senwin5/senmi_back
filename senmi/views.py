@@ -118,7 +118,7 @@ class RegisterView(APIView):
                 )
 
             
-            try:
+            """try:
                 recipients = [user.email] +  [settings.NOTIFY_EMAIL]
                 send_email(
                     subject="Welcome to Senmi!",
@@ -126,6 +126,30 @@ class RegisterView(APIView):
                     recipients=recipients
                 )
              
+            except Exception as e:
+                logger.exception(f"Registration email failed for {user.email}: {str(e)}")"""
+            
+            try:
+                if user.role.lower() == "rider":
+                    message = (
+                        f"Hello {user.username}, "
+                        f"Your account has been created successfully as a Rider. "
+                        f"Kindly complete your rider profile for approval by the admin."
+                    )
+                else:
+                    message = (
+                        f"Hello {user.username}, "
+                        f"Your account has been created successfully as a {user.role.capitalize()}."
+                    )
+
+                recipients = [user.email, settings.NOTIFY_EMAIL]
+
+                send_email(
+                    subject="Welcome to Senmi!",
+                    message=message,
+                    recipients=recipients
+                )
+
             except Exception as e:
                 logger.exception(f"Registration email failed for {user.email}: {str(e)}")
 
