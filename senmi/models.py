@@ -373,7 +373,7 @@ class Notification(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     
 
-class PricingConfig(models.Model):
+"""class PricingConfig(models.Model):
     name = models.CharField(max_length=50, default="Default Pricing")
 
     base_fee = models.IntegerField(default=1000)
@@ -389,4 +389,4 @@ class PricingConfig(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.name
+        return self.name"""

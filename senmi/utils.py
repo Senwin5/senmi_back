@@ -1,5 +1,7 @@
 # senmi/utils.py
 
+from math import atan2, cos, radians, sin, sqrt
+
 from django.contrib.auth import get_user_model
 import os
 from asgiref.sync import async_to_sync
@@ -181,11 +183,9 @@ def notify_admin_dashboard():
 
    
 
-from math import atan2, cos, radians, sin, sqrt
+"""from math import atan2, cos, radians, sin, sqrt
 from django.utils import timezone
 from .models import PricingConfig
-
-
 def calculate_distance(lat1, lng1, lat2, lng2):
     R = 6371.0
     dlat = radians(lat2 - lat1)
@@ -230,6 +230,22 @@ def calculate_price(distance_km):
         (base_fee + (distance_km * per_km_rate))
         * fuel_multiplier
         * time_multiplier
-    )
+    )"""
+
+# Distance & price helpers
+def calculate_distance(lat1, lng1, lat2, lng2):
+    R = 6371.0  # Earth radius in km
+    dlat = radians(lat2 - lat1)
+    dlng = radians(lng2 - lng1)
+    a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlng/2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    return R * c  # distance in km
+
+
+def calculate_price(distance_km):
+    base_fee = settings.BASE_FEE
+    per_km_rate = settings.PER_KM_RATE
+    multiplier = settings.FUEL_MULTIPLIER
+    return (base_fee + (distance_km * per_km_rate)) * multiplier
 
 

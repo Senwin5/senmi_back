@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.conf import settings
 from simple_history.admin import SimpleHistoryAdmin
 from django.utils import timezone
-from .models import FCMDevice, Notification, PricingConfig, User, RiderProfile,Withdrawal
+from .models import FCMDevice, Notification, User, RiderProfile,Withdrawal #PricingConfig
 from .utils import send_email, send_fcm_notification
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.core.exceptions import ValidationError
@@ -491,7 +491,7 @@ class FCMDeviceAdmin(admin.ModelAdmin):
     )
 
 
-@admin.register(PricingConfig)
+"""@admin.register(PricingConfig)
 class PricingConfigAdmin(admin.ModelAdmin):
     list_display = (
         "name",
@@ -502,4 +502,4 @@ class PricingConfigAdmin(admin.ModelAdmin):
         "updated_at",
     )
 
-    list_editable = ("base_fee", "per_km_rate", "fuel_multiplier", "is_active")
+    list_editable = ("base_fee", "per_km_rate", "fuel_multiplier", "is_active")"""
