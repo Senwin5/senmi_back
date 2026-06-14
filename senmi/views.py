@@ -1501,16 +1501,9 @@ class UpdateDeliveryStatusView(APIView):
                 recipients = [r for r in recipients if r]
 
                 try:
-                 # Choose message based on status (NO LOGIC CHANGE)
+
                     if new_status == "picked_up":
-                        message = (
-                            f"Hello {package.customer.username},\n\n"
-                            f"Your package {package.package_id} has been picked up.\n\n"
-                            f"Rider: {request.user.username}\n\n"
-                            f"Your delivery is now in progress.\n\n"
-                            f"Thank you for using Senmi."
-                        )
-                    
+
                         send_fcm_notification(
                             package.customer,
                             "Package Picked Up",
@@ -1519,12 +1512,6 @@ class UpdateDeliveryStatusView(APIView):
                         )
 
                     elif new_status == "delivered":
-                        message = (
-                            f"Hello {package.customer.username},\n\n"
-                            f"Your package {package.package_id} has been successfully delivered.\n\n"
-                            f"We hope you had a great experience.\n\n"
-                            f"Thank you for using Senmi."
-                        )
 
                         send_fcm_notification(
                             package.customer,
@@ -1533,20 +1520,33 @@ class UpdateDeliveryStatusView(APIView):
                             {"type": "delivered"}
                         )
 
-                    else:
-                        # fallback (keeps your original behavior)
-                        message = f"Package {package.package_id} is now {new_status}."
+                        # ONLY SEND EMAIL FOR DELIVERED
+                        message = (
+                            f"Hello {package.customer.username},\n\n"
+                            f"Your package {package.package_id} has been successfully delivered.\n\n"
+                            f"We hope you had a great experience.\n\n"
+                            f"Thank you for using Senmi."
+                        )
 
-                    # Send email (unchanged behavior)
-                    send_email(
-                        subject=f" Package Update - {package.package_id}",
-                        message=message,
-                        recipients=recipients
-                    )
+                        send_email(
+                            subject=f"Package Delivered - {package.package_id}",
+                            message=message,
+                            recipients=recipients
+                        )
+
+                    else:
+
+                        send_fcm_notification(
+                            package.customer,
+                            "Package Update",
+                            f"Package {package.package_id} is now {new_status}",
+                            {"type": new_status}
+                        )
 
                 except Exception as e:
-                    logger.exception(f"Failed to send status update email for package {package.package_id}: {e}")
-
+                    logger.exception(
+                        f"Failed to send status update notification for package {package.package_id}: {e}"
+                    )
                 return Response({"success": True,"message": f"Package marked as {new_status}"})
 
         except Package.DoesNotExist:
