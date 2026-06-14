@@ -1,10 +1,13 @@
 from decimal import Decimal
+from venv import logger
 
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.db import IntegrityError
+
+from senmi.utils import send_fcm_notification
 from .models import User, RiderProfile, Package 
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework import serializers
@@ -217,6 +220,27 @@ class CustomLoginSerializer(TokenObtainPairSerializer):
 
         # Step 3: Generate JWT token
         data = super().validate(attrs)
+
+        try:
+            if user.role.lower() == "rider":
+                send_fcm_notification(
+                    user,
+                    "Welcome back Rider 🚴",
+                    "You have successfully logged in",
+                    {"type": "login"}
+                )
+            else:
+                send_fcm_notification(
+                    user,
+                    "Welcome back 🎉",
+                    "You have successfully logged in",
+                    {"type": "login"}
+                )
+
+        except Exception as e:
+            logger.exception(f"Login notification failed: {e}")
+
+
         data['user_id'] = user.user_id
         data['role'] = user.role
         data['username'] = user.username
