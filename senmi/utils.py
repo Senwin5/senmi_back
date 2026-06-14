@@ -129,10 +129,12 @@ def send_fcm_notification(
                 notification=messaging.Notification(
                     title=title,
                     body=body,
+                    image="https://www.senmi.com.ng/static/logo.png",
                 ),
 
                 android=messaging.AndroidConfig(
                     notification=messaging.AndroidNotification(
+                        image="https://www.senmi.com.ng/static/logo.png",
                         icon="notification_icon",  # ✔ Android status icon
                         color="#ffffff"
                     )
