@@ -133,7 +133,7 @@ def send_fcm_notification(
 
                 android=messaging.AndroidConfig(
                     notification=messaging.AndroidNotification(
-                        icon="ic_launcher",  # Android only
+                        icon="ic_launcher",  # ✔ Android status icon
                         color="#4A148C"
                     )
                 ),
@@ -142,7 +142,8 @@ def send_fcm_notification(
                     payload=messaging.APNSPayload(
                         aps=messaging.Aps(
                             sound="default",
-                            badge=1
+                            badge=1,
+                            content_available=True
                         )
                     )
                 ),
