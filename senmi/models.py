@@ -380,10 +380,10 @@ class PricingConfig(models.Model):
     per_km_rate = models.IntegerField(default=220)
     fuel_multiplier = models.FloatField(default=1.2)
 
-    morning_multiplier = models.FloatField(default=1.1)
-    afternoon_multiplier = models.FloatField(default=1.2)
-    evening_multiplier = models.FloatField(default=1.3)
-    night_multiplier = models.FloatField(default=1.2)
+    morning_multiplier = models.FloatField(default=1.0)
+    afternoon_multiplier = models.FloatField(default=1.1)
+    evening_multiplier = models.FloatField(default=1.1)
+    night_multiplier = models.FloatField(default=1.0)
 
     is_active = models.BooleanField(default=True)
     updated_at = models.DateTimeField(auto_now=True)
