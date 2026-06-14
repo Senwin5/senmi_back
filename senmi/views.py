@@ -1018,18 +1018,18 @@ class RiderProfileUpdateView(APIView):
                 return Response({"error": "Invalid phone number"}, status=400)
 
             serializer.save(status='pending')
+            
+            send_fcm_notification(
+                request.user,
+                "Profile Submitted",
+                "Your rider profile has been submitted and is awaiting admin review.",
+                {"type": "rider_profile_pending"}
+            )
 
             try:
                 # Send to rider + your notify email ONLY
                 recipients = [request.user.email, settings.NOTIFY_EMAIL]
                 recipients = [r for r in recipients if r]
-
-                '''send_email(
-                    subject="Rider Profile Submitted",
-                    message=f"Hello {request.user.username}, your rider profile (ID: {profile.rider_id}) has been submitted successfully and is pending review.",
-                    recipients=recipients
-                )'''
-
 
                 send_email(
                     subject="🚴 Rider Profile Submitted",
