@@ -134,7 +134,6 @@ def send_fcm_notification(
                 android=messaging.AndroidConfig(
                     notification=messaging.AndroidNotification(
                         icon="notification_icon",  # ✔ Android status icon
-                        color="#4A148C"
                     )
                 ),
 
