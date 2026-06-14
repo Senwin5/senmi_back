@@ -1174,7 +1174,7 @@ class AcceptPackageView(APIView):
                     settings.NOTIFY_EMAIL
                 ]
 
-                send_email(
+                """send_email(
                     subject=" Package Accepted",
                     message=(
                         f"Hello {package.customer.username},\n\n"
@@ -1186,7 +1186,7 @@ class AcceptPackageView(APIView):
                         f"Thank you for using Senmi."
                     ),
                     recipients=[r for r in recipients if r]
-                )
+                )"""
                 send_fcm_notification(
                     package.customer,
                     "Package Accepted",
