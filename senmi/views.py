@@ -69,9 +69,6 @@ class LoginThrottle(UserRateThrottle):
     rate = '5/min'
 
 
-
-
-
 # ------------------------------
 # Registration
 # ------------------------------

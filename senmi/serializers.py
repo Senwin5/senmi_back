@@ -232,7 +232,7 @@ class CustomLoginSerializer(TokenObtainPairSerializer):
             else:
                 send_fcm_notification(
                     user,
-                    "Welcome back 🎉",
+                    "Welcome back",
                     "You have successfully logged in",
                     {"type": "login"}
                 )
