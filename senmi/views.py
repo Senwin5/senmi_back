@@ -1276,8 +1276,7 @@ class CreatePackageView(APIView):
 
             # ✅ ADDED EMAIL NOTIFICATION (NO STRUCTURE CHANGED)
             try:
-                #admin_emails = list(User.objects.filter(is_superuser=True).values_list('email', flat=True))
-                recipients = [request.user.email] + [settings.NOTIFY_EMAIL]
+                """recipients = [request.user.email] + [settings.NOTIFY_EMAIL]
 
                 send_email(
                     subject="Package Created",
@@ -1288,7 +1287,7 @@ class CreatePackageView(APIView):
                         f"Thank you for using Senmi."
                     ),
                     recipients=recipients
-                )
+                )"""
 
                 send_fcm_notification(
                     request.user,
