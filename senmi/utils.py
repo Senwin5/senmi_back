@@ -130,11 +130,23 @@ def send_fcm_notification(
                     title=title,
                     body=body,
                 ),
+
                 android=messaging.AndroidConfig(
                     notification=messaging.AndroidNotification(
-                        icon="ic_launcher"  # 👈 THIS IS WHERE YOUR ICON GOES
+                        icon="ic_launcher",  # Android only
+                        color="#4A148C"
                     )
                 ),
+
+                apns=messaging.APNSConfig(
+                    payload=messaging.APNSPayload(
+                        aps=messaging.Aps(
+                            sound="default",
+                            badge=1
+                        )
+                    )
+                ),
+
                 data={k: str(v) for k, v in (data or {}).items()},
                 token=token,
             )
