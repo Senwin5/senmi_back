@@ -137,7 +137,6 @@ class RegisterView(APIView):
                     message=message,
                     recipients=recipients
                 )
-                
 
             except Exception as e:
                 logger.exception(f"Registration email failed for {user.email}: {str(e)}")
