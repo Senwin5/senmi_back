@@ -117,18 +117,6 @@ class RegisterView(APIView):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
 
-            
-            """try:
-                recipients = [user.email] +  [settings.NOTIFY_EMAIL]
-                send_email(
-                    subject="Welcome to Senmi!",
-                    message=f"Hello {user.username}, Your account has been created successfully as a {user.role.capitalize()}. Kindly complete your profile for approval by the admin",
-                    recipients=recipients
-                )
-             
-            except Exception as e:
-                logger.exception(f"Registration email failed for {user.email}: {str(e)}")"""
-            
             try:
                 if user.role.lower() == "rider":
                     message = (
@@ -149,6 +137,7 @@ class RegisterView(APIView):
                     message=message,
                     recipients=recipients
                 )
+                
 
             except Exception as e:
                 logger.exception(f"Registration email failed for {user.email}: {str(e)}")
