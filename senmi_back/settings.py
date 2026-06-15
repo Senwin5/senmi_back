@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'senmi',
     'legal',
+    'rides',
     'simple_history',
     'rest_framework',
     'anymail',
@@ -151,8 +152,6 @@ LANGUAGE_CODE = 'en-us'
 USE_I18N = True
 
 USE_TZ = True
-
-
 
 
 from datetime import timedelta

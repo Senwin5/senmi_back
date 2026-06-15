@@ -7,10 +7,11 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path ('',include ('senmi.urls')),
     path('', include('legal.urls')),
+    path('', include('rides.urls')),
 ]
 
-admin.site.site_header = "SenMi Admin "
-admin.site.site_title = " SenMi Ltd "
+admin.site.site_header = "Senmi Admin "
+admin.site.site_title = " Senmi Ltd "
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
