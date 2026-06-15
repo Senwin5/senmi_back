@@ -48,7 +48,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'senmi',
     'legal',
-    'rides',
+    'ride_driver',
     'simple_history',
     'rest_framework',
     'anymail',

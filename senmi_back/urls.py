@@ -7,7 +7,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path ('',include ('senmi.urls')),
     path('', include('legal.urls')),
-    path('', include('rides.urls')),
+    path('', include('ride_driver.urls')),
 ]
 
 admin.site.site_header = "Senmi Admin "
