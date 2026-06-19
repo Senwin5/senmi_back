@@ -1882,7 +1882,7 @@ class PaystackWebhookView(APIView):
         return Response(status=200)
     
 
-# ------------------------------
+# ------------
 # Package Tracking Views
 # ------------------------------
 class UpdateLocationView(APIView):
