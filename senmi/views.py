@@ -36,7 +36,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from senmi.models import User
 from django.contrib.auth.password_validation import validate_password
-
+from math import radians, sin, cos, sqrt, atan2
 from senmi.permissions import IsAdminOrSupport
 from senmi.utils import (calculate_distance,calculate_price,send_email,)
 from .models import (FCMDevice,Package,PackageTracking, PasswordResetOTP,RiderProfile,RiderRating,RiderWallet,Withdrawal,)
@@ -1916,6 +1916,25 @@ class UpdateLocationView(APIView):
         return Response({"message": "Location updated"})
 
 
+
+def calculate_distance(lat1, lon1, lat2, lon2):
+    R = 6371  # Earth radius in km
+
+    dlat = radians(lat2 - lat1)
+    dlon = radians(lon2 - lon1)
+
+    a = (
+        sin(dlat / 2) ** 2
+        + cos(radians(lat1))
+        * cos(radians(lat2))
+        * sin(dlon / 2) ** 2
+    )
+
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+
+    return R * c
+
+
 class TrackPackageView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -1963,6 +1982,15 @@ class TrackPackageView(APIView):
         # =========================
         # TRACKING EXISTS
         # =========================
+        remaining_km = calculate_distance(
+        tracking.latitude,
+        tracking.longitude,
+        package.delivery_lat,
+        package.delivery_lng
+        )
+
+        eta_minutes = round(remaining_km * 4)
+
         return Response({
             "package_id": package.package_id,
             "description": package.description,
@@ -1984,10 +2012,11 @@ class TrackPackageView(APIView):
 
             "delivery_lat": package.delivery_lat,
             "delivery_lng": package.delivery_lng,
-
-            # ✅ delivery code included
-            #"delivery_code": package.delivery_code,
+            "eta_minutes": eta_minutes,
+            
         })
+    
+
     
 
 
