@@ -1856,9 +1856,6 @@ class PaystackWebhookView(APIView):
         try:
             with transaction.atomic():
                 package = Package.objects.select_for_update().get(payment_reference=reference)
-               
-                if not package:
-                    return Response({"error": "Payment not completed"}, status=404)
 
                 if package.is_paid:
                     logger.info(f"Package {package.id} already marked as paid. Ignoring webhook.")
@@ -1882,23 +1879,6 @@ class PaystackWebhookView(APIView):
                 )
               
                 notify_admin_dashboard()
-                approved_riders = User.objects.filter(
-                    role="rider",
-                    riderprofile__status="approved"
-                )
-
-                for rider in approved_riders:
-                    send_fcm_notification(
-                        user=rider,
-                        title="New Delivery Available",
-                        body=f"New package from {package.pickup_address}",
-                        data={
-                            "type": "new_package",
-                            "package_id": package.package_id,
-                            "pickup": package.pickup_address,
-                            "delivery": package.delivery_address,
-                        }
-                    )
                 logger.info(f"Package {package.id} marked as paid via webhook.")
 
                 # CUSTOMER EMAIL
@@ -1919,7 +1899,6 @@ class PaystackWebhookView(APIView):
                     logger.exception(f"Customer email failed: {e}")
 
 
-                # ADMIN EMAIL
                 try:
                     send_email(
                         subject="Customer Paid for Package",
@@ -1958,22 +1937,125 @@ class PaymentCallbackView(APIView):
         if not reference:
             return Response({"error": "No reference"}, status=400)
 
-        package = Package.objects.filter(
-            payment_reference=reference,
-            is_paid=True
-        ).first()
+        headers = {
+            "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"
+        }
 
-        if not package:
-            return Response(
-                {"error": "Payment not completed"},
-                status=404
+        verify = requests.get(
+            f"https://api.paystack.co/transaction/verify/{reference}",
+            headers=headers
+        ).json()
+
+        if not verify.get("status"):
+            return Response({"error": "Verification failed"}, status=400)
+
+        data = verify["data"]
+
+        if data["status"] != "success":
+            return Response({"error": "Payment not successful"}, status=400)
+
+        try:
+            with transaction.atomic():
+                package = Package.objects.select_for_update().get(
+                    payment_reference=reference
+                )
+
+                if package.is_paid:
+                    return Response({
+                        "message": "Package already paid"
+                    })
+
+                package.is_paid = True
+                package.status = "paid"
+                package.payment_completed_at = timezone.now()
+
+                package.save(update_fields=[
+                    "is_paid",
+                    "status",
+                    "payment_completed_at"
+                ])
+
+                notify_admin_dashboard()
+
+                # CUSTOMER EMAIL
+                try:
+                    send_email(
+                        subject="Payment Successful",
+                        message=(
+                            f"Hello {package.customer.username},\n\n"
+                            f"Your payment for package {package.package_id} was successful.\n\n"
+                            f"Delivery Code: {package.delivery_code}\n\n"
+                            f"Please share this code ONLY with the rider upon delivery.\n\n"
+                            f"Your package is now available for riders to accept.\n\n"
+                            f"Thank you for using Senmi."
+                        ),
+                        recipients=[package.customer.email]
+                    )
+                except Exception as e:
+                    logger.exception(f"Customer email failed: {e}")
+
+
+                try:
+                    send_email(
+                        subject="Customer Paid for Package",
+                        message=(
+                            f"A customer has successfully paid.\n\n"
+                            f"Package ID: {package.package_id}\n"
+                            f"Customer: {package.customer.username}\n"
+                            f"Customer Email: {package.customer.email}\n"
+                            f"Pickup: {package.pickup_address}\n"
+                            f"Delivery: {package.delivery_address}\n"
+                            f"Amount: ₦{package.price}\n"
+                            f"Status: {package.status}\n"
+                            f"Delivery Code: {package.delivery_code}\n"
+                        ),
+                        recipients=[settings.NOTIFY_EMAIL]
+                    )
+                except Exception as e:
+                    logger.exception(f"Admin email failed: {e}"
             )
+
+             # =====================================
+                # PUSH NOTIFICATION TO CUSTOMER
+                # =====================================
+                send_fcm_notification(
+                    user=package.customer,
+                    title="Payment Successful",
+                    body=f"Your payment for package {package.package_id} was successful.",
+                    data={
+                        "type": "payment_success",
+                        "package_id": package.package_id
+                    }
+                )
+
+                approved_riders = User.objects.filter(
+                    role="rider",
+                    riderprofile__status="approved"
+                )
+
+                for rider in approved_riders:
+
+                    send_fcm_notification(
+                        user=rider,
+                        title="New Delivery Available",
+                        body=f"New package from {package.pickup_address}",
+                        data={
+                            "type": "new_package",
+                            "package_id": package.package_id,
+                            "pickup": package.pickup_address,
+                            "delivery": package.delivery_address,
+                        }
+                    )
+
+        except Package.DoesNotExist:
+            return Response({"error": "Package not found"}, status=404)
         
-        return redirect(
-            f"https://www.senmi.com.ng/api/payment-success/"
-            f"?package_id={package.package_id}"
-            f"&delivery_code={package.delivery_code}"
-        )
+        if package.is_paid:
+            return redirect(
+                f"https://www.senmi.com.ng/api/payment-success/"
+                f"?package_id={package.package_id}"
+                f"&delivery_code={package.delivery_code}"
+            )
 
 
 
