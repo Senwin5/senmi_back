@@ -1883,7 +1883,7 @@ class PaystackWebhookView(APIView):
                 notify_admin_dashboard()
                 logger.info(f"Package {package.id} marked as paid via webhook.")
 
-                recipients = [
+                """recipients = [
                     package.customer.email,
                     package.rider.email if package.rider else None
                 ] + [settings.NOTIFY_EMAIL]
@@ -1901,7 +1901,37 @@ class PaystackWebhookView(APIView):
                         f"Thank you for using Senmi."
                     ),
                     recipients=recipients
+                )"""
+
+
+                # Send email to CUSTOMER
+                send_email(
+                    subject="Payment Successful",
+                    message=(
+                        f"Hello {package.customer.username},\n\n"
+                        f"Your payment for package {package.package_id} was successful.\n\n"
+                        f"Delivery Code: {package.delivery_code}\n\n"
+                        f"Please share this code ONLY with the rider upon delivery.\n\n"
+                        f"Your package is now available for riders to accept.\n\n"
+                        f"Thank you for using Senmi."
+                    ),
+                    recipients=[package.customer.email]
                 )
+
+                # Send DIFFERENT email to ADMIN
+                send_email(
+                    subject="Customer Paid for Package",
+                    message=(
+                        f"A customer has successfully paid.\n\n"
+                        f"Package ID: {package.package_id}\n"
+                        f"Customer: {package.customer.username}\n"
+                        f"Customer Email: {package.customer.email}\n"
+                        f"Delivery Code: {package.delivery_code}\n"
+                        f"Status: {package.status}\n"
+                    ),
+                    recipients=[settings.NOTIFY_EMAIL]
+                )
+
 
         except Package.DoesNotExist:
             logger.warning(f"No package found with payment reference {reference}")
