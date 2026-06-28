@@ -115,28 +115,60 @@ class RegisterView(APIView):
                 )
 
             try:
+                # User email
                 if user.role.lower() == "rider":
-                    message = (
+                    user_message = (
                         f"Hello {user.username}, "
                         f"Your account has been created successfully as a Rider. "
                         f"Kindly complete your rider profile for approval by the admin."
                     )
                 else:
-                    message = (
+                    user_message = (
                         f"Hello {user.username}, "
-                        f"Your account has been created successfully as a {user.role.capitalize()}."
+                        f"Your account has been created successfully as a "
+                        f"{user.role.capitalize()}."
                     )
-
-                recipients = [user.email, settings.NOTIFY_EMAIL]
 
                 send_email(
                     subject="Welcome to Senmi!",
-                    message=message,
-                    recipients=recipients
+                    message=user_message,
+                    recipients=[user.email]
+                )
+
+                # Admin email
+                if user.role.lower() == "rider":
+                    admin_message = (
+                        "A new rider has created an account.\n\n"
+                        f"Name: {user.username}\n"
+                        f"Email: {user.email}\n"
+                        "The rider needs approval."
+                    )
+                    admin_subject = "New Rider Registration"
+                elif user.role.lower() == "customer":
+                    admin_message = (
+                        "A new customer has created an account.\n\n"
+                        f"Name: {user.username}\n"
+                        f"Email: {user.email}"
+                    )
+                    admin_subject = "New Customer Registration"
+                else:
+                    admin_message = (
+                        f"A new {user.role} has created an account.\n\n"
+                        f"Name: {user.username}\n"
+                        f"Email: {user.email}"
+                    )
+                    admin_subject = f"New {user.role.capitalize()} Registration"
+
+                send_email(
+                    subject=admin_subject,
+                    message=admin_message,
+                    recipients=[settings.NOTIFY_EMAIL]
                 )
 
             except Exception as e:
-                logger.exception(f"Registration email failed for {user.email}: {str(e)}")
+                logger.exception(
+                    f"Registration email failed for {user.email}: {str(e)}"
+                )
 
             # Return JWT
             refresh = RefreshToken.for_user(user)
