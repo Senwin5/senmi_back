@@ -27,3 +27,250 @@ git push origin main
 
 firebase-service-account.json
 
+
+
+
+# Paystack Webhook
+# ------------------------------
+@method_decorator(csrf_exempt, name='dispatch')
+class PaystackWebhookView(APIView):
+    @method_decorator(csrf_exempt)
+    def post(self, request):
+        secret = settings.PAYSTACK_SECRET_KEY
+        signature = request.headers.get('x-paystack-signature')
+
+        # =========================
+        # FIX 1: safer signature check (correct Paystack standard)
+        # =========================
+        expected_hash = hmac.new(
+            secret.encode('utf-8'),
+            request.body,
+            hashlib.sha512
+        ).hexdigest()
+
+        if not signature or not hmac.compare_digest(signature, expected_hash):
+            logger.warning("Paystack webhook signature mismatch")
+            return Response(status=400)
+
+        try:
+            # =========================
+            # FIX 2: safe JSON decode
+            # =========================
+            payload = json.loads(request.body.decode('utf-8'))
+        except json.JSONDecodeError:
+            logger.error("Invalid JSON received in Paystack webhook")
+            return Response(status=400)
+
+        event = payload.get("event")
+        data = payload.get("data", {})
+        reference = data.get("reference")
+
+        if event != 'charge.success' or not reference:
+            logger.info(f"Ignored Paystack webhook event: {event}")
+            return Response(status=200)
+
+        try:
+            with transaction.atomic():
+                package = Package.objects.select_for_update().get(payment_reference=reference)
+
+                if package.is_paid:
+                    logger.info(f"Package {package.id} already marked as paid. Ignoring webhook.")
+                    return Response(status=200)
+
+                package.is_paid = True
+                package.status = "paid"
+                package.payment_completed_at = timezone.now()
+
+                package.save(update_fields=[
+                    "is_paid",
+                    "status",
+                    "payment_completed_at"
+                ])
+
+                send_fcm_notification(
+                    package.customer,
+                    "Payment Successful",
+                    f"Payment for {package.package_id} successful",
+                    {"type": "payment_success"}
+                )
+              
+                notify_admin_dashboard()
+                logger.info(f"Package {package.id} marked as paid via webhook.")
+
+                # CUSTOMER EMAIL
+                try:
+                    send_email(
+                        subject="Payment Successful",
+                        message=(
+                            f"Hello {package.customer.username},\n\n"
+                            f"Your payment for package {package.package_id} was successful.\n\n"
+                            f"Delivery Code: {package.delivery_code}\n\n"
+                            f"Please share this code ONLY with the rider upon delivery.\n\n"
+                            f"Your package is now available for riders to accept.\n\n"
+                            f"Thank you for using Senmi."
+                        ),
+                        recipients=[package.customer.email]
+                    )
+                except Exception as e:
+                    logger.exception(f"Customer email failed: {e}")
+
+
+                # ADMIN EMAIL
+                try:
+                    send_email(
+                        subject="Customer Paid for Package",
+                        message=(
+                            f"A customer has successfully paid.\n\n"
+                            f"Package ID: {package.package_id}\n"
+                            f"Customer: {package.customer.username}\n"
+                            f"Customer Email: {package.customer.email}\n"
+                            f"Pickup: {package.pickup_address}\n"
+                            f"Delivery: {package.delivery_address}\n"
+                            f"Amount: ₦{package.price}\n"
+                            f"Status: {package.status}\n"
+                            f"Delivery Code: {package.delivery_code}\n"
+                        ),
+                        recipients=[settings.NOTIFY_EMAIL]
+                    )
+                except Exception as e:
+                    logger.exception(f"Admin email failed: {e}")
+
+        except Package.DoesNotExist:
+            logger.warning(f"No package found with payment reference {reference}")
+            return Response(status=200)
+
+        except Exception as e:
+            logger.exception(f"Error processing Paystack webhook for reference {reference}")
+            return Response(status=500)
+
+        return Response(status=200)
+    
+
+
+class PaymentCallbackView(APIView):
+    def get(self, request):
+        reference = request.GET.get("reference")
+
+        if not reference:
+            return Response({"error": "No reference"}, status=400)
+
+        headers = {
+            "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"
+        }
+
+        verify = requests.get(
+            f"https://api.paystack.co/transaction/verify/{reference}",
+            headers=headers
+        ).json()
+
+        if not verify.get("status"):
+            return Response({"error": "Verification failed"}, status=400)
+
+        data = verify["data"]
+
+        if data["status"] != "success":
+            return Response({"error": "Payment not successful"}, status=400)
+
+        try:
+            with transaction.atomic():
+                package = Package.objects.select_for_update().get(
+                    payment_reference=reference
+                )
+
+                if package.is_paid:
+                    return Response({
+                        "message": "Package already paid"
+                    })
+
+                package.is_paid = True
+                package.status = "paid"
+                package.payment_completed_at = timezone.now()
+
+                package.save(update_fields=[
+                    "is_paid",
+                    "status",
+                    "payment_completed_at"
+                ])
+
+                notify_admin_dashboard()
+
+                # CUSTOMER EMAIL
+                try:
+                    send_email(
+                        subject="Payment Successful",
+                        message=(
+                            f"Hello {package.customer.username},\n\n"
+                            f"Your payment for package {package.package_id} was successful.\n\n"
+                            f"Delivery Code: {package.delivery_code}\n\n"
+                            f"Please share this code ONLY with the rider upon delivery.\n\n"
+                            f"Your package is now available for riders to accept.\n\n"
+                            f"Thank you for using Senmi."
+                        ),
+                        recipients=[package.customer.email]
+                    )
+                except Exception as e:
+                    logger.exception(f"Customer email failed: {e}")
+
+
+                try:
+                    send_email(
+                        subject="Customer Paid for Package",
+                        message=(
+                            f"A customer has successfully paid.\n\n"
+                            f"Package ID: {package.package_id}\n"
+                            f"Customer: {package.customer.username}\n"
+                            f"Customer Email: {package.customer.email}\n"
+                            f"Pickup: {package.pickup_address}\n"
+                            f"Delivery: {package.delivery_address}\n"
+                            f"Amount: ₦{package.price}\n"
+                            f"Status: {package.status}\n"
+                            f"Delivery Code: {package.delivery_code}\n"
+                        ),
+                        recipients=[settings.NOTIFY_EMAIL]
+                    )
+                except Exception as e:
+                    logger.exception(f"Admin email failed: {e}"
+            )
+
+             # =====================================
+                # PUSH NOTIFICATION TO CUSTOMER
+                # =====================================
+                send_fcm_notification(
+                    user=package.customer,
+                    title="Payment Successful",
+                    body=f"Your payment for package {package.package_id} was successful.",
+                    data={
+                        "type": "payment_success",
+                        "package_id": package.package_id
+                    }
+                )
+
+                approved_riders = User.objects.filter(
+                    role="rider",
+                    riderprofile__status="approved"
+                )
+
+                for rider in approved_riders:
+
+                    send_fcm_notification(
+                        user=rider,
+                        title="New Delivery Available",
+                        body=f"New package from {package.pickup_address}",
+                        data={
+                            "type": "new_package",
+                            "package_id": package.package_id,
+                            "pickup": package.pickup_address,
+                            "delivery": package.delivery_address,
+                        }
+                    )
+
+        except Package.DoesNotExist:
+            return Response({"error": "Package not found"}, status=404)
+        
+        if package.is_paid:
+            return redirect(
+                f"https://www.senmi.com.ng/api/payment-success/"
+                f"?package_id={package.package_id}"
+                f"&delivery_code={package.delivery_code}"
+            )
+
