@@ -1929,6 +1929,180 @@ class PaystackWebhookView(APIView):
         return Response(status=200)
     
 
+
+class PaymentCallbackView(APIView):
+    def get(self, request):
+        reference = request.GET.get("reference")
+
+        if not reference:
+            return Response({"error": "No reference"}, status=400)
+
+        headers = {
+            "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"
+        }
+
+        verify = requests.get(
+            f"https://api.paystack.co/transaction/verify/{reference}",
+            headers=headers
+        ).json()
+
+        if not verify.get("status"):
+            return Response({"error": "Verification failed"}, status=400)
+
+        data = verify["data"]
+
+        if data["status"] != "success":
+            return Response({"error": "Payment not successful"}, status=400)
+
+        try:
+            with transaction.atomic():
+                package = Package.objects.select_for_update().get(
+                    payment_reference=reference
+                )
+
+                if package.is_paid:
+                    return Response({
+                        "message": "Package already paid"
+                    })
+
+                package.is_paid = True
+                package.status = "paid"
+                package.payment_completed_at = timezone.now()
+
+                package.save(update_fields=[
+                    "is_paid",
+                    "status",
+                    "payment_completed_at"
+                ])
+
+                notify_admin_dashboard()
+
+                # CUSTOMER EMAIL
+                try:
+                    send_email(
+                        subject="Payment Successful",
+                        message=(
+                            f"Hello {package.customer.username},\n\n"
+                            f"Your payment for package {package.package_id} was successful.\n\n"
+                            f"Delivery Code: {package.delivery_code}\n\n"
+                            f"Please share this code ONLY with the rider upon delivery.\n\n"
+                            f"Your package is now available for riders to accept.\n\n"
+                            f"Thank you for using Senmi."
+                        ),
+                        recipients=[package.customer.email]
+                    )
+                except Exception as e:
+                    logger.exception(f"Customer email failed: {e}")
+
+
+                try:
+                    send_email(
+                        subject="Customer Paid for Package",
+                        message=(
+                            f"A customer has successfully paid.\n\n"
+                            f"Package ID: {package.package_id}\n"
+                            f"Customer: {package.customer.username}\n"
+                            f"Customer Email: {package.customer.email}\n"
+                            f"Pickup: {package.pickup_address}\n"
+                            f"Delivery: {package.delivery_address}\n"
+                            f"Amount: ₦{package.price}\n"
+                            f"Status: {package.status}\n"
+                            f"Delivery Code: {package.delivery_code}\n"
+                        ),
+                        recipients=[settings.NOTIFY_EMAIL]
+                    )
+                except Exception as e:
+                    logger.exception(f"Admin email failed: {e}"
+            )
+
+             # =====================================
+                # PUSH NOTIFICATION TO CUSTOMER
+                # =====================================
+                send_fcm_notification(
+                    user=package.customer,
+                    title="Payment Successful",
+                    body=f"Your payment for package {package.package_id} was successful.",
+                    data={
+                        "type": "payment_success",
+                        "package_id": package.package_id
+                    }
+                )
+
+                approved_riders = User.objects.filter(
+                    role="rider",
+                    riderprofile__status="approved"
+                )
+
+                for rider in approved_riders:
+
+                    send_fcm_notification(
+                        user=rider,
+                        title="New Delivery Available",
+                        body=f"New package from {package.pickup_address}",
+                        data={
+                            "type": "new_package",
+                            "package_id": package.package_id,
+                            "pickup": package.pickup_address,
+                            "delivery": package.delivery_address,
+                        }
+                    )
+
+        except Package.DoesNotExist:
+            return Response({"error": "Package not found"}, status=404)
+        
+        if package.is_paid:
+            return redirect(
+                f"https://www.senmi.com.ng/api/payment-success/"
+                f"?package_id={package.package_id}"
+                f"&delivery_code={package.delivery_code}"
+            )
+
+
+
+def payment_success(request):
+    package_id = request.GET.get("package_id", "")
+    delivery_code = request.GET.get("delivery_code", "")
+
+    return HttpResponse(f"""
+    <html>
+    <head>
+        <title>Payment Successful</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+    </head>
+
+    <body style="
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        height:100vh;
+        font-family:sans-serif;
+        flex-direction:column;
+        background:#f5f5f5;
+    ">
+
+        <h1 style="color:green;">Payment Successful</h1>
+
+        <p>Your package payment was completed successfully.</p>
+
+        <button
+            onclick="window.location.href='senmi://payment-success?package_id={package_id}&delivery_code={delivery_code}'"
+            style="
+                padding:14px 24px;
+                border:none;
+                background:green;
+                color:white;
+                border-radius:8px;
+                font-size:16px;
+            "
+        >
+            Continue
+        </button>
+
+    </body>
+    </html>
+    """)
+
+
 # ------------------------------
 # Package Tracking Views
 # ------------------------------
@@ -2691,159 +2865,6 @@ def my_orders(request):
     serializer = PackageSerializer(packages, many=True)
     return Response(serializer.data)
 
-
-import requests
-from django.conf import settings
-
-class PaymentCallbackView(APIView):
-    def get(self, request):
-        reference = request.GET.get("reference")
-
-        if not reference:
-            return Response({"error": "No reference"}, status=400)
-
-        headers = {
-            "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"
-        }
-
-        verify = requests.get(
-            f"https://api.paystack.co/transaction/verify/{reference}",
-            headers=headers
-        ).json()
-
-        if not verify.get("status"):
-            return Response({"error": "Verification failed"}, status=400)
-
-        data = verify["data"]
-
-        if data["status"] != "success":
-            return Response({"error": "Payment not successful"}, status=400)
-
-        try:
-            with transaction.atomic():
-                package = Package.objects.select_for_update().get(
-                    payment_reference=reference
-                )
-
-                if package.is_paid:
-                    return Response({
-                        "message": "Package already paid"
-                    })
-
-                package.is_paid = True
-                package.status = "paid"
-                package.payment_completed_at = timezone.now()
-
-                package.save(update_fields=[
-                    "is_paid",
-                    "status",
-                    "payment_completed_at"
-                ])
-
-                notify_admin_dashboard()
-
-                send_email(
-                subject="Payment Successful",
-                message=(
-                    f"Hello {package.customer.username},\n\n"
-                    f"Your payment for package {package.package_id} was successful.\n\n"
-                    f"Delivery Code: {package.delivery_code}\n\n"
-                    f"Please share this code ONLY with the rider upon delivery.\n\n"
-                    f"Your package is now available for riders to accept.\n\n"
-                    f"Thank you for using Senmi."
-                ),
-                recipients=[
-                    package.customer.email,
-                    settings.NOTIFY_EMAIL
-                ]
-            )
-
-             # =====================================
-                # PUSH NOTIFICATION TO CUSTOMER
-                # =====================================
-                send_fcm_notification(
-                    user=package.customer,
-                    title="Payment Successful",
-                    body=f"Your payment for package {package.package_id} was successful.",
-                    data={
-                        "type": "payment_success",
-                        "package_id": package.package_id
-                    }
-                )
-
-                approved_riders = User.objects.filter(
-                    role="rider",
-                    riderprofile__status="approved"
-                )
-
-                for rider in approved_riders:
-
-                    send_fcm_notification(
-                        user=rider,
-                        title="New Delivery Available",
-                        body=f"New package from {package.pickup_address}",
-                        data={
-                            "type": "new_package",
-                            "package_id": package.package_id,
-                            "pickup": package.pickup_address,
-                            "delivery": package.delivery_address,
-                        }
-                    )
-
-        except Package.DoesNotExist:
-            return Response({"error": "Package not found"}, status=404)
-        
-        if package.is_paid:
-            return redirect(
-                f"https://www.senmi.com.ng/api/payment-success/"
-                f"?package_id={package.package_id}"
-                f"&delivery_code={package.delivery_code}"
-            )
-
-
-
-def payment_success(request):
-    package_id = request.GET.get("package_id", "")
-    delivery_code = request.GET.get("delivery_code", "")
-
-    return HttpResponse(f"""
-    <html>
-    <head>
-        <title>Payment Successful</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-    </head>
-
-    <body style="
-        display:flex;
-        justify-content:center;
-        align-items:center;
-        height:100vh;
-        font-family:sans-serif;
-        flex-direction:column;
-        background:#f5f5f5;
-    ">
-
-        <h1 style="color:green;">Payment Successful</h1>
-
-        <p>Your package payment was completed successfully.</p>
-
-        <button
-            onclick="window.location.href='senmi://payment-success?package_id={package_id}&delivery_code={delivery_code}'"
-            style="
-                padding:14px 24px;
-                border:none;
-                background:green;
-                color:white;
-                border-radius:8px;
-                font-size:16px;
-            "
-        >
-            Continue
-        </button>
-
-    </body>
-    </html>
-    """)
 
 
 def search_package(request):
