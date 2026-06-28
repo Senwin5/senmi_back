@@ -1871,52 +1871,11 @@ class PaystackWebhookView(APIView):
                     "payment_completed_at"
                 ])
 
-                send_fcm_notification(
-                    package.customer,
-                    "Payment Successful",
-                    f"Payment for {package.package_id} successful",
-                    {"type": "payment_success"}
-                )
               
                 notify_admin_dashboard()
                 logger.info(f"Package {package.id} marked as paid via webhook.")
 
-                # CUSTOMER EMAIL
-                try:
-                    send_email(
-                        subject="Payment Successful",
-                        message=(
-                            f"Hello {package.customer.username},\n\n"
-                            f"Your payment for package {package.package_id} was successful.\n\n"
-                            f"Delivery Code: {package.delivery_code}\n\n"
-                            f"Please share this code ONLY with the rider upon delivery.\n\n"
-                            f"Your package is now available for riders to accept.\n\n"
-                            f"Thank you for using Senmi."
-                        ),
-                        recipients=[package.customer.email]
-                    )
-                except Exception as e:
-                    logger.exception(f"Customer email failed: {e}")
-
-
-                try:
-                    send_email(
-                        subject="Customer Paid for Package",
-                        message=(
-                            f"A customer has successfully paid.\n\n"
-                            f"Package ID: {package.package_id}\n"
-                            f"Customer: {package.customer.username}\n"
-                            f"Customer Email: {package.customer.email}\n"
-                            f"Pickup: {package.pickup_address}\n"
-                            f"Delivery: {package.delivery_address}\n"
-                            f"Amount: ₦{package.price}\n"
-                            f"Status: {package.status}\n"
-                            f"Delivery Code: {package.delivery_code}\n"
-                        ),
-                        recipients=[settings.NOTIFY_EMAIL]
-                    )
-                except Exception as e:
-                    logger.exception(f"Admin email failed: {e}")
+              
 
         except Package.DoesNotExist:
             logger.warning(f"No package found with payment reference {reference}")
@@ -2012,8 +1971,7 @@ class PaymentCallbackView(APIView):
                         recipients=[settings.NOTIFY_EMAIL]
                     )
                 except Exception as e:
-                    logger.exception(f"Admin email failed: {e}"
-            )
+                    logger.exception(f"Admin email failed: {e}")
 
              # =====================================
                 # PUSH NOTIFICATION TO CUSTOMER
@@ -2027,14 +1985,14 @@ class PaymentCallbackView(APIView):
                         "package_id": package.package_id
                     }
                 )
-
+                # PUSH NOTIFICATION TO RIDERS
+               
                 approved_riders = User.objects.filter(
                     role="rider",
                     riderprofile__status="approved"
                 )
 
                 for rider in approved_riders:
-
                     send_fcm_notification(
                         user=rider,
                         title="New Delivery Available",
