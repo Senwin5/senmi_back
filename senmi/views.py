@@ -1855,7 +1855,14 @@ class PaystackWebhookView(APIView):
 
         try:
             with transaction.atomic():
-                package = Package.objects.select_for_update().get(payment_reference=reference)
+                #package = Package.objects.select_for_update().get(payment_reference=reference)
+                package = Package.objects.filter(
+                    payment_reference=reference,
+                    is_paid=True
+                ).first()
+
+                if not package:
+                    return Response({"error": "Payment not completed"}, status=404)
 
                 if package.is_paid:
                     logger.info(f"Package {package.id} already marked as paid. Ignoring webhook.")
