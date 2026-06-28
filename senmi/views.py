@@ -1875,8 +1875,7 @@ class PaystackWebhookView(APIView):
                 notify_admin_dashboard()
                 logger.info(f"Package {package.id} marked as paid via webhook.")
 
-              
-
+            
         except Package.DoesNotExist:
             logger.warning(f"No package found with payment reference {reference}")
             return Response(status=200)
@@ -1923,6 +1922,7 @@ class PaymentCallbackView(APIView):
                     return Response({
                         "message": "Package already paid"
                     })
+                
 
                 package.is_paid = True
                 package.status = "paid"
