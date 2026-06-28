@@ -1855,9 +1855,8 @@ class PaystackWebhookView(APIView):
 
         try:
             with transaction.atomic():
-                #package = Package.objects.select_for_update().get(payment_reference=reference)
-                package = Package.objects.filter(payment_reference=reference,is_paid=True).first()
-
+                package = Package.objects.select_for_update().get(payment_reference=reference)
+               
                 if not package:
                     return Response({"error": "Payment not completed"}, status=404)
 
@@ -1959,14 +1958,17 @@ class PaymentCallbackView(APIView):
         if not reference:
             return Response({"error": "No reference"}, status=400)
 
-        try:
-            package = Package.objects.get(
-                payment_reference=reference
+        package = Package.objects.filter(
+            payment_reference=reference,
+            is_paid=True
+        ).first()
+
+        if not package:
+            return Response(
+                {"error": "Payment not completed"},
+                status=404
             )
-
-        except Package.DoesNotExist:
-            return Response({"error": "Package not found"}, status=404)
-
+        
         return redirect(
             f"https://www.senmi.com.ng/api/payment-success/"
             f"?package_id={package.package_id}"
