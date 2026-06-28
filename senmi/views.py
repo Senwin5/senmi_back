@@ -1883,27 +1883,6 @@ class PaystackWebhookView(APIView):
                 notify_admin_dashboard()
                 logger.info(f"Package {package.id} marked as paid via webhook.")
 
-                """recipients = [
-                    package.customer.email,
-                    package.rider.email if package.rider else None
-                ] + [settings.NOTIFY_EMAIL]
-
-                recipients = [r for r in recipients if r]
-
-                send_email(
-                    subject="Payment Successful",
-                    message=(
-                        f"Hello {package.customer.username},\n\n"
-                        f"Your payment for package {package.package_id} was successful.\n\n"
-                        f"Delivery Code: {package.delivery_code}\n\n"
-                        f"Please share this code ONLY with the rider upon delivery.\n\n"
-                        f"Your package is now available for riders to accept.\n\n"
-                        f"Thank you for using Senmi."
-                    ),
-                    recipients=recipients
-                )"""
-
-
                 # Send email to CUSTOMER
                 send_email(
                     subject="Payment Successful",
