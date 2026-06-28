@@ -1890,7 +1890,6 @@ class PaystackWebhookView(APIView):
 
                 recipients = [r for r in recipients if r]
 
-                # Customer email only
                 send_email(
                     subject="Payment Successful",
                     message=(
@@ -1901,21 +1900,7 @@ class PaystackWebhookView(APIView):
                         f"Your package is now available for riders to accept.\n\n"
                         f"Thank you for using Senmi."
                     ),
-                    recipients=[package.customer.email]
-                )
-                # Admin email
-                send_email(
-                    subject="New Package Payment Received",
-                    message=(
-                        "A package payment has been completed.\n\n"
-                        f"Package ID: {package.package_id}\n"
-                        f"Customer: {package.customer.username}\n"
-                        f"Customer Email: {package.customer.email}\n"
-                        f"Amount: ₦{package.price}\n"
-                        f"Status: {package.status}\n\n"
-                        "The package is now available for rider assignment."
-                    ),
-                    recipients=[settings.NOTIFY_EMAIL]
+                    recipients=recipients
                 )
 
         except Package.DoesNotExist:
