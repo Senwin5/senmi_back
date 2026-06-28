@@ -1883,12 +1883,12 @@ class PaystackWebhookView(APIView):
                 notify_admin_dashboard()
                 logger.info(f"Package {package.id} marked as paid via webhook.")
 
-                """recipients = [
+                recipients = [
                     package.customer.email,
                     package.rider.email if package.rider else None
                 ] + [settings.NOTIFY_EMAIL]
 
-                recipients = [r for r in recipients if r]"""
+                recipients = [r for r in recipients if r]
 
                 # Customer email only
                 send_email(
