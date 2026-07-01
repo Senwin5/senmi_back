@@ -32,8 +32,8 @@ class RiderWalletInline(admin.StackedInline):
 class PackageInline(admin.TabularInline):
     model = Package
     fk_name = 'customer'  # Packages where user is the customer
-    fields = ('description', 'status', 'price', 'commission', 'rider')
-    readonly_fields = ('description', 'status', 'price', 'commission', 'rider')
+    fields = ( 'status', 'price', 'commission', 'rider')
+    readonly_fields = ('status', 'price', 'commission', 'rider')
     extra = 0
     show_change_link = True
     ordering = ('-created_at',)
@@ -41,8 +41,8 @@ class PackageInline(admin.TabularInline):
 class PackageAsRiderInline(admin.TabularInline):
     model = Package
     fk_name = 'rider'  # Packages where user is the rider
-    fields = ('description', 'status', 'price', 'commission', 'customer')
-    readonly_fields = ('description', 'status', 'price', 'commission', 'customer')
+    fields = ( 'status', 'price', 'commission', 'customer')
+    readonly_fields = ( 'status', 'price', 'commission', 'customer')
     extra = 0
     show_change_link = True
     ordering = ('-created_at',)
@@ -295,7 +295,7 @@ class PackageAdmin(SimpleHistoryAdmin):
         'package_id',
         'customer',
         'rider',
-        'description',
+        #'description',
         'status',
         'price',
         'commission',
@@ -311,7 +311,7 @@ class PackageAdmin(SimpleHistoryAdmin):
         'package_id',
         'customer__email',
         'rider__email',
-        'description'
+        #'description'
     )
 
     list_editable = ('status',)
