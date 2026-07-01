@@ -1264,7 +1264,7 @@ class CreatePackageView(APIView):
             'pickup_address',
             'delivery_address',
             #'receiver_name',
-            #'receiver_phone'
+            'receiver_phone'
         ]
 
         missing = [f for f in required_fields if not data.get(f)]
