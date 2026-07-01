@@ -114,7 +114,7 @@ class PackageSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'package_id',
-            'description',
+            #'description',
             'pickup_address',
             'delivery_address',
             'pickup_lat',
