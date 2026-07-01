@@ -1260,11 +1260,11 @@ class CreatePackageView(APIView):
 
         # Validate required fields
         required_fields = [
-            'description',
+            #'description',
             'pickup_address',
             'delivery_address',
-            'receiver_name',
-            'receiver_phone'
+            #'receiver_name',
+            #'receiver_phone'
         ]
 
         missing = [f for f in required_fields if not data.get(f)]
@@ -1361,6 +1361,7 @@ class CreatePackageView(APIView):
         logger.error(serializer.errors)
         return Response(serializer.errors, status=400)
     
+
 
 class UpdateDeliveryStatusView(APIView):
     permission_classes = [IsAuthenticated, IsApprovedRider]
