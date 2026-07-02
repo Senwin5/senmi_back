@@ -2122,16 +2122,22 @@ class TrackPackageView(APIView):
         try:
             package = Package.objects.get(package_id=package_id)
         except Package.DoesNotExist:
-            return Response({"error": "Package not found"}, status=404)
+            return Response(
+                {"error": "Package not found"},
+                status=404
+            )
 
         if request.user not in [package.customer, package.rider]:
-            return Response({"error": "Unauthorized"}, status=403)
+            return Response(
+                {"error": "Unauthorized"},
+                status=403
+            )
 
-        tracking = PackageTracking.objects.filter(package=package).order_by('-timestamp').first()
+        tracking = PackageTracking.objects.filter(
+            package=package
+        ).order_by('-timestamp').first()
 
-        # =========================
-        # NO TRACKING YET
-        # =========================
+        # no rider location yet
         if not tracking:
 
             remaining_km = calculate_distance(
@@ -2145,8 +2151,19 @@ class TrackPackageView(APIView):
 
             return Response({
                 "package_id": package.package_id,
-                "description": package.description,
+                "status": package.status,
+
+                "lat": None,
+                "lng": None,
+
+                "pickup_lat": package.pickup_lat,
+                "pickup_lng": package.pickup_lng,
+
+                "delivery_lat": package.delivery_lat,
+                "delivery_lng": package.delivery_lng,
+
                 "price": package.price,
+                "description": package.description,
 
                 "sender_name": package.customer.username,
                 "sender_phone": package.customer.phone_number,
@@ -2157,19 +2174,7 @@ class TrackPackageView(APIView):
                 "pickup_address": package.pickup_address,
                 "delivery_address": package.delivery_address,
 
-                "status": package.status,
-
-                # add these
-                "pickup_lat": package.pickup_lat,
-                "pickup_lng": package.pickup_lng,
-
-                "lat": tracking.latitude,
-                "lng": tracking.longitude,
-
-                "delivery_lat": package.delivery_lat,
-                "delivery_lng": package.delivery_lng,
-
-                # always send ETA
+                # THIS WAS MISSING
                 "eta_minutes": eta_minutes,
 
                 "delivery_code":
@@ -2177,24 +2182,33 @@ class TrackPackageView(APIView):
                     if request.user == package.customer
                     else None,
             })
-        
 
-        # =========================
-        # TRACKING EXISTS
-        # =========================
+        # tracking exists
+
         remaining_km = calculate_distance(
-        tracking.latitude,
-        tracking.longitude,
-        package.delivery_lat,
-        package.delivery_lng
+            tracking.latitude,
+            tracking.longitude,
+            package.delivery_lat,
+            package.delivery_lng
         )
 
         eta_minutes = round(remaining_km * 4)
 
         return Response({
             "package_id": package.package_id,
-            "description": package.description,
+            "status": package.status,
+
+            "lat": tracking.latitude,
+            "lng": tracking.longitude,
+
+            "pickup_lat": package.pickup_lat,
+            "pickup_lng": package.pickup_lng,
+
+            "delivery_lat": package.delivery_lat,
+            "delivery_lng": package.delivery_lng,
+
             "price": package.price,
+            "description": package.description,
 
             "sender_name": package.customer.username,
             "sender_phone": package.customer.phone_number,
@@ -2205,15 +2219,13 @@ class TrackPackageView(APIView):
             "pickup_address": package.pickup_address,
             "delivery_address": package.delivery_address,
 
-            "status": package.status,
-
-            "lat": tracking.latitude if tracking else None,
-            "lng": tracking.longitude if tracking else None,
-
-            "delivery_lat": package.delivery_lat,
-            "delivery_lng": package.delivery_lng,
+            # THIS TOO
             "eta_minutes": eta_minutes,
-            
+
+            "delivery_code":
+                package.delivery_code
+                if request.user == package.customer
+                else None,
         })
     
 
