@@ -6,20 +6,16 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.db import IntegrityError
-from .models import PackageTracking
-from .utils import calculate_distance
-from .utils import calculate_distance
+
 from senmi.utils import send_fcm_notification
-from .models import User, RiderProfile, Package 
+from .models import User, RiderProfile, Package, PackageTracking
+from .utils import calculate_distance
+
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework import serializers
-from django.contrib.auth.hashers import make_password
 from rest_framework.exceptions import ValidationError
-from .models import User, RiderProfile
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-
 
 class RegisterSerializer(serializers.ModelSerializer):
     phone_number = serializers.CharField(required=False)
