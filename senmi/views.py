@@ -2135,20 +2135,23 @@ class TrackPackageView(APIView):
             .first()
         )
 
-        # =========================
-        # NO TRACKING YET
-        # pending / paid / accepted
-        # =========================
+    
         if not tracking:
 
-            remaining_km = calculate_distance(
-                package.pickup_lat,
-                package.pickup_lng,
-                package.delivery_lat,
-                package.delivery_lng,
-            )
+            # delivered
+            if package.status == "delivered":
+                eta_minutes = 0
 
-            eta_minutes = round(remaining_km * 4)
+            # pending, paid, accepted
+            else:
+                remaining_km = calculate_distance(
+                    package.pickup_lat,
+                    package.pickup_lng,
+                    package.delivery_lat,
+                    package.delivery_lng,
+                )
+
+                eta_minutes = round(remaining_km * 4)
 
             return Response({
                 "package_id": package.package_id,
@@ -2172,10 +2175,9 @@ class TrackPackageView(APIView):
                 "pickup_address": package.pickup_address,
                 "delivery_address": package.delivery_address,
 
-                # ✅ ETA always available
+                # THIS IS WHAT YOU MISSED
                 "eta_minutes": eta_minutes,
 
-                # only customer sees code
                 "delivery_code":
                     package.delivery_code
                     if request.user == package.customer
