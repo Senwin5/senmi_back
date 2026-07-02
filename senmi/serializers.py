@@ -6,6 +6,8 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.db import IntegrityError
+from .models import PackageTracking
+from .utils import calculate_distance
 from .utils import calculate_distance
 from senmi.utils import send_fcm_notification
 from .models import User, RiderProfile, Package 
@@ -187,15 +189,27 @@ class PackageSerializer(serializers.ModelSerializer):
         return None
     
     def get_eta_minutes(self, obj):
+       
+        tracking = PackageTracking.objects.filter(
+            package=obj
+        ).order_by('-timestamp').first()
 
-        remaining_km = calculate_distance(
-            obj.pickup_lat,
-            obj.pickup_lng,
-            obj.delivery_lat,
-            obj.delivery_lng
-        )
+        if tracking:
+            remaining_km = calculate_distance(
+                tracking.latitude,
+                tracking.longitude,
+                obj.delivery_lat,
+                obj.delivery_lng
+            )
+        else:
+            remaining_km = calculate_distance(
+                obj.pickup_lat,
+                obj.pickup_lng,
+                obj.delivery_lat,
+                obj.delivery_lng
+            )
 
-        return round(remaining_km * 4)
+        return max(0, round(remaining_km * 4))
 
 
         
