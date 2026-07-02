@@ -2115,6 +2115,7 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     return R * c
 
 
+
 class TrackPackageView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -2127,17 +2128,35 @@ class TrackPackageView(APIView):
         if request.user not in [package.customer, package.rider]:
             return Response({"error": "Unauthorized"}, status=403)
 
-        tracking = PackageTracking.objects.filter(package=package).order_by('-timestamp').first()
+        tracking = (
+            PackageTracking.objects
+            .filter(package=package)
+            .order_by('-timestamp')
+            .first()
+        )
 
         # =========================
         # NO TRACKING YET
+        # pending / paid / accepted
         # =========================
         if not tracking:
+
+            remaining_km = calculate_distance(
+                package.pickup_lat,
+                package.pickup_lng,
+                package.delivery_lat,
+                package.delivery_lng,
+            )
+
+            eta_minutes = round(remaining_km * 4)
+
             return Response({
                 "package_id": package.package_id,
                 "status": package.status,
+
                 "lat": None,
                 "lng": None,
+
                 "delivery_lat": package.delivery_lat,
                 "delivery_lng": package.delivery_lng,
 
@@ -2153,23 +2172,43 @@ class TrackPackageView(APIView):
                 "pickup_address": package.pickup_address,
                 "delivery_address": package.delivery_address,
 
-                # ✅ delivery code included
-                #"delivery_code": package.delivery_code,
-                "delivery_code": package.delivery_code if request.user == package.customer else None,
-                
+                # ✅ ETA always available
+                "eta_minutes": eta_minutes,
+
+                # only customer sees code
+                "delivery_code":
+                    package.delivery_code
+                    if request.user == package.customer
+                    else None,
             })
 
         # =========================
         # TRACKING EXISTS
         # =========================
-        remaining_km = calculate_distance(
-        tracking.latitude,
-        tracking.longitude,
-        package.delivery_lat,
-        package.delivery_lng
-        )
 
-        eta_minutes = round(remaining_km * 4)
+        # delivered
+        if package.status == "delivered":
+            eta_minutes = 0
+
+        # rider carrying package
+        elif package.status in ["picked_up", "in_transit"]:
+            remaining_km = calculate_distance(
+                tracking.latitude,
+                tracking.longitude,
+                package.delivery_lat,
+                package.delivery_lng,
+            )
+            eta_minutes = round(remaining_km * 4)
+
+        # pending / paid / accepted
+        else:
+            remaining_km = calculate_distance(
+                package.pickup_lat,
+                package.pickup_lng,
+                package.delivery_lat,
+                package.delivery_lng,
+            )
+            eta_minutes = round(remaining_km * 4)
 
         return Response({
             "package_id": package.package_id,
@@ -2187,18 +2226,23 @@ class TrackPackageView(APIView):
 
             "status": package.status,
 
-            "lat": tracking.latitude if tracking else None,
-            "lng": tracking.longitude if tracking else None,
+            "lat": tracking.latitude,
+            "lng": tracking.longitude,
 
             "delivery_lat": package.delivery_lat,
             "delivery_lng": package.delivery_lng,
+
+            # ✅ ETA always available
             "eta_minutes": eta_minutes,
-            
+
+            # only customer sees code
+            "delivery_code":
+                package.delivery_code
+                if request.user == package.customer
+                else None,
         })
-    
 
     
-
 
 class CustomerPackagesView(APIView):
     permission_classes = [IsAuthenticated]
