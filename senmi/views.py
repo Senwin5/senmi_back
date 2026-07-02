@@ -2135,7 +2135,6 @@ class TrackPackageView(APIView):
             .first()
         )
 
-    
         if not tracking:
 
             # delivered
@@ -2159,6 +2158,9 @@ class TrackPackageView(APIView):
 
                 "lat": None,
                 "lng": None,
+
+                "pickup_lat": package.pickup_lat,
+                "pickup_lng": package.pickup_lng,
 
                 "delivery_lat": package.delivery_lat,
                 "delivery_lng": package.delivery_lng,
@@ -2230,6 +2232,9 @@ class TrackPackageView(APIView):
 
             "lat": tracking.latitude,
             "lng": tracking.longitude,
+
+            "pickup_lat": package.pickup_lat,
+            "pickup_lng": package.pickup_lng,
 
             "delivery_lat": package.delivery_lat,
             "delivery_lng": package.delivery_lng,
