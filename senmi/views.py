@@ -2145,18 +2145,8 @@ class TrackPackageView(APIView):
 
             return Response({
                 "package_id": package.package_id,
-                "status": package.status,
-                "lat": None,
-                "lng": None,
-
-                "pickup_lat": package.pickup_lat,
-                "pickup_lng": package.pickup_lng,
-
-                "delivery_lat": package.delivery_lat,
-                "delivery_lng": package.delivery_lng,
-
-                "price": package.price,
                 "description": package.description,
+                "price": package.price,
 
                 "sender_name": package.customer.username,
                 "sender_phone": package.customer.phone_number,
@@ -2167,6 +2157,19 @@ class TrackPackageView(APIView):
                 "pickup_address": package.pickup_address,
                 "delivery_address": package.delivery_address,
 
+                "status": package.status,
+
+                # add these
+                "pickup_lat": package.pickup_lat,
+                "pickup_lng": package.pickup_lng,
+
+                "lat": tracking.latitude,
+                "lng": tracking.longitude,
+
+                "delivery_lat": package.delivery_lat,
+                "delivery_lng": package.delivery_lng,
+
+                # always send ETA
                 "eta_minutes": eta_minutes,
 
                 "delivery_code":
@@ -2174,6 +2177,7 @@ class TrackPackageView(APIView):
                     if request.user == package.customer
                     else None,
             })
+        
 
         # =========================
         # TRACKING EXISTS
