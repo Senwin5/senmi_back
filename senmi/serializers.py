@@ -6,7 +6,7 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.db import IntegrityError
-
+from .utils import calculate_distance
 from senmi.utils import send_fcm_notification
 from .models import User, RiderProfile, Package 
 from rest_framework.exceptions import AuthenticationFailed
@@ -108,6 +108,8 @@ class PackageSerializer(serializers.ModelSerializer):
 
     rider_profile_picture = serializers.SerializerMethodField()
     vehicle_number = serializers.SerializerMethodField()
+      # 🔥 ADD THIS
+    eta_minutes = serializers.SerializerMethodField()
 
     class Meta:
         model = Package
@@ -129,9 +131,7 @@ class PackageSerializer(serializers.ModelSerializer):
             'is_paid',
             'commission',
             'rider_earning',
-
-            'delivery_code',   # ✅ ADD THIS BACK
-
+            'delivery_code',   # ADD THIS BACK
             'sender_name',
             'sender_phone',
             'rider_name',
@@ -139,6 +139,8 @@ class PackageSerializer(serializers.ModelSerializer):
              # extra info
             'rider_profile_picture',
             'vehicle_number',
+             #ADD THIS
+            'eta_minutes',
         ]
 
         read_only_fields = [
@@ -183,6 +185,17 @@ class PackageSerializer(serializers.ModelSerializer):
             return obj.rider.riderprofile.vehicle_number
 
         return None
+    
+    def get_eta_minutes(self, obj):
+
+        remaining_km = calculate_distance(
+            obj.pickup_lat,
+            obj.pickup_lng,
+            obj.delivery_lat,
+            obj.delivery_lng
+        )
+
+        return round(remaining_km * 4)
 
 
         
