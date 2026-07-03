@@ -1835,7 +1835,11 @@ class PaystackWebhookView(APIView):
 
         if not signature or not hmac.compare_digest(signature, expected_hash):
             logger.warning("Paystack webhook signature mismatch")
-            return Response(status=400)
+            #return Response(status=400)
+            return Response({
+                "success": False,
+                "message": "Invalid webhook signature"
+            }, status=400)
 
         try:
             # =========================
@@ -1844,7 +1848,11 @@ class PaystackWebhookView(APIView):
             payload = json.loads(request.body.decode('utf-8'))
         except json.JSONDecodeError:
             logger.error("Invalid JSON received in Paystack webhook")
-            return Response(status=400)
+            #return Response(status=400)
+            return Response({
+                "success": False,
+                "message": "Invalid JSON payload"
+            }, status=400)
 
         event = payload.get("event")
         data = payload.get("data", {})
@@ -1852,7 +1860,11 @@ class PaystackWebhookView(APIView):
 
         if event != 'charge.success' or not reference:
             logger.info(f"Ignored Paystack webhook event: {event}")
-            return Response(status=200)
+            #return Response(status=200)
+            return Response({
+                "success": True,
+                "message": "Event ignored"
+            }, status=200)
 
         try:
             with transaction.atomic():
@@ -1860,7 +1872,12 @@ class PaystackWebhookView(APIView):
 
                 if package.is_paid:
                     logger.info(f"Package {package.id} already marked as paid. Ignoring webhook.")
-                    return Response(status=200)
+                    #return Response(status=200)
+                    return Response({
+                        "success": True,
+                        "message": "Package already processed"
+                    }, status=200) 
+                
 
                 package.is_paid = True
                 package.status = "paid"
@@ -1878,14 +1895,29 @@ class PaystackWebhookView(APIView):
 
             
         except Package.DoesNotExist:
-            logger.warning(f"No package found with payment reference {reference}")
-            return Response(status=200)
+            logger.warning(
+                f"No package found with payment reference {reference}"
+            )
 
-        except Exception as e:
-            logger.exception(f"Error processing Paystack webhook for reference {reference}")
-            return Response(status=500)
+            return Response({
+                "success": True,
+                "message": "Package not found"
+            }, status=200)
 
-        return Response(status=200)
+        except Exception:
+            logger.exception(
+                f"Error processing Paystack webhook for reference {reference}"
+            )
+
+            return Response({
+                "success": False,
+                "message": "Internal server error"
+            }, status=500)
+
+        return Response({
+            "success": True,
+            "message": "Webhook processed"
+        }, status=200)
     
 
 
@@ -1894,24 +1926,53 @@ class PaymentCallbackView(APIView):
         reference = request.GET.get("reference")
 
         if not reference:
-            return Response({"error": "No reference"}, status=400)
+            #return Response({"error": "No reference"}, status=400)
+            return Response({"success": False,"message": "No payment reference provided"}, status=400)
 
         headers = {
             "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"
         }
 
-        verify = requests.get(
+        """verify = requests.get(
             f"https://api.paystack.co/transaction/verify/{reference}",
             headers=headers
-        ).json()
+        ).json()"""
+
+        try:
+            verify = requests.get(
+                f"https://api.paystack.co/transaction/verify/{reference}",
+                headers=headers,
+                timeout=(59)
+            ).json()
+
+        except requests.RequestException:
+            logger.exception(
+                f"Paystack verification failed for reference {reference}"
+            )
+
+            return Response({
+                "success": False,
+                "message": "Could not verify payment"
+            }, status=500)
+        
 
         if not verify.get("status"):
-            return Response({"error": "Verification failed"}, status=400)
+            #return Response({"error": "Verification failed"}, status=400)
+            return Response({
+                "success": False,
+                "message": "Verification failed"
+            }, status=400)
 
         data = verify["data"]
 
+        """if data["status"] != "success":
+            return Response({"error": "Payment not successful"}, status=400)"""
         if data["status"] != "success":
-            return Response({"error": "Payment not successful"}, status=400)
+            return Response({
+                "success": False,
+                "message": "Payment not successful"
+            }, status=400)
+            
 
         try:
             with transaction.atomic():
@@ -1920,10 +1981,12 @@ class PaymentCallbackView(APIView):
                 )
 
                 if package.is_paid:
+                    #return Response({"message": "Package already paid"})
                     return Response({
+                        "success": True,
                         "message": "Package already paid"
-                    })
-                
+                    }, status=200)
+                    
 
                 package.is_paid = True
                 package.status = "paid"
@@ -2007,14 +2070,23 @@ class PaymentCallbackView(APIView):
                     )
 
         except Package.DoesNotExist:
-            return Response({"error": "Package not found"}, status=404)
+            #return Response({"error": "Package not found"}, status=404)
+            return Response({
+                "success": False,
+                "message": "Package not found"
+            }, status=404)
         
-        if package.is_paid:
+        """if package.is_paid:
             return redirect(
                 f"https://www.senmi.com.ng/api/payment-success/"
                 f"?package_id={package.package_id}"
                 f"&delivery_code={package.delivery_code}"
-            )
+            )"""
+        return redirect(
+            f"https://www.senmi.com.ng/api/payment-success/"
+            f"?package_id={package.package_id}"
+            f"&delivery_code={package.delivery_code}"
+        )
 
 
 
