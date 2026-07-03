@@ -2325,7 +2325,6 @@ class CustomerPackagesView(APIView):
 
             data.append({
                 "id": p.id,
-                "description": p.description,
                 "price": float(p.price),
                 "is_paid": p.is_paid,
                 "status": p.status,
