@@ -1981,7 +1981,7 @@ class PaymentCallbackView(APIView):
                 )
 
                 if package.is_paid:
-                    #return Response({"message": "Package already paid"})
+                   
                     return Response({
                         "success": True,
                         "message": "Package already paid"
