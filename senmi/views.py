@@ -2164,7 +2164,7 @@ class UpdateLocationView(APIView):
             package.delivery_lng
         )
 
-        eta_minutes = max(1, round(remaining_km * 2))
+
         if package.status == "delivered":
             eta_minutes = 0
         else:
