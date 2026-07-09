@@ -2164,8 +2164,11 @@ class UpdateLocationView(APIView):
             package.delivery_lng
         )
 
-        #eta_minutes = round(remaining_km * 2)
         eta_minutes = max(1, round(remaining_km * 2))
+        if package.status == "delivered":
+            eta_minutes = 0
+        else:
+            eta_minutes = max(1, round(remaining_km * 2))
 
 
         async_to_sync(channel_layer.group_send)(
@@ -2232,8 +2235,10 @@ class TrackPackageView(APIView):
                 package.delivery_lng
             )
 
-            #eta_minutes = round(remaining_km * 2)
-            eta_minutes = max(1, round(remaining_km * 2))
+            if package.status == "delivered":
+                eta_minutes = 0
+            else:
+                eta_minutes = max(1, round(remaining_km * 2))
 
             return Response({
                 "package_id": package.package_id,
@@ -2278,7 +2283,10 @@ class TrackPackageView(APIView):
             package.delivery_lng
         )
 
-        eta_minutes = round(remaining_km * 2)
+        if package.status == "delivered":
+            eta_minutes = 0
+        else:
+            eta_minutes = max(1, round(remaining_km * 2))
 
         return Response({
             "package_id": package.package_id,

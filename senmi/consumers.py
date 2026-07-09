@@ -56,7 +56,8 @@ class TrackingConsumer(
             text_data=json.dumps({
                 "lat": event.get("lat"),
                 "lng": event.get("lng"),
-                "status": event.get("status")
+                "status": event.get("status"),
+                "eta_minutes": event.get("eta_minutes"),
             })
         )
 
