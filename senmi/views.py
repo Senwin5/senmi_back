@@ -1123,7 +1123,6 @@ class AvailablePackagesView(APIView):
 
             data.append({
                 "package_id": p.package_id,
-                "description": p.description,
                 "pickup": p.pickup_address,
                 "price": float(p.price),
                 "receiver_name": p.receiver_name,
