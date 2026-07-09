@@ -2156,13 +2156,26 @@ class UpdateLocationView(APIView):
         PackageTracking.objects.create(package=package, rider=request.user, latitude=lat, longitude=lng)
 
         channel_layer = get_channel_layer()
+       
+        remaining_km = calculate_distance(
+            lat,
+            lng,
+            package.delivery_lat,
+            package.delivery_lng
+        )
+
+        #eta_minutes = round(remaining_km * 2)
+        eta_minutes = max(1, round(remaining_km * 2))
+
+
         async_to_sync(channel_layer.group_send)(
-            f"tracking_{package.package_id}",  # ✅ FIXED
+            f"tracking_{package.package_id}",
             {
                 "type": "send_location",
                 "lat": lat,
                 "lng": lng,
-                "status": package.status,  # ✅ also add this
+                "status": package.status,
+                "eta_minutes": eta_minutes,
             }
         )
         return Response({"message": "Location updated"})
@@ -2219,7 +2232,8 @@ class TrackPackageView(APIView):
                 package.delivery_lng
             )
 
-            eta_minutes = round(remaining_km * 2)
+            #eta_minutes = round(remaining_km * 2)
+            eta_minutes = max(1, round(remaining_km * 2))
 
             return Response({
                 "package_id": package.package_id,
