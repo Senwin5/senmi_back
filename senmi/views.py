@@ -2219,7 +2219,7 @@ class TrackPackageView(APIView):
                 package.delivery_lng
             )
 
-            eta_minutes = round(remaining_km * 4)
+            eta_minutes = round(remaining_km * 2)
 
             return Response({
                 "package_id": package.package_id,
@@ -2264,7 +2264,7 @@ class TrackPackageView(APIView):
             package.delivery_lng
         )
 
-        eta_minutes = round(remaining_km * 4)
+        eta_minutes = round(remaining_km * 2)
 
         return Response({
             "package_id": package.package_id,
