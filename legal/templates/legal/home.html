@@ -1,95 +1,94 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Home | Senmi{% endblock %}
 
 {% block content %}
 
 <section class="hero-section">
-    <div class="container text-center">
-
-        <h1 class="display-3 fw-bold">
-            Fast & Reliable Delivery
-        </h1>
-
-        <p class="lead mt-4">
-            Connect with trusted riders for secure and
-            real-time delivery services across Nigeria.
-        </p>
-
-        <a href="/contact/" class="btn btn-light btn-lg mt-3 px-5">
-            Get Started
-        </a>
-
-    </div>
-</section>
-
-<section class="py-5">
     <div class="container">
 
-        <!-- Heading -->
-        <h2 class="fw-bold mb-5">
-            How Courier works
-        </h2>
+        <div class="row align-items-center gy-5">
 
-        <div class="row g-5 text-center">
+            <!-- Left -->
+            <div class="col-lg-6">
+                <h2 class="display-3 fw-bold">
+                    Deliver Package,
+                    <span class="text-warning">Anywhere</span>
+                    in Lagos.
+                </h2>
 
-            <!-- Card 1 -->
-            <div class="col-lg-4">
-
-                <img src="images/request.png"
-                     class="img-fluid rounded mb-4"
-                     alt="Request Courier">
-
-                <h4 class="fw-bold mb-3 text-start">
-                    Request as easily as a ride
-                </h4>
-
-                <p class="text-start text-light">
-                    Using Courier is as simple as requesting a ride.
-                    In just a few steps, you can request for a delivery
-                    person to pick something up and deliver it across
-                    town, when you can't get to it.
+                <p class="lead mt-4">
+                    Senmi Logistics makes sending packages fast, secure and
+                    affordable with real-time tracking, verified riders and
+                    instant delivery updates.
                 </p>
+
+                <div class="d-flex gap-3 flex-wrap mt-4">
+
+                    <a href="https://play.google.com/store/apps/details?id=com.senmi.app"
+                       class="btn btn-light btn-lg px-4">
+
+                        <i class="bi bi-google-play me-2"></i>
+                        Download App
+                    </a>
+
+                    <a href="/contact/"
+                       class="btn btn-outline-light btn-lg px-4">
+                        Contact Us
+                    </a>
+
+                </div>
+
+                <div class="row mt-5">
+
+                    <div class="col-4">
+
+                        <h3 class="fw-bold">
+                            <i class="bi bi-geo-alt-fill"></i>
+                        </h3>
+
+                        <small>
+                            Live GPS Tracking
+                        </small>
+
+                    </div>
+
+                    <div class="col-4">
+
+                        <h3 class="fw-bold">
+                            <i class="bi bi-shield-check"></i>
+                        </h3>
+
+                        <small>
+                            Secure Deliveries
+                        </small>
+
+                    </div>
+
+                    <div class="col-4">
+
+                        <h3 class="fw-bold">
+                            <i class="bi bi-bicycle"></i>
+                        </h3>
+
+                        <small>
+                            Trusted Riders
+                        </small>
+
+                    </div>
+
+                </div>
 
             </div>
 
-            <!-- Card 2 -->
-            <div class="col-lg-4">
+            <!-- Right -->
+            <div class="col-lg-6 text-center">
 
-                <img src="images/track.png"
-                     class="img-fluid rounded mb-4"
-                     alt="Track Package">
-
-                <h4 class="fw-bold mb-3 text-start">
-                    Track your items at all times
-                </h4>
-
-                <p class="text-start text-light">
-                    Whether you're sending or receiving,
-                    you can access features like live tracking,
-                    trip sharing, and PIN delivery verification.
-                </p>
-
-            </div>
-
-            <!-- Card 3 -->
-            <div class="col-lg-4">
-
-                <img src="images/manage.png"
-                     class="img-fluid rounded mb-4"
-                     alt="Manage Busy Moments">
-
-                <h4 class="fw-bold mb-3 text-start">
-                    Manage busy moments
-                </h4>
-
-                <p class="text-start text-light">
-                    When life gets hectic, Courier is here to help
-                    lighten the load. Meet the demands of your busy
-                    life or small business needs without the extra
-                    stress. We help take care of the to-dos so you
-                    don't have to.
-                </p>
+                <img src="{% static 'images/hero-phone.png' %}"
+                    class="img-fluid rounded-4"
+                    style="max-height:500px;"
+                    alt="Senmi App">
 
             </div>
 
@@ -97,6 +96,8 @@
 
     </div>
 </section>
+
+
 
 <section class="py-5">
     <div class="container">
@@ -155,6 +156,79 @@
 
                     </div>
                 </div>
+            </div>
+
+        </div>
+
+    </div>
+</section>
+
+<section class="py-5">
+    <div class="container">
+
+        <h2 class="fw-bold mb-5" style="color: #581C87;">
+            How Senmi Logistics Works
+        </h2>
+
+        <div class="row g-5">
+
+            <!-- Card 1 -->
+            <div class="col-lg-4">
+
+                <img src="{% static 'images/request.png' %}"
+                     class="img-fluid rounded mb-4"
+                     alt="Book a Delivery">
+
+                <h4 class="fw-bold" style="color: #581C87;">
+                    Book Your Delivery
+                </h4>
+
+                <p class="text-muted">
+                    Create a delivery request through the Senmi Logistics app
+                    by entering your pickup and delivery locations, package
+                    details, and recipient information. Booking a delivery is
+                    fast, simple, and secure.
+                </p>
+
+            </div>
+
+            <!-- Card 2 -->
+            <div class="col-lg-4">
+
+                <img src="{% static 'images/track.png' %}"
+                     class="img-fluid rounded mb-4"
+                     alt="Track Your Package">
+
+                <h4 class="fw-bold" style="color: #581C87;">
+                    Track Every Delivery 
+                </h4>
+
+                <p class="text-muted">
+                    Stay informed from pickup to delivery with live GPS tracking,
+                    delivery updates, rider information, and instant notifications.
+                    Know exactly where your package is at every stage.
+                </p>
+
+            </div>
+
+            <!-- Card 3 -->
+            <div class="col-lg-4">
+
+                <img src="{% static 'images/manage.png' %}"
+                     class="img-fluid rounded mb-4"
+                     alt="Reliable Logistics">
+
+                <h4 class="fw-bold" style="color: #581C87;">
+                    Safe & Reliable
+                </h4>
+
+                <p class="text-muted">
+                    Whether you're sending personal items, business deliveries,
+                    or urgent packages, Senmi Logistics connects you with trusted
+                    riders who ensure your deliveries arrive safely, quickly,
+                    and at competitive prices.
+                </p>
+
             </div>
 
         </div>

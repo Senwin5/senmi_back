@@ -26,12 +26,11 @@ DEBUG = True
 
 
 ALLOWED_HOSTS = [
+    '*',
     "www.senmi.com.ng",
     "senmi.com.ng",
     "senmiback-production.up.railway.app",
     ".up.railway.app",
-    "127.0.0.1",
-    "localhost"
 ]
 
 AUTH_USER_MODEL = 'senmi.User'
@@ -171,18 +170,7 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
-# ==========================
-# EMAIL CONFIG (RESEND ONLY)
-# ==========================
 
-# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-# EMAIL_HOST = 'smtp.gmail.com'
-# EMAIL_PORT = 587
-# EMAIL_USE_TLS = True
-# EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
-# EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
-
-#EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
 
 ANYMAIL = {
     "RESEND_API_KEY": os.getenv("RESEND_API_KEY")
