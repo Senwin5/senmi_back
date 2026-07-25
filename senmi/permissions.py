@@ -5,7 +5,6 @@ from senmi_back import settings
 from venv import logger
 
 
-
 class IsAdminOrSupport(BasePermission):
     def has_permission(self, request, view):
         return (
@@ -13,7 +12,6 @@ class IsAdminOrSupport(BasePermission):
             request.user.role in ['admin', 'support']
         )
     
-
 
  
 """# ------------------------------

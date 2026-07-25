@@ -1,7 +1,3 @@
-"""
-Django settings for senmi_back project.
-"""
-
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -9,12 +5,12 @@ load_dotenv()
 import cloudinary
 import dj_database_url
 load_dotenv()
-
+from datetime import timedelta
 from django.contrib.messages import constants as messages
 
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+#Build paths inside the project like this..       
+BASE_DIR = Path(__file__).resolve().parent.parent 
 
 
 # SECURITY WARNING: keep the secret key used in production secret!
@@ -153,14 +149,11 @@ USE_I18N = True
 USE_TZ = True
 
 
-from datetime import timedelta
-
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
 }
-
 
 
 SIMPLE_JWT = {
@@ -174,14 +167,12 @@ SIMPLE_JWT = {
 # ==========================
 # EMAIL CONFIG (RESEND ONLY)
 # ==========================
-
 # EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 # EMAIL_HOST = 'smtp.gmail.com'
 # EMAIL_PORT = 587
 # EMAIL_USE_TLS = True
 # EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 # EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
-
 #EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
 
 ANYMAIL = {
@@ -196,7 +187,6 @@ NOTIFY_EMAIL = os.getenv("NOTIFY_EMAIL")
 PAYSTACK_PUBLIC_KEY = os.getenv("PAYSTACK_PUBLIC_KEY")
 PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY")
 PAYSTACK_WEBHOOK_SECRET = os.getenv("PAYSTACK_WEBHOOK_SECRET")
-
 
 PAYMENT_CALLBACK_URL = "https://www.senmi.com.ng/api/payment/callback/"
 
@@ -224,7 +214,7 @@ COMMISSION_RATE = float(os.getenv("COMMISSION_RATE", 0.05))
 # settings.py
 BASE_FEE = 1000          # starting price (adjust anytime)
 PER_KM_RATE = 220       # cost per km (fuel dependent)
-FUEL_MULTIPLIER = 1.3   # can increase during fuel hike
+FUEL_MULTIPLIER = 1.3   # can increase during fuel hike 
 
 
 STATIC_URL = 'static/'

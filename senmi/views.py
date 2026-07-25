@@ -2322,8 +2322,6 @@ class TrackPackageView(APIView):
         })
     
 
-
-
 class CustomerPackagesView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -2406,9 +2404,7 @@ class RiderWalletView(APIView):
 # ------------------------------
 class RiderWithdrawView(APIView):
     permission_classes = [IsAuthenticated]
-
     def post(self, request):
-
         try:
             amount = Decimal(request.data.get('amount'))
             if amount <= 0:
@@ -2495,7 +2491,7 @@ class RiderWithdrawView(APIView):
             json=recipient_data,
             headers=headers
         ).json()
-
+       
         print("RECIPIENT RESPONSE:", recipient_res)
 
         if not recipient_res.get("status"):
@@ -2954,7 +2950,6 @@ def search_package(request):
 
     if not query:
         return JsonResponse({"error": "No search query provided"}, status=400)
-
     package = Package.objects.filter(
         Q(package_id__icontains=query) |
         Q(payment_reference__icontains=query)
