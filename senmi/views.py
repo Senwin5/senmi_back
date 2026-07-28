@@ -309,7 +309,16 @@ class RiderLoginAPIView(APIView):
             if not profile:
                 return Response({"detail": "Complete your profile before logging in."}, status=403)
             if profile.status == 'pending':
-                return Response({"detail": "Your profile is pending admin approval."}, status=403)
+                refresh = RefreshToken.for_user(user)
+
+                return Response({
+                    "access": str(refresh.access_token),
+                    "refresh": str(refresh),
+                    "role": user.role,
+                    "username": user.username,
+                    "is_admin": user.is_superuser,
+                    "rider_status": "pending",
+                })
             if profile.status == 'rejected':
                 return Response({"detail": f"Profile rejected: {profile.rejection_reason}"}, status=403)
 
