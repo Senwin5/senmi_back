@@ -318,7 +318,7 @@ class RiderLoginAPIView(APIView):
                     "username": user.username,
                     "is_admin": user.is_superuser,
                     "rider_status": "pending",
-                })
+                }, status=200)
             if profile.status == 'rejected':
                 return Response({"detail": f"Profile rejected: {profile.rejection_reason}"}, status=403)
 
