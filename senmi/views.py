@@ -1027,7 +1027,7 @@ class RiderProfileUpdateView(APIView):
         if request.user.role != 'rider':
             return Response({"detail": "Only riders can edit profile."}, status=403)
 
-        #profile = request.user.riderprofile
+       
         profile, created = RiderProfile.objects.get_or_create(
             user=request.user
         )

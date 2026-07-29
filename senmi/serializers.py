@@ -231,16 +231,6 @@ class CustomLoginSerializer(TokenObtainPairSerializer):
         if user is None:
             raise AuthenticationFailed("Invalid credentials check email and password")
 
-        # Step 2: Block riders if profile incomplete
-        """if user.role == 'rider':
-            profile = getattr(user, 'riderprofile', None)
-            if not profile:
-                raise AuthenticationFailed("Complete your profile before logging in.")
-            if profile.status == 'pending':
-                raise AuthenticationFailed("Your profile is pending admin approval.")
-            if profile.status == 'rejected':
-                raise AuthenticationFailed(f"Profile rejected: {profile.rejection_reason}")"""
-
         # Step 3: Generate JWT token
         data = super().validate(attrs)
 
