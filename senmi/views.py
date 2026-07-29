@@ -1027,7 +1027,10 @@ class RiderProfileUpdateView(APIView):
         if request.user.role != 'rider':
             return Response({"detail": "Only riders can edit profile."}, status=403)
 
-        profile = request.user.riderprofile
+        #profile = request.user.riderprofile
+        profile, created = RiderProfile.objects.get_or_create(
+            user=request.user
+        )
         serializer = RiderProfileSerializer(profile, data=request.data, partial=True)
         if serializer.is_valid():
             required_fields = ['full_name', 'phone_number', 'vehicle_number', 'address', 'city']
