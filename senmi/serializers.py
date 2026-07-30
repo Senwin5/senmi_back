@@ -6,11 +6,10 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.db import IntegrityError
-
+from .models import User
 from senmi.utils import send_fcm_notification
 from .models import User, RiderProfile, Package, PackageTracking
 from .utils import calculate_distance
-
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.exceptions import ValidationError
 from rest_framework.decorators import api_view, permission_classes
@@ -262,7 +261,19 @@ class CustomLoginSerializer(TokenObtainPairSerializer):
         return data
     
 
+class CustomerProfileUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["username", "email", "phone_number"]
 
+    def validate_email(self, value):
+        user = self.instance
+
+        if User.objects.exclude(id=user.id).filter(email=value).exists():
+            raise serializers.ValidationError("Email already exists.")
+
+        return value
+    
 class AdminAnalyticsSerializer(serializers.Serializer):
     total_deliveries = serializers.IntegerField()
     completed_deliveries = serializers.IntegerField()

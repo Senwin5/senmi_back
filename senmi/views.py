@@ -40,7 +40,7 @@ from math import radians, sin, cos, sqrt, atan2
 from senmi.permissions import IsAdminOrSupport
 from senmi.utils import (calculate_distance,calculate_price,send_email,)
 from .models import (FCMDevice,Package,PackageTracking, PasswordResetOTP,RiderProfile,RiderRating,RiderWallet,Withdrawal,)
-from .serializers import (AdminAnalyticsSerializer,CustomLoginSerializer,PackageSerializer,RegisterSerializer,RiderProfileSerializer,UserSerializer,)
+from .serializers import (AdminAnalyticsSerializer,CustomLoginSerializer, CustomerProfileUpdateSerializer,PackageSerializer,RegisterSerializer,RiderProfileSerializer,UserSerializer,)
 from .utils import (notify_admin_dashboard,send_fcm_notification,)
 
 
@@ -329,6 +329,33 @@ class UserProfileView(APIView):
     def get(self, request):
         serializer = UserSerializer(request.user)
         return Response(serializer.data)
+
+    def put(self, request):
+        user = request.user
+
+        # Only customers can edit
+        if user.role != "customer":
+            return Response(
+                {"error": "Only customers can update their profile."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = CustomerProfileUpdateSerializer(
+            user,
+            data=request.data,
+            partial=True,
+        )
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                "success": True,
+                "message": "Profile updated successfully.",
+                "user": serializer.data,
+            })
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
 # ------------------------------
 # Admin Views
 # ------------------------------
