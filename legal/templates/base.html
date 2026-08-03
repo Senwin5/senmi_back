@@ -71,6 +71,22 @@
             padding: 14px 20px;
             font-weight: 600;
         }
+        .navbar-logo {
+            width: 45px;
+            height: 45px;
+            border-radius: 3px;
+            object-fit: contain;
+        }
+        .footer-logo {
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
+            border-radius: 5px;
+            overflow: hidden;
+            display: block;
+            background-color: white;
+            padding: 5px;
+        }
 
     </style>
 
@@ -84,8 +100,10 @@
      style="background-color: #581C87;">
     <div class="container">
 
-        <a class="navbar-brand" href="/">
-            <i class="bi bi-truck"></i> Senmi
+        <a class="navbar-brand d-flex align-items-center" href="/">
+            <img src="{% static 'logo.png' %}"
+                alt="Senmi Logo"
+                class="navbar-logo">
         </a>
 
         <button class="navbar-toggler"
@@ -147,6 +165,7 @@
 
 <!-- PAGE CONTENT -->
 {% block content %}
+
 {% endblock %}
 
 <!-- FOOTER -->
@@ -158,13 +177,11 @@
             <!-- Company -->
             <div class="col-lg-5 col-md-12">
 
-                <h4 class="fw-bold mb-1">
-                    <i class="bi bi-truck"></i> Senmi
+                <h4 class="fw-bold mb-1 d-flex align-items-center">
+                    <img src="{% static 'logo.png' %}"
+                        alt="Senmi Logo"
+                        class="footer-logo">
                 </h4>
-
-                <small class="text-light">
-                    Trading name of Real Time Delivery App Ltd
-                </small>
 
                 <p class="text-light mt-3">
                     Senmi provides technology-enabled package delivery services
