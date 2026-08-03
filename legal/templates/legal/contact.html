@@ -1,80 +1,172 @@
 {% extends 'base.html' %}
 
-{% block title %}Home | Senmi{% endblock %}
+{% block title %}Contact Us | Senmi{% endblock %}
 
 {% block content %}
 
-
 <div class="container py-5">
 
-    <div class="text-center mb-5" style="color: #581C87;">
-        <h1>Contact Us</h1>
+    <!-- Page Header -->
+    <div class="text-center mb-5">
+        <h1 class="fw-bold" style="color:#581C87;">
+            Contact Us
+        </h1>
+
         <p class="text-muted">
+            Have a question, need support, or want to partner with us?
             We'd love to hear from you.
         </p>
     </div>
 
     <div class="row g-5">
 
-        <div class="col-md-6">
-            <div class="card shadow-sm">
-                <div class="card-body">
+        <!-- Contact Form -->
+        <div class="col-lg-6">
 
-                    <h3 class="mb-4" style="color: #581C87;">Send a Message</h3>
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body p-4">
+
+                    <h3 class="mb-4" style="color:#581C87;">
+                        Send Us a Message
+                    </h3>
 
                     <form>
+
                         <div class="mb-3">
                             <label class="form-label">Full Name</label>
-                            <input type="text" class="form-control">
+                            <input
+                                type="text"
+                                class="form-control"
+                                placeholder="Enter your full name">
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label">Email Address</label>
-                            <input type="email" class="form-control">
+                            <input
+                                type="email"
+                                class="form-control"
+                                placeholder="Enter your email">
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label">Message</label>
-                            <textarea class="form-control" rows="5"></textarea>
+                            <textarea
+                                class="form-control"
+                                rows="6"
+                                placeholder="How can we help you?"></textarea>
                         </div>
 
-                        <button class="btn w-100 text-white"
-                                style="background-color: #581C87; border-color: #581C87;">
+                        <button
+                            type="submit"
+                            class="btn w-100 text-white"
+                            style="background:#581C87;">
 
+                            <i class="bi bi-send-fill me-2"></i>
                             Send Message
+
                         </button>
-                                            </form>
+
+                    </form>
 
                 </div>
             </div>
+
         </div>
 
-        <div class="col-md-6">
+        <!-- Right Side -->
+        <div class="col-lg-6">
 
-            <div class="card shadow-sm mb-4">
-                <div class="card-body">
-                    <h3  style="color: #581C87;">Who We Are</h3>
+            <!-- About -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
 
-                    <p>
-                        Senmi is a delivery platform focused on providing reliable,
-                        fast, and secure delivery services for customers and businesses.
+                <div class="card-body p-4">
+
+                    <h3 style="color:#581C87;">
+                        Who We Are
+                    </h3>
+
+                    <p class="mt-3">
+                        <strong>Senmi Logistics</strong> is the trading name of
+                        <strong>Real Time Delivery App Ltd</strong>.
+                        We provide technology-enabled package delivery services
+                        across Lagos through approved independent riders
+                        engaged by the company.
                     </p>
 
-                    <p>
-                        Our mission is to make logistics easier through technology
-                        and trusted riders.
+                    <p class="mb-0">
+                        Our mission is to make package delivery simple,
+                        reliable, secure, and transparent for individuals
+                        and businesses.
                     </p>
+
                 </div>
+
             </div>
 
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <h3 style="color: #581C87;">Contact Information</h3>
+            <!-- Contact Information -->
+            <div class="card border-0 shadow-sm rounded-4">
 
-                    <p><strong>Email:</strong> senmisupport@gmail.com</p>
-                    <p><strong>Phone:</strong> +234 701 608 7680</p>
-                    <p><strong>Location:</strong> Karimu Street, Lagos, Nigeria</p>
+                <div class="card-body p-4">
+
+                    <h3 style="color:#581C87;">
+                        Contact Information
+                    </h3>
+
+                    <hr>
+
+                    <p>
+                        <i class="bi bi-envelope-fill text-primary me-2"></i>
+
+                        <strong>Email</strong><br>
+
+                        <a href="mailto:senmisupport@gmail.com"
+                           class="text-decoration-none">
+
+                            senmisupport@gmail.com
+
+                        </a>
+                    </p>
+
+                    <p>
+                        <i class="bi bi-telephone-fill text-success me-2"></i>
+
+                        <strong>Phone</strong><br>
+
+                        <a href="tel:+2347016087680"
+                           class="text-decoration-none">
+
+                            +234 701 608 7680
+
+                        </a>
+                    </p>
+
+                    <p>
+                        <i class="bi bi-whatsapp text-success me-2"></i>
+
+                        <strong>WhatsApp Support</strong>
+                    </p>
+
+                    <a href="https://wa.me/2347016087680?text=Hello%20Senmi%20Support"
+                       target="_blank"
+                       class="btn btn-success w-100 mb-4">
+
+                        <i class="bi bi-whatsapp me-2"></i>
+
+                        Chat With Us on WhatsApp
+
+                    </a>
+
+                    <p class="mb-0">
+                        <i class="bi bi-geo-alt-fill text-danger me-2"></i>
+
+                        <strong>Location</strong><br>
+
+                        Karimu Street,<br>
+                        Lagos, Nigeria
+                    </p>
+
                 </div>
+
             </div>
 
         </div>
