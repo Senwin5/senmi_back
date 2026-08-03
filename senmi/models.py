@@ -251,7 +251,7 @@ class Package(models.Model):
 
         if self.rider_earning < 0:
             self.rider_earning = Decimal('0')
-
+        
         if not self.delivery_code:
             self.delivery_code = self.generate_unique_delivery_code()
 

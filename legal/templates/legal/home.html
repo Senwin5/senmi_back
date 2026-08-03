@@ -1,527 +1,111 @@
 {% extends 'base.html' %}
+
 {% load static %}
-{% block title %} Home | Senmi{% endblock %}
+
+{% block title %}Home | Senmi{% endblock %}
+
 {% block content %}
 
+<!-- Hero Section -->
+
 <section class="hero-section">
-    <div class="container">
 
-        <div class="row align-items-center gy-5">
+<div class="container">
 
-            <!-- Left -->
-            <div class="col-lg-6">
-                <h2 class="display-3 fw-bold">
-                    Send Packages
-                    <span class="text-warning">Across Lagos,</span>
-                    Safely and Reliably.
-                </h2>
+    <div class="row align-items-center gy-5">
 
-                <p class="lead mt-4">
-                    Senmi Logistics is a package delivery platform that connects customers 
-                    with trusted riders. Create a delivery request, calculate your delivery cost, 
-                    make a secure payment, and track your package from pickup to delivery.
-                </p>
+        <!-- Left -->
+        <div class="col-lg-6">
 
-                <div class="d-flex gap-3 flex-wrap mt-4">
-                    <a href="https://play.google.com/store/apps/details?id=com.senmi.app"
-                       class="btn btn-light btn-lg px-4">
-                        <i class="bi bi-google-play me-2"></i>
-                        Download App
-                    </a>
-                    <a href="/contact/"
-                       class="btn btn-outline-light btn-lg px-4">
-                        Contact Us
-                    </a>
-                </div>
+            <h2 class="display-3 fw-bold">
 
-                <div class="row mt-5">
-                    <div class="col-4">
+                Send Packages
 
-                        <h3 class="fw-bold">
-                            <i class="bi bi-geo-alt-fill"></i>
-                        </h3>
-                        <small>
-                            Live GPS Tracking
-                        </small>
-                    </div>
+                <span class="text-warning">Across Lagos,</span>
 
-                    <div class="col-4">
+                Safely and Reliably.
 
-                        <h3 class="fw-bold">
-                            <i class="bi bi-shield-check"></i>
-                        </h3>
-
-                        <small>
-                            Secure Deliveries
-                        </small>
-
-                    </div>
-
-                    <div class="col-4">
-
-                        <h3 class="fw-bold">
-                            <i class="bi bi-bicycle"></i>
-                        </h3>
-
-                        <small>
-                            Trusted Riders
-                        </small>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-            <!-- Right -->
-            <div class="col-lg-6 text-center">
-
-                <img src="{% static 'images/hero-phone.png' %}"
-                    class="img-fluid rounded-4"
-                    style="max-height:500px;"
-                    alt="Senmi App">
-
-            </div>
-
-        </div>
-
-    </div>
-</section>
-
-
-
-<section class="py-5">
-    <div class="container">
-
-        <div class="row g-4">
-
-            <div class="col-md-4">
-                <div class="card shadow-sm h-100 border-0 rounded-4">
-                    <div class="card-body p-4 text-center">
-
-                        <i class="bi bi-lightning-charge-fill text-primary display-5"></i>
-
-                        <h4 class="mt-3" style="color: #581C87;">
-                            Fast Delivery
-                        </h4>
-
-                        <p class="text-muted">
-                            Quick delivery services with live tracking.
-                        </p>
-
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-4">
-                <div class="card shadow-sm h-100 border-0 rounded-4">
-                    <div class="card-body p-4 text-center">
-
-                        <i class="bi bi-shield-check text-primary display-5"></i>
-
-                        <h4 class="mt-3" style="color: #581C87;">
-                            Trusted Riders
-                        </h4>
-
-                        <p class="text-muted">
-                            Verified riders focused on professionalism.
-                        </p>
-
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-4">
-                <div class="card shadow-sm h-100 border-0 rounded-4">
-                    <div class="card-body p-4 text-center">
-
-                        <i class="bi bi-headset text-primary display-5"></i>
-
-                        <h4 class="mt-3" style="color: #581C87;">
-                            24/7 Support
-                        </h4>
-
-                        <p class="text-muted">
-                            Support available anytime you need help.
-                        </p>
-
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
-    </div>
-</section>
-
-<section class="py-5">
-    <div class="container">
-
-        <h2 class="fw-bold mb-5" style="color: #581C87;">
-            How Senmi Logistics Works
-        </h2>
-
-        <div class="row g-5">
-
-            <!-- Card 1 -->
-            <div class="col-lg-4">
-
-                <img src="{% static 'images/request.png' %}"
-                     class="img-fluid rounded mb-4"
-                     alt="Book a Delivery">
-
-                <h4 class="fw-bold" style="color: #581C87;">
-                    Book Your Delivery
-                </h4>
-
-                <p class="text-muted">
-                    Create a delivery request through the Senmi Logistics app
-                    by entering your pickup and delivery locations, package
-                    details, and recipient information. Booking a delivery is
-                    fast, simple, and secure.
-                </p>
-
-            </div>
-
-            <!-- Card 2 -->
-            <div class="col-lg-4">
-
-                <img src="{% static 'images/track.png' %}"
-                     class="img-fluid rounded mb-4"
-                     alt="Track Your Package">
-
-                <h4 class="fw-bold" style="color: #581C87;">
-                    Track Every Delivery 
-                </h4>
-
-                <p class="text-muted">
-                    Stay informed from pickup to delivery with live GPS tracking,
-                    delivery updates, rider information, and instant notifications.
-                    Know exactly where your package is at every stage.
-                </p>
-
-            </div>
-
-            <!-- Card 3 -->
-            <div class="col-lg-4">
-
-                <img src="{% static 'images/manage.png' %}"
-                     class="img-fluid rounded mb-4"
-                     alt="Reliable Logistics">
-
-                <h4 class="fw-bold" style="color: #581C87;">
-                    Safe & Reliable
-                </h4>
-
-                <p class="text-muted">
-                    Whether you're sending personal items, business deliveries,
-                    or urgent packages, Senmi Logistics connects you with trusted
-                    riders who ensure your deliveries arrive safely, quickly,
-                    and at competitive prices.
-                </p>
-
-            </div>
-
-        </div>
-
-    </div>
-</section>
-
-
-<!-- How Your Delivery Works -->
-<section class="py-5">
-    <div class="container">
-
-        <div class="text-center mb-5">
-            <span class="badge rounded-pill px-3 py-2"
-                  style="background-color: #EDE9FE; color: #581C87;">
-                SIMPLE & SECURE
-            </span>
-
-            <h2 class="fw-bold mt-3" style="color: #581C87;">
-                How Your Delivery Works
             </h2>
 
-            <p class="text-muted mx-auto" style="max-width: 650px;">
-                From creating your delivery request to confirming delivery,
-                Senmi makes sending packages across Lagos simple and reliable.
+            <p class="lead mt-4">
+
+                Senmi Logistics is a technology-enabled package delivery platform
+                operated by Real Time Delivery App Ltd. Create a delivery request,
+                calculate your delivery cost, purchase delivery services directly
+                from Senmi Logistics through our secure payment platform, and
+                track your package from pickup to delivery.
+
             </p>
-        </div>
 
-        <div class="row g-4">
+            <div class="d-flex gap-3 flex-wrap mt-4">
 
-            <!-- Step 1 -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100 border-0 shadow-sm rounded-4">
-                    <div class="card-body p-4">
+                <a href="https://play.google.com/store/apps/details?id=com.senmi.app"
+                   target="_blank"
+                   rel="noopener"
+                   class="btn btn-light btn-lg px-4">
 
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="rounded-circle d-flex align-items-center justify-content-center me-3"
-                                 style="width: 48px; height: 48px; background-color: #581C87; color: white;">
-                                <strong>1</strong>
-                            </div>
+                    <i class="bi bi-google-play me-2"></i>
 
-                            <i class="bi bi-box-seam fs-2"
-                               style="color: #581C87;"></i>
-                        </div>
+                    Download App
 
-                        <h5 class="fw-bold">
-                            Create a Delivery Request
-                        </h5>
+                </a>
 
-                        <p class="text-muted mb-0">
-                            Enter the pickup location, delivery location,
-                            package details, and receiver information.
-                        </p>
+                <a href="/contact/"
+                   class="btn btn-outline-light btn-lg px-4">
 
-                    </div>
-                </div>
-            </div>
+                    Contact Us
 
-            <!-- Step 2 -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100 border-0 shadow-sm rounded-4">
-                    <div class="card-body p-4">
-
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="rounded-circle d-flex align-items-center justify-content-center me-3"
-                                 style="width: 48px; height: 48px; background-color: #581C87; color: white;">
-                                <strong>2</strong>
-                            </div>
-
-                            <i class="bi bi-calculator fs-2"
-                               style="color: #581C87;"></i>
-                        </div>
-
-                        <h5 class="fw-bold">
-                            Get Your Delivery Cost
-                        </h5>
-
-                        <p class="text-muted mb-0">
-                            Senmi calculates the estimated delivery fee
-                            based on the distance.
-                        </p>
-
-                    </div>
-                </div>
-            </div>
-
-            <!-- Step 3 -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100 border-0 shadow-sm rounded-4">
-                    <div class="card-body p-4">
-
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="rounded-circle d-flex align-items-center justify-content-center me-3"
-                                 style="width: 48px; height: 48px; background-color: #581C87; color: white;">
-                                <strong>3</strong>
-                            </div>
-
-                            <i class="bi bi-credit-card fs-2"
-                               style="color: #581C87;"></i>
-                        </div>
-
-                        <h5 class="fw-bold">
-                            Pay Securely
-                        </h5>
-
-                        <p class="text-muted mb-0">
-                            Pay for the delivery yourself or generate a
-                            payment link for the receiver.
-                        </p>
-
-                    </div>
-                </div>
-            </div>
-
-            <!-- Step 4 -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100 border-0 shadow-sm rounded-4">
-                    <div class="card-body p-4">
-
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="rounded-circle d-flex align-items-center justify-content-center me-3"
-                                 style="width: 48px; height: 48px; background-color: #581C87; color: white;">
-                                <strong>4</strong>
-                            </div>
-
-                            <i class="bi bi-bicycle fs-2"
-                               style="color: #581C87;"></i>
-                        </div>
-
-                        <h5 class="fw-bold">
-                            Get Matched With a Rider
-                        </h5>
-
-                        <p class="text-muted mb-0">
-                            After payment is confirmed, a nearby rider
-                            is assigned to the delivery.
-                        </p>
-
-                    </div>
-                </div>
-            </div>
-
-            <!-- Step 5 -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100 border-0 shadow-sm rounded-4">
-                    <div class="card-body p-4">
-
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="rounded-circle d-flex align-items-center justify-content-center me-3"
-                                 style="width: 48px; height: 48px; background-color: #581C87; color: white;">
-                                <strong>5</strong>
-                            </div>
-
-                            <i class="bi bi-geo-alt fs-2"
-                               style="color: #581C87;"></i>
-                        </div>
-
-                        <h5 class="fw-bold">
-                            Track Your Package
-                        </h5>
-
-                        <p class="text-muted mb-0">
-                            Follow the delivery from pickup to the
-                            destination with delivery updates.
-                        </p>
-
-                    </div>
-                </div>
-            </div>
-
-            <!-- Step 6 -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100 border-0 shadow-sm rounded-4">
-                    <div class="card-body p-4">
-
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="rounded-circle d-flex align-items-center justify-content-center me-3"
-                                 style="width: 48px; height: 48px; background-color: #581C87; color: white;">
-                                <strong>6</strong>
-                            </div>
-
-                            <i class="bi bi-shield-check fs-2"
-                               style="color: #581C87;"></i>
-                        </div>
-
-                        <h5 class="fw-bold">
-                            Confirm Delivery
-                        </h5>
-
-                        <p class="text-muted mb-0">
-                            The receiver confirms delivery using a secure
-                            delivery code.
-                        </p>
-
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
-    </div>
-</section>
-
-
-<!-- Rider Assignment Section -->
-<section class="py-5 bg-white">
-    <div class="container">
-
-        <div class="row align-items-center g-5">
-
-            <div class="col-lg-6">
-
-                <span class="badge rounded-pill px-3 py-2"
-                      style="background-color: #EDE9FE; color: #581C87;">
-                    FOR OUR RIDERS
-                </span>
-
-                <h2 class="fw-bold mt-3" style="color: #581C87;">
-                    How Riders Complete Deliveries
-                </h2>
-
-                <p class="text-muted mt-3">
-                    Once a delivery payment is confirmed, the delivery request
-                    becomes available for fulfilment and a nearby eligible rider
-                    can be assigned to complete the delivery.
-                </p>
-
-                <p class="text-muted">
-                    The rider collects the package from the pickup location
-                    and delivers it safely to the recipient at the destination.
-                </p>
-
-                <div class="d-flex align-items-start mt-4">
-
-                    <i class="bi bi-check-circle-fill fs-4 me-3"
-                       style="color: #49874C;"></i>
-
-                    <div>
-                        <h6 class="fw-bold mb-1">
-                            Payment Confirmed
-                        </h6>
-
-                        <p class="text-muted mb-0">
-                            The delivery request is ready for fulfilment.
-                        </p>
-                    </div>
-
-                </div>
-
-                <div class="d-flex align-items-start mt-4">
-
-                    <i class="bi bi-bicycle fs-4 me-3"
-                       style="color: #581C87;"></i>
-
-                    <div>
-                        <h6 class="fw-bold mb-1">
-                            Nearby Rider Assigned
-                        </h6>
-
-                        <p class="text-muted mb-0">
-                            An eligible rider can accept and fulfil the request.
-                        </p>
-                    </div>
-
-                </div>
-
-                <div class="d-flex align-items-start mt-4">
-
-                    <i class="bi bi-box-seam fs-4 me-3"
-                       style="color: #581C87;"></i>
-
-                    <div>
-                        <h6 class="fw-bold mb-1">
-                            Pickup & Delivery
-                        </h6>
-
-                        <p class="text-muted mb-0">
-                            The rider collects the package and delivers it
-                            to the recipient.
-                        </p>
-                    </div>
-
-                </div>
+                </a>
 
             </div>
 
-            <div class="col-lg-6">
+            <div class="row mt-5">
 
-                <div class="p-5 rounded-4 text-center"
-                     style="background: linear-gradient(135deg, #581C87, #7C3AED);">
+                <div class="col-4">
 
-                    <i class="bi bi-bicycle text-white"
-                       style="font-size: 100px;"></i>
+                    <h3 class="fw-bold">
 
-                    <h3 class="text-white fw-bold mt-4">
-                        Trusted Riders
+                        <i class="bi bi-geo-alt-fill"></i>
+
                     </h3>
 
-                    <p class="text-white-50 mb-0">
-                        Helping customers send packages safely and reliably
-                        across Lagos.
-                    </p>
+                    <small>
+
+                        Live GPS Tracking
+
+                    </small>
+
+                </div>
+
+                <div class="col-4">
+
+                    <h3 class="fw-bold">
+
+                        <i class="bi bi-shield-check"></i>
+
+                    </h3>
+
+                    <small>
+
+                        Secure Deliveries
+
+                    </small>
+
+                </div>
+
+                <div class="col-4">
+
+                    <h3 class="fw-bold">
+
+                        <i class="bi bi-bicycle"></i>
+
+                    </h3>
+
+                    <small>
+
+                        Approved Riders
+
+                    </small>
 
                 </div>
 
@@ -529,62 +113,49 @@
 
         </div>
 
+        <!-- Right -->
+        <div class="col-lg-6 text-center">
+
+            <img src="{% static 'images/hero-phone.png' %}"
+                 class="img-fluid rounded-4"
+                 style="max-height: 500px;"
+                 alt="Senmi delivery application">
+
+        </div>
+
     </div>
+
+</div>
+
 </section>
 
+<!-- Service Features -->
 
+<section class="py-5">
 
-<!-- Payment & Rider Settlement -->
-
-<section class="py-5" style="background-color: #F8F9FA;">
-    <div class="container">
-
-    <div class="text-center mb-5">
-
-        <span class="badge rounded-pill px-3 py-2"
-              style="background-color: #EDE9FE; color: #581C87;">
-            CLEAR & TRANSPARENT
-        </span>
-
-        <h2 class="fw-bold mt-3" style="color: #581C87;">
-            How Payments and Rider Earnings Work
-        </h2>
-
-        <p class="text-muted mx-auto" style="max-width: 700px;">
-            Senmi Logistics provides a secure and transparent payment process
-            for customers and a structured earnings process for riders.
-        </p>
-
-    </div>
+<div class="container">
 
     <div class="row g-4">
 
-        <!-- Customer Payment -->
-        <div class="col-md-6 col-lg-4">
+        <div class="col-md-4">
 
-            <div class="card h-100 border-0 shadow-sm rounded-4">
+            <div class="card shadow-sm h-100 border-0 rounded-4">
 
                 <div class="card-body p-4 text-center">
 
-                    <div class="rounded-circle d-inline-flex align-items-center
-                                justify-content-center mb-4"
-                         style="width: 65px; height: 65px;
-                                background-color: #EDE9FE;
-                                color: #581C87;">
+                    <i class="bi bi-lightning-charge-fill text-primary display-5"></i>
 
-                        <i class="bi bi-credit-card fs-2"></i>
+                    <h4 class="mt-3" style="color: #581C87;">
 
-                    </div>
+                        Fast Delivery
 
-                    <h5 class="fw-bold">
-                        1. Customer Pays Securely
-                    </h5>
+                    </h4>
 
                     <p class="text-muted mb-0">
-                        The customer or receiver pays the full delivery fee
-                        securely through the Senmi Logistics platform.
-                        Payment is processed through our authorised payment
-                        service provider and received by Senmi Logistics.
+
+                        Efficient package delivery services with delivery updates
+                        and real-time tracking.
+
                     </p>
 
                 </div>
@@ -593,32 +164,25 @@
 
         </div>
 
-        <!-- Commission -->
-        <div class="col-md-6 col-lg-4">
+        <div class="col-md-4">
 
-            <div class="card h-100 border-0 shadow-sm rounded-4">
+            <div class="card shadow-sm h-100 border-0 rounded-4">
 
                 <div class="card-body p-4 text-center">
 
-                    <div class="rounded-circle d-inline-flex align-items-center
-                                justify-content-center mb-4"
-                         style="width: 65px; height: 65px;
-                                background-color: #EDE9FE;
-                                color: #581C87;">
+                    <i class="bi bi-shield-check text-primary display-5"></i>
 
-                        <i class="bi bi-calculator fs-2"></i>
+                    <h4 class="mt-3" style="color: #581C87;">
 
-                    </div>
+                        Approved Riders
 
-                    <h5 class="fw-bold">
-                        2. Commission Is Calculated
-                    </h5>
+                    </h4>
 
                     <p class="text-muted mb-0">
-                        Senmi Logistics calculates its service commission
-                        from the delivery fee. The commission currently
-                        consists of a ₦200 base fee plus 10% of the
-                        delivery price.
+
+                        Riders are reviewed and approved before participating
+                        in delivery services on the platform.
+
                     </p>
 
                 </div>
@@ -627,125 +191,28 @@
 
         </div>
 
-        <!-- Rider Earnings -->
-        <div class="col-md-6 col-lg-4">
+        <div class="col-md-4">
 
-            <div class="card h-100 border-0 shadow-sm rounded-4">
+            <div class="card shadow-sm h-100 border-0 rounded-4">
 
                 <div class="card-body p-4 text-center">
 
-                    <div class="rounded-circle d-inline-flex align-items-center
-                                justify-content-center mb-4"
-                         style="width: 65px; height: 65px;
-                                background-color: #EDE9FE;
-                                color: #581C87;">
+                    <i class="bi bi-headset text-primary display-5"></i>
 
-                        <i class="bi bi-wallet2 fs-2"></i>
+                    <h4 class="mt-3" style="color: #581C87;">
 
-                    </div>
+                        Customer Support
 
-                    <h5 class="fw-bold">
-                        3. Rider Earnings Are Credited
-                    </h5>
+                    </h4>
 
                     <p class="text-muted mb-0">
-                        After Senmi's commission is calculated, the
-                        remaining delivery balance is recorded as the
-                        rider's earning and credited to the rider's
-                        wallet on the platform.
+
+                        Our support team is available to assist customers
+                        and riders with delivery-related concerns.
+
                     </p>
 
                 </div>
-
-            </div>
-
-        </div>
-
-    </div>
-
-    <!-- Settlement Information -->
-    <div class="card border-0 shadow-sm rounded-4 mt-5">
-
-        <div class="card-body p-4 p-md-5">
-
-            <div class="row align-items-center g-4">
-
-                <div class="col-lg-8">
-
-                    <div class="d-flex align-items-start">
-
-                        <i class="bi bi-bank fs-1 me-4"
-                           style="color: #581C87;"></i>
-
-                        <div>
-
-                            <h4 class="fw-bold mb-2"
-                                style="color: #581C87;">
-
-                                Rider Withdrawal and Settlement
-
-                            </h4>
-
-                            <p class="text-muted mb-0">
-
-                                Riders do not receive delivery payments
-                                directly from customers. Riders can view
-                                their available earnings in their Senmi
-                                wallet and request a withdrawal. Approved
-                                withdrawals are processed to the rider's
-                                registered bank account.
-
-                            </p>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-                <div class="col-lg-4">
-
-                    <div class="rounded-4 p-4 text-center"
-                         style="background-color: #F3E8FF;">
-
-                        <i class="bi bi-shield-check fs-2"
-                           style="color: #49874C;"></i>
-
-                        <h6 class="fw-bold mt-2 mb-1">
-                            Transparent Payment Flow
-                        </h6>
-
-                        <small class="text-muted">
-                            Customer payment, commission, rider earnings,
-                            and withdrawal records are managed through
-                            the Senmi Logistics platform.
-                        </small>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
-
-    </div>
-
-    <!-- Example -->
-    <div class="alert border-0 rounded-4 mt-4 mb-0"
-         style="background-color: #EDE9FE; color: #3B0764;">
-
-        <div class="d-flex align-items-start">
-
-            <i class="bi bi-info-circle-fill fs-4 me-3"></i>
-
-            <div>
-
-                <strong>Example:</strong>
-
-                If a delivery fee is ₦5,000, Senmi's commission is ₦700
-                (₦200 plus 10% of ₦5,000). The remaining ₦4,300 is
-                recorded as the rider's earning.
 
             </div>
 
@@ -757,71 +224,834 @@
 
 </section>
 
+<!-- How Senmi Logistics Works -->
 
-<!-- Business Information -->
 <section class="py-5">
-    <div class="container">
 
-        <div class="card border-0 shadow-sm rounded-4">
-            <div class="card-body p-4 p-md-5 text-center">
+<div class="container">
 
-                <i class="bi bi-building fs-1"
-                   style="color: #581C87;"></i>
+    <h2 class="fw-bold mb-5" style="color: #581C87;">
 
-                <h3 class="fw-bold mt-3" style="color: #581C87;">
-                    Senmi Logistics
-                </h3>
+        How Senmi Logistics Works
 
-                <p class="text-muted mb-0">
-                    <strong>Senmi Logistics</strong> is the trading name and package delivery
-                    brand of <strong>Real Time Delivery App Ltd</strong>. We connect customers
-                    with riders for reliable package deliveries across Lagos, Nigeria.
-                </p>
+    </h2>
 
-            </div>
+    <div class="row g-5">
+
+        <!-- Card 1 -->
+        <div class="col-lg-4">
+
+            <img src="{% static 'images/request.png' %}"
+                 class="img-fluid rounded mb-4"
+                 alt="Create a delivery request">
+
+            <h4 class="fw-bold" style="color: #581C87;">
+
+                Book Your Delivery
+
+            </h4>
+
+            <p class="text-muted">
+
+                Create a delivery request through the Senmi Logistics app
+                by entering your pickup and delivery locations, package
+                details, and recipient information. Booking a delivery is
+                fast, simple, and secure.
+
+            </p>
+
+        </div>
+
+        <!-- Card 2 -->
+        <div class="col-lg-4">
+
+            <img src="{% static 'images/track.png' %}"
+                 class="img-fluid rounded mb-4"
+                 alt="Track your package">
+
+            <h4 class="fw-bold" style="color: #581C87;">
+
+                Track Every Delivery
+
+            </h4>
+
+            <p class="text-muted">
+
+                Stay informed from pickup to delivery with delivery updates,
+                rider information, live GPS tracking where available, and
+                instant notifications.
+
+            </p>
+
+        </div>
+
+        <!-- Card 3 -->
+        <div class="col-lg-4">
+
+            <img src="{% static 'images/manage.png' %}"
+                 class="img-fluid rounded mb-4"
+                 alt="Reliable package delivery">
+
+            <h4 class="fw-bold" style="color: #581C87;">
+
+                Safe & Reliable
+
+            </h4>
+
+            <p class="text-muted">
+
+                Whether you are sending personal items, business deliveries,
+                or urgent packages, Senmi Logistics provides technology-enabled
+                delivery services through approved independent riders.
+
+            </p>
+
         </div>
 
     </div>
+
+</div>
+
 </section>
 
-<section class="py-5 bg-white">
-    <div class="container">
+<!-- How Your Delivery Works -->
 
-        <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
-            <div class="card-body p-5 text-center">
+<section class="py-5">
 
-                <h2 class="fw-bold" style="color: #581C87;">
-                    Download the Senmi App
-                </h2>
+<div class="container">
 
-                <p class="text-muted mt-3">
-                    Our app is coming soon to Android and iOS.
-                </p>
+    <div class="text-center mb-5">
 
-                <div class="d-flex justify-content-center gap-3 flex-wrap mt-4">
+        <span class="badge rounded-pill px-3 py-2"
+              style="background-color: #EDE9FE; color: #581C87;">
 
-                    <a href="https://play.google.com/store/apps/details?id=com.senmi.app"
-                       target="_blank"
-                       class="btn btn-dark btn-lg">
+            SIMPLE & SECURE
 
-                        <i class="bi bi-google-play me-2"></i>
-                        Android — Coming Soon
-                    </a>
+        </span>
 
-                    <a href="https://apps.apple.com/"
-                       target="_blank"
-                       class="btn btn-outline-dark btn-lg">
+        <h2 class="fw-bold mt-3" style="color: #581C87;">
 
-                        <i class="bi bi-apple me-2"></i>
-                        iPhone — Coming Soon
-                    </a>
+            How Your Delivery Works
+
+        </h2>
+
+        <p class="text-muted mx-auto" style="max-width: 650px;">
+
+            From creating your delivery request to confirming delivery,
+            Senmi makes sending packages across Lagos simple and reliable.
+
+        </p>
+
+    </div>
+
+    <div class="row g-4">
+
+        <!-- Step 1 -->
+        <div class="col-md-6 col-lg-4">
+
+            <div class="card h-100 border-0 shadow-sm rounded-4">
+
+                <div class="card-body p-4">
+
+                    <div class="d-flex align-items-center mb-3">
+
+                        <div class="rounded-circle d-flex align-items-center justify-content-center me-3"
+                             style="width: 48px; height: 48px; background-color: #581C87; color: white;">
+
+                            <strong>1</strong>
+
+                        </div>
+
+                        <i class="bi bi-box-seam fs-2"
+                           style="color: #581C87;"></i>
+
+                    </div>
+
+                    <h5 class="fw-bold">
+
+                        Create a Delivery Request
+
+                    </h5>
+
+                    <p class="text-muted mb-0">
+
+                        Enter the pickup location, delivery location,
+                        package details, and receiver information.
+
+                    </p>
 
                 </div>
 
             </div>
+
+        </div>
+
+        <!-- Step 2 -->
+        <div class="col-md-6 col-lg-4">
+
+            <div class="card h-100 border-0 shadow-sm rounded-4">
+
+                <div class="card-body p-4">
+
+                    <div class="d-flex align-items-center mb-3">
+
+                        <div class="rounded-circle d-flex align-items-center justify-content-center me-3"
+                             style="width: 48px; height: 48px; background-color: #581C87; color: white;">
+
+                            <strong>2</strong>
+
+                        </div>
+
+                        <i class="bi bi-calculator fs-2"
+                           style="color: #581C87;"></i>
+
+                    </div>
+
+                    <h5 class="fw-bold">
+
+                        Get Your Delivery Cost
+
+                    </h5>
+
+                    <p class="text-muted mb-0">
+
+                        Senmi calculates the delivery fee based on factors
+                        such as distance, location, and the selected service.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Step 3 -->
+        <div class="col-md-6 col-lg-4">
+
+            <div class="card h-100 border-0 shadow-sm rounded-4">
+
+                <div class="card-body p-4">
+
+                    <div class="d-flex align-items-center mb-3">
+
+                        <div class="rounded-circle d-flex align-items-center justify-content-center me-3"
+                             style="width: 48px; height: 48px; background-color: #581C87; color: white;">
+
+                            <strong>3</strong>
+
+                        </div>
+
+                        <i class="bi bi-credit-card fs-2"
+                           style="color: #581C87;"></i>
+
+                    </div>
+
+                    <h5 class="fw-bold">
+
+                        Pay Senmi Logistics
+
+                    </h5>
+
+                    <p class="text-muted mb-0">
+
+                        Pay Senmi Logistics securely for the delivery service
+                        yourself or generate a payment link for the receiver.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Step 4 -->
+        <div class="col-md-6 col-lg-4">
+
+            <div class="card h-100 border-0 shadow-sm rounded-4">
+
+                <div class="card-body p-4">
+
+                    <div class="d-flex align-items-center mb-3">
+
+                        <div class="rounded-circle d-flex align-items-center justify-content-center me-3"
+                             style="width: 48px; height: 48px; background-color: #581C87; color: white;">
+
+                            <strong>4</strong>
+
+                        </div>
+
+                        <i class="bi bi-bicycle fs-2"
+                           style="color: #581C87;"></i>
+
+                    </div>
+
+                    <h5 class="fw-bold">
+
+                        Rider Accepts the Delivery
+
+                    </h5>
+
+                    <p class="text-muted mb-0">
+
+                        After Senmi Logistics confirms payment for the
+                        delivery service, an eligible rider may accept or
+                        be assigned to fulfil the delivery.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Step 5 -->
+        <div class="col-md-6 col-lg-4">
+
+            <div class="card h-100 border-0 shadow-sm rounded-4">
+
+                <div class="card-body p-4">
+
+                    <div class="d-flex align-items-center mb-3">
+
+                        <div class="rounded-circle d-flex align-items-center justify-content-center me-3"
+                             style="width: 48px; height: 48px; background-color: #581C87; color: white;">
+
+                            <strong>5</strong>
+
+                        </div>
+
+                        <i class="bi bi-geo-alt fs-2"
+                           style="color: #581C87;"></i>
+
+                    </div>
+
+                    <h5 class="fw-bold">
+
+                        Track Your Package
+
+                    </h5>
+
+                    <p class="text-muted mb-0">
+
+                        Follow the delivery from pickup to the destination
+                        with delivery updates and tracking information.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Step 6 -->
+        <div class="col-md-6 col-lg-4">
+
+            <div class="card h-100 border-0 shadow-sm rounded-4">
+
+                <div class="card-body p-4">
+
+                    <div class="d-flex align-items-center mb-3">
+
+                        <div class="rounded-circle d-flex align-items-center justify-content-center me-3"
+                             style="width: 48px; height: 48px; background-color: #581C87; color: white;">
+
+                            <strong>6</strong>
+
+                        </div>
+
+                        <i class="bi bi-shield-check fs-2"
+                           style="color: #581C87;"></i>
+
+                    </div>
+
+                    <h5 class="fw-bold">
+
+                        Confirm Delivery
+
+                    </h5>
+
+                    <p class="text-muted mb-0">
+
+                        The sender or receiver confirms successful delivery
+                        using Senmi's secure delivery confirmation code.
+
+                    </p>
+
+                </div>
+
+            </div>
+
         </div>
 
     </div>
+
+</div>
+
+</section>
+
+<!-- Payment & Contractor Compensation -->
+
+<section class="py-5" style="background-color: #F8F9FA;">
+
+<div class="container">
+
+    <div class="text-center mb-5">
+
+        <span class="badge rounded-pill px-3 py-2"
+              style="background-color: #EDE9FE; color: #581C87;">
+
+            TRANSPARENT OPERATIONS
+
+        </span>
+
+        <h2 class="fw-bold mt-3" style="color: #581C87;">
+
+            How Payments Work
+
+        </h2>
+
+        <p class="text-muted mx-auto" style="max-width: 700px;">
+
+            Customers purchase delivery services directly from Senmi Logistics.
+            Approved independent riders engaged by Senmi Logistics complete
+            delivery services, and rider compensation is calculated after
+            successful delivery.
+
+        </p>
+
+    </div>
+
+    <div class="row g-4">
+
+        <!-- Payment Card -->
+        <div class="col-md-6 col-lg-3">
+
+            <div class="card h-100 border-0 shadow-sm rounded-4">
+
+                <div class="card-body text-center p-4">
+
+                    <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-4"
+                         style="width: 65px; height: 65px; background: #EDE9FE; color: #581C87;">
+
+                        <i class="bi bi-credit-card fs-2"></i>
+
+                    </div>
+
+                    <h5 class="fw-bold">
+
+                        Customer Purchases Delivery
+
+                    </h5>
+
+                    <p class="text-muted mb-0">
+
+                        Customers pay Senmi Logistics for package delivery
+                        services using our secure payment platform.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Delivery Card -->
+        <div class="col-md-6 col-lg-3">
+
+            <div class="card h-100 border-0 shadow-sm rounded-4">
+
+                <div class="card-body text-center p-4">
+
+                    <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-4"
+                         style="width: 65px; height: 65px; background: #EDE9FE; color: #581C87;">
+
+                        <i class="bi bi-bicycle fs-2"></i>
+
+                    </div>
+
+                    <h5 class="fw-bold">
+
+                        Delivery Is Completed
+
+                    </h5>
+
+                    <p class="text-muted mb-0">
+
+                        An approved independent rider engaged by Senmi
+                        Logistics completes the delivery service. Delivery
+                        is verified using Senmi's secure confirmation code.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Compensation Card -->
+        <div class="col-md-6 col-lg-3">
+
+            <div class="card h-100 border-0 shadow-sm rounded-4">
+
+                <div class="card-body text-center p-4">
+
+                    <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-4"
+                         style="width: 65px; height: 65px; background: #EDE9FE; color: #581C87;">
+
+                        <i class="bi bi-calculator fs-2"></i>
+
+                    </div>
+
+                    <h5 class="fw-bold">
+
+                        Contractor Compensation
+
+                    </h5>
+
+                    <p class="text-muted mb-0">
+
+                        After successful delivery, Senmi calculates the
+                        contractor compensation payable to the rider in
+                        accordance with Senmi's contractor payout policy.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Payout Card -->
+        <div class="col-md-6 col-lg-3">
+
+            <div class="card h-100 border-0 shadow-sm rounded-4">
+
+                <div class="card-body text-center p-4">
+
+                    <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-4"
+                         style="width: 65px; height: 65px; background: #EDE9FE; color: #581C87;">
+
+                        <i class="bi bi-bank fs-2"></i>
+
+                    </div>
+
+                    <h5 class="fw-bold">
+
+                        Contractor Payout
+
+                    </h5>
+
+                    <p class="text-muted mb-0">
+
+                        Approved contractor payouts are made by Senmi
+                        Logistics to the rider's registered bank account
+                        according to Senmi's contractor payout schedule.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Independent Rider Model -->
+    <div class="card border-0 shadow-sm rounded-4 mt-5">
+
+        <div class="card-body p-5">
+
+            <h3 class="fw-bold mb-4" style="color: #581C87;">
+
+                Independent Rider Model
+
+            </h3>
+
+            <p class="text-muted">
+
+                Customers purchase delivery services directly from
+                Senmi Logistics, the package delivery brand operated by
+                Real Time Delivery App Ltd.
+
+            </p>
+
+            <p class="text-muted">
+
+                Riders using the Senmi platform operate as independent
+                contractors engaged by Senmi Logistics to fulfil delivery
+                services accepted through the platform.
+
+            </p>
+
+            <p class="text-muted">
+
+                Rider compensation represents payment by Senmi Logistics
+                for completed delivery services and does not represent
+                customer funds held on behalf of riders.
+
+            </p>
+
+            <p class="text-muted mb-0">
+
+                The rider wallet is an internal earnings dashboard used
+                to display unpaid contractor compensation for completed
+                deliveries. It is not a customer payment wallet and does
+                not hold customer funds on behalf of riders.
+
+            </p>
+
+        </div>
+
+    </div>
+
+</div>
+
+</section>
+
+<!-- Rider Assignment Section -->
+
+<section class="py-5 bg-white">
+
+<div class="container">
+
+    <div class="row align-items-center g-5">
+
+        <div class="col-lg-6">
+
+            <span class="badge rounded-pill px-3 py-2"
+                  style="background-color: #EDE9FE; color: #581C87;">
+
+                FOR OUR RIDERS
+
+            </span>
+
+            <h2 class="fw-bold mt-3" style="color: #581C87;">
+
+                How Riders Complete Deliveries
+
+            </h2>
+
+            <p class="text-muted mt-3">
+
+                Once Senmi Logistics confirms payment for a delivery
+                service, the delivery request becomes available for
+                fulfilment and an eligible rider may accept or be
+                assigned to complete the delivery.
+
+            </p>
+
+            <p class="text-muted">
+
+                The rider collects the package from the pickup location
+                and delivers it safely to the recipient at the destination.
+
+            </p>
+
+            <div class="d-flex align-items-start mt-4">
+
+                <i class="bi bi-check-circle-fill fs-4 me-3"
+                   style="color: #49874C;"></i>
+
+                <div>
+
+                    <h6 class="fw-bold mb-1">
+
+                        Delivery Service Confirmed
+
+                    </h6>
+
+                    <p class="text-muted mb-0">
+
+                        The delivery request is ready for fulfilment.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+            <div class="d-flex align-items-start mt-4">
+
+                <i class="bi bi-bicycle fs-4 me-3"
+                   style="color: #581C87;"></i>
+
+                <div>
+
+                    <h6 class="fw-bold mb-1">
+
+                        Eligible Rider Accepts
+
+                    </h6>
+
+                    <p class="text-muted mb-0">
+
+                        An approved and eligible rider may accept and
+                        fulfil the delivery request.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+            <div class="d-flex align-items-start mt-4">
+
+                <i class="bi bi-box-seam fs-4 me-3"
+                   style="color: #581C87;"></i>
+
+                <div>
+
+                    <h6 class="fw-bold mb-1">
+
+                        Pickup & Delivery
+
+                    </h6>
+
+                    <p class="text-muted mb-0">
+
+                        The rider collects the package and delivers it
+                        safely to the recipient.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="col-lg-6">
+
+            <div class="p-5 rounded-4 text-center"
+                 style="background: linear-gradient(135deg, #581C87, #7C3AED);">
+
+                <i class="bi bi-bicycle text-white"
+                   style="font-size: 100px;"></i>
+
+                <h3 class="text-white fw-bold mt-4">
+
+                    Approved Independent Riders
+
+                </h3>
+
+                <p class="text-white-50 mb-0">
+
+                    Helping Senmi Logistics provide safe and reliable
+                    package delivery services across Lagos.
+
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+</section>
+
+<!-- Business Information -->
+
+<section class="py-5">
+
+<div class="container">
+
+    <div class="card border-0 shadow-sm rounded-4">
+
+        <div class="card-body p-4 p-md-5 text-center">
+
+            <i class="bi bi-building fs-1"
+               style="color: #581C87;"></i>
+
+            <h3 class="fw-bold mt-3" style="color: #581C87;">
+
+                Senmi Logistics
+
+            </h3>
+
+            <p class="text-muted mb-0">
+
+                <strong>Senmi Logistics</strong> is the trading name and
+                package delivery brand of
+                <strong>Real Time Delivery App Ltd</strong>. We provide
+                technology-enabled package delivery services across Lagos,
+                Nigeria. Approved independent riders engaged by Senmi
+                Logistics fulfil delivery services accepted through the
+                platform on behalf of the company.
+
+            </p>
+
+        </div>
+
+    </div>
+
+</div>
+
+</section>
+
+<!-- Download App -->
+
+<section class="py-5 bg-white">
+
+<div class="container">
+
+    <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+
+        <div class="card-body p-5 text-center">
+
+            <h2 class="fw-bold" style="color: #581C87;">
+
+                Download the Senmi App
+
+            </h2>
+
+            <p class="text-muted mt-3">
+
+                Download the Senmi app on Android. Our iOS app is coming soon.
+
+            </p>
+
+            <div class="d-flex justify-content-center gap-3 flex-wrap mt-4">
+
+                <a href="https://play.google.com/store/apps/details?id=com.senmi.app"
+                   target="_blank"
+                   rel="noopener"
+                   class="btn btn-dark btn-lg">
+
+                    <i class="bi bi-google-play me-2"></i>
+
+                    Download on Android
+
+                </a>
+
+                <a href="https://apps.apple.com/"
+                   target="_blank"
+                   rel="noopener"
+                   class="btn btn-outline-dark btn-lg">
+
+                    <i class="bi bi-apple me-2"></i>
+
+                    iPhone — Coming Soon
+
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
 </section>
 
 {% endblock %}
