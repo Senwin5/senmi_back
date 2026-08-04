@@ -131,10 +131,8 @@ class RiderProfile(models.Model):
     ]
 
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    
     # Unique Rider Tracking ID
     rider_id = models.CharField(max_length=20, unique=True, blank=True, editable=False)
-    
     # Profile fields
     full_name = models.CharField(max_length=255, blank=True)
     phone_number = models.CharField(max_length=20, blank=True)
