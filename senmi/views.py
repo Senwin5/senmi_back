@@ -374,7 +374,7 @@ class AdminRidersListView(APIView):
             "city": r.city,
             "address": r.address,
             "profile_picture": r.profile_picture.url if r.profile_picture else None,
-            "rider_image_1": r.rider_image_1.url if r.rider_image_1 else None,
+            "nin_image": r.nin_image.url if r.nin_image else None,
             "rider_image_with_vehicle": r.rider_image_with_vehicle.url if r.rider_image_with_vehicle else None,
         } for r in riders]
 
@@ -1063,7 +1063,7 @@ class RiderProfileUpdateView(APIView):
             required_fields = ['full_name', 'phone_number', 'vehicle_number', 'address', 'city']
             missing_text = [f for f in required_fields if not request.data.get(f)]
             
-            required_images = ['profile_picture', 'rider_image_1', 'rider_image_with_vehicle']
+            required_images = ['profile_picture', 'nin_image', 'rider_image_with_vehicle']
             missing_images = [f for f in required_images if not request.FILES.get(f) and not getattr(profile, f)]
 
             if missing_text or missing_images:

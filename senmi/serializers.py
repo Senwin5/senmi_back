@@ -67,7 +67,7 @@ class RiderProfileSerializer(serializers.ModelSerializer):
             'email',
             'username',
             'profile_picture',
-            'rider_image_1',
+            'nin_image',
             'rider_image_with_vehicle',
             'rating',
             'rating_count',
