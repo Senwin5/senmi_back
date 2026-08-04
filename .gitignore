@@ -25,6 +25,7 @@ git merge dev
 :wq
 git push origin main
 
+.env
 firebase-service-account.json
 
 
