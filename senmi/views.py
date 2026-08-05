@@ -417,7 +417,6 @@ class AdminPackagesView(APIView):
         return Response(serializer.data)
     
 
-
 @api_view(['GET'])
 @permission_classes([IsAdminOrSupport])
 def admin_customers(request):
@@ -513,7 +512,6 @@ def admin_customer_detail(request, customer_id):
 
         "recent_packages": package_data,
     })
-
 
 
 class AvailableRidersView(APIView):
@@ -674,7 +672,6 @@ def admin_analytics(request):
         .values('failure_reason')
         .annotate(total=Count('id'))
     )
-
 
 
     data = {
