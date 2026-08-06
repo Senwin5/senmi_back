@@ -156,6 +156,7 @@ REST_FRAMEWORK = {
 }
 
 
+# Production
 #SIMPLE_JWT = {
  #   "ACCESS_TOKEN_LIFETIME": timedelta(days=7),
   #  "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
@@ -164,6 +165,7 @@ REST_FRAMEWORK = {
     #"AUTH_HEADER_TYPES": ("Bearer",),
 #}
 
+# Development
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(seconds=30),
     "REFRESH_TOKEN_LIFETIME": timedelta(minutes=1),
@@ -171,6 +173,7 @@ SIMPLE_JWT = {
     "BLACKLIST_AFTER_ROTATION": False,
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
+
 
 # ==========================
 # EMAIL CONFIG (RESEND ONLY)
@@ -218,11 +221,10 @@ CSRF_COOKIE_SECURE = True
 #SESSION_COOKIE_SECURE = False
 #CSRF_COOKIE_SECURE = False
 
-
 TIME_ZONE = 'Africa/Lagos'
 USE_TZ = True
 
-# Commission rate applied to all packages (e.g., 5%)
+# Revenue Commission rate applied to all packages (e.g., 5%)
 COMMISSION_RATE = float(os.getenv("COMMISSION_RATE", 0.05))  
 # settings.py
 BASE_FEE = 1000          # starting price (adjust anytime)
