@@ -90,6 +90,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'senmi_back.wsgi.application'
 
 
+
 REDIS_URL = os.environ.get("REDIS_URL")
 
 
@@ -140,8 +141,11 @@ AUTH_PASSWORD_VALIDATORS = [
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
+
 #TIME_ZONE = 'UTC'
+
 USE_I18N = True
+
 USE_TZ = True
 
 
@@ -152,24 +156,13 @@ REST_FRAMEWORK = {
 }
 
 
-# Production
-#SIMPLE_JWT = {
- #   "ACCESS_TOKEN_LIFETIME": timedelta(days=7),
-  #  "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
-   # "ROTATE_REFRESH_TOKENS": False,
-    #"BLACKLIST_AFTER_ROTATION": False,
-    #"AUTH_HEADER_TYPES": ("Bearer",),
-#}
-
-# Development
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(seconds=30),
-    "REFRESH_TOKEN_LIFETIME": timedelta(minutes=1),
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=7),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
     "ROTATE_REFRESH_TOKENS": False,
     "BLACKLIST_AFTER_ROTATION": False,
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
-
 
 # ==========================
 # EMAIL CONFIG (RESEND ONLY)
@@ -217,10 +210,11 @@ CSRF_COOKIE_SECURE = True
 #SESSION_COOKIE_SECURE = False
 #CSRF_COOKIE_SECURE = False
 
+
 TIME_ZONE = 'Africa/Lagos'
 USE_TZ = True
 
-# Revenue Commission rate applied to all packages (e.g., 5%)
+# Commission rate applied to all packages (e.g., 5%)
 COMMISSION_RATE = float(os.getenv("COMMISSION_RATE", 0.05))  
 # settings.py
 BASE_FEE = 1000          # starting price (adjust anytime)
