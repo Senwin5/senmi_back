@@ -777,7 +777,8 @@ def admin_dashboard(request):
 def review_rider(request, rider_id):
     """Approve or reject a rider profile""" 
     try:
-        profile = RiderProfile.objects.get(id=rider_id)
+        #profile = RiderProfile.objects.get(id=rider_id)
+        profile = RiderProfile.objects.get(rider_id=rider_id)
     except RiderProfile.DoesNotExist:
         return Response({"error": "Rider not found"}, status=404)
 
