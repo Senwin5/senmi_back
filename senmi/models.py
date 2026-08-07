@@ -339,7 +339,7 @@ class WalletTransaction(models.Model):
 
     def __str__(self):
         return f"{self.rider.email} - {self.transaction_type} - ₦{self.amount}"
-
+    
 
 class RiderRating(models.Model):
     rider = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='ratings')

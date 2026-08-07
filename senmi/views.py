@@ -2612,12 +2612,7 @@ class RiderWithdrawView(APIView):
             #status="processing"
             status="pending"
         )
-        WalletTransaction.objects.create(
-            rider=request.user,
-            amount=amount,
-            transaction_type="debit",
-            description="Wallet withdrawal",
-        )
+       
         notify_admin_dashboard()
 
         send_fcm_notification(
@@ -2762,85 +2757,248 @@ class ApproveWithdrawalView(APIView):
     permission_classes = [IsAdminOrSupport]
 
     def post(self, request, withdrawal_id):
-        withdrawal = get_object_or_404(Withdrawal, id=withdrawal_id)
 
-        if withdrawal.status != "pending":
+        try:
+            with transaction.atomic():
+
+                # Lock withdrawal so two admins cannot approve it
+                withdrawal = (
+                    Withdrawal.objects
+                    .select_for_update()
+                    .select_related("rider")
+                    .get(id=withdrawal_id)
+                )
+
+                # Only pending withdrawals can be approved
+                if withdrawal.status != "pending":
+                    return Response(
+                        {
+                            "success": False,
+                            "error": f"Withdrawal is already {withdrawal.status}"
+                        },
+                        status=400
+                    )
+
+                # Lock wallet
+                wallet, _ = (
+                    RiderWallet.objects
+                    .select_for_update()
+                    .get_or_create(rider=withdrawal.rider)
+                )
+
+                # Check wallet balance again
+                if withdrawal.amount > wallet.balance:
+                    withdrawal.status = "failed"
+                    withdrawal.failure_reason = "Insufficient wallet balance"
+                    withdrawal.save(
+                        update_fields=[
+                            "status",
+                            "failure_reason"
+                        ]
+                    )
+
+                    return Response(
+                        {
+                            "success": False,
+                            "error": "Rider has insufficient wallet balance"
+                        },
+                        status=400
+                    )
+
+                # Get Paystack recipient
+                rider_profile = getattr(
+                    withdrawal.rider,
+                    "riderprofile",
+                    None
+                )
+
+                if not rider_profile:
+                    return Response(
+                        {
+                            "success": False,
+                            "error": "Rider profile not found"
+                        },
+                        status=400
+                    )
+
+                recipient_code = rider_profile.paystack_recipient_code
+
+                if not recipient_code:
+                    return Response(
+                        {
+                            "success": False,
+                            "error": "Rider has no Paystack recipient code"
+                        },
+                        status=400
+                    )
+
+                # ==========================================
+                # PAYSTACK TRANSFER
+                # ==========================================
+
+                headers = {
+                    "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
+                    "Content-Type": "application/json"
+                }
+
+                transfer_data = {
+                    "source": "balance",
+                    "amount": int(withdrawal.amount * 100),
+                    "recipient": recipient_code,
+                    "reason": "Rider payout"
+                }
+
+                # Mark as processing BEFORE calling Paystack
+                withdrawal.status = "processing"
+                withdrawal.save(
+                    update_fields=["status"]
+                )
+
+                try:
+                    transfer_response = requests.post(
+                        "https://api.paystack.co/transfer",
+                        json=transfer_data,
+                        headers=headers,
+                        timeout=30
+                    )
+
+                    transfer_res = transfer_response.json()
+
+                except Exception as e:
+
+                    withdrawal.status = "failed"
+                    withdrawal.failure_reason = str(e)
+
+                    withdrawal.save(
+                        update_fields=[
+                            "status",
+                            "failure_reason"
+                        ]
+                    )
+
+                    return Response(
+                        {
+                            "success": False,
+                            "error": "Paystack transfer request failed"
+                        },
+                        status=500
+                    )
+
+                # ==========================================
+                # PAYSTACK SUCCESS
+                # ==========================================
+
+                if transfer_res.get("status"):
+
+                    # Deduct wallet ONLY after Paystack accepted transfer
+                    wallet.balance -= withdrawal.amount
+
+                    wallet.save(
+                        update_fields=["balance"]
+                    )
+
+                    # Create wallet debit history
+                    WalletTransaction.objects.create(
+                        rider=withdrawal.rider,
+                        amount=withdrawal.amount,
+                        transaction_type="debit",
+                        description=f"Withdrawal #{withdrawal.id}",
+                    )
+
+                    # Mark withdrawal successful
+                    withdrawal.status = "success"
+                    withdrawal.reference = (
+                        transfer_res["data"].get("reference")
+                    )
+
+                    withdrawal.save(
+                        update_fields=[
+                            "status",
+                            "reference"
+                        ]
+                    )
+
+                    notify_admin_dashboard()
+
+                    send_fcm_notification(
+                        withdrawal.rider,
+                        "Withdrawal Successful",
+                        "Your withdrawal has been paid successfully.",
+                        {
+                            "type": "withdrawal_success"
+                        }
+                    )
+
+                    return Response(
+                        {
+                            "success": True,
+                            "message": "Withdrawal paid successfully",
+                            "balance": float(wallet.balance),
+                            "reference": withdrawal.reference,
+                        },
+                        status=200
+                    )
+
+                # ==========================================
+                # PAYSTACK FAILED
+                # ==========================================
+
+                withdrawal.status = "failed"
+                withdrawal.failure_reason = (
+                    transfer_res.get("message")
+                    or "Paystack transfer failed"
+                )
+
+                withdrawal.save(
+                    update_fields=[
+                        "status",
+                        "failure_reason"
+                    ]
+                )
+
+                notify_admin_dashboard()
+
+                send_fcm_notification(
+                    withdrawal.rider,
+                    "Withdrawal Failed",
+                    withdrawal.failure_reason,
+                    {
+                        "type": "withdrawal_failed"
+                    }
+                )
+
+                return Response(
+                    {
+                        "success": False,
+                        "error": withdrawal.failure_reason
+                    },
+                    status=400
+                )
+
+        except Withdrawal.DoesNotExist:
+
             return Response(
-                {"error": "Only pending withdrawals can be approved"},
-                status=400
+                {
+                    "success": False,
+                    "error": "Withdrawal not found"
+                },
+                status=404
             )
 
-        rider_profile = withdrawal.rider.riderprofile
+        except Exception as e:
 
-        recipient_code = rider_profile.paystack_recipient_code
+            logger.exception(
+                f"Error approving withdrawal {withdrawal_id}: {e}"
+            )
 
-        if not recipient_code:
             return Response(
-                {"error": "Rider has no Paystack recipient code"},
-                status=400
+                {
+                    "success": False,
+                    "error": "Failed to approve withdrawal"
+                },
+                status=500
             )
-
-        headers = {
-            "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
-            "Content-Type": "application/json"
-        }
-
-        transfer_data = {
-            "source": "balance",
-            "amount": int(withdrawal.amount * 100),
-            "recipient": recipient_code,
-            "reason": "Rider payout"
-        }
-
-        withdrawal.status = "processing"
-        withdrawal.save()
-
-        transfer_res = requests.post(
-            "https://api.paystack.co/transfer",
-            json=transfer_data,
-            headers=headers
-        ).json()
-
-        if transfer_res.get("status"):
-
-            wallet = RiderWallet.objects.get(rider=withdrawal.rider)
-            wallet.balance -= withdrawal.amount
-            wallet.save()
-
-            withdrawal.status = "success"
-            withdrawal.reference = transfer_res["data"]["reference"]
-            withdrawal.save()
-
-            send_fcm_notification(
-                withdrawal.rider,
-                "Withdrawal Successful",
-                "Your withdrawal has been paid successfully.",
-                {"type": "withdrawal_success"}
-            )
-
-            notify_admin_dashboard()
-
-            return Response({
-                "message": "Withdrawal paid successfully"
-            })
-
-        withdrawal.status = "failed"
-        withdrawal.failure_reason = transfer_res.get("message")
-        withdrawal.save()
-
-        send_fcm_notification(
-            withdrawal.rider,
-            "Withdrawal Failed",
-            transfer_res.get("message"),
-            {"type": "withdrawal_failed"}
-        )
-
-        notify_admin_dashboard()
-
-        return Response({
-            "error": transfer_res.get("message")
-        }, status=400)
-        
+               
 
 class RejectWithdrawalView(APIView):
     permission_classes = [IsAdminOrSupport]
