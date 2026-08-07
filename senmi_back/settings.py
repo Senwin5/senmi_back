@@ -1,3 +1,4 @@
+from decimal import Decimal
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -214,7 +215,7 @@ CSRF_COOKIE_SECURE = True
 TIME_ZONE = 'Africa/Lagos'
 USE_TZ = True
 
-# Commission rate applied to all packages (e.g., 5%)
+# service_fee  rate applied to all packages (e.g., 5%)
 COMMISSION_RATE = float(os.getenv("COMMISSION_RATE", 0.05))  
 # settings.py
 BASE_FEE = 1000          # starting price (adjust anytime)

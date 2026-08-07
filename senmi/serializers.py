@@ -126,7 +126,7 @@ class PackageSerializer(serializers.ModelSerializer):
             'receiver_phone',
             'payment_type',
             'is_paid',
-            'commission',
+            'service_fee',
             'rider_earning',
             'delivery_code',   # ADD THIS BACK
             'sender_name',
@@ -142,7 +142,7 @@ class PackageSerializer(serializers.ModelSerializer):
 
         read_only_fields = [
             'status',
-            'commission',
+            'service_fee',
             'rider_earning',
             'package_id',
             'is_paid'

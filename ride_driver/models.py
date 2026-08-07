@@ -117,7 +117,7 @@ class SenmiRideDriverProfile(models.Model):
 
 
 
-#Notice this wallet is for commissions.
+#Notice this wallet is for service_fee.
 class SenmiRideDriverWallet(models.Model):
     driver = models.OneToOneField(
         settings.AUTH_USER_MODEL,
@@ -194,7 +194,7 @@ class SenmiRideDriverRequest(models.Model):
         decimal_places=2
     )
 
-    commission = models.DecimalField(
+    service_fee  = models.DecimalField(
         max_digits=10,
         decimal_places=2,
         default=0

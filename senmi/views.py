@@ -1145,7 +1145,7 @@ class AvailablePackagesView(APIView):
 
         data = []
         for p in packages:
-            #net_earning = float(p.rider_earning - p.commission)
+            #net_earning = float(p.rider_earning - p.service_fee )
             net_earning = float(p.rider_earning)
 
             data.append({
@@ -1154,7 +1154,7 @@ class AvailablePackagesView(APIView):
                 "price": float(p.price),
                 "receiver_name": p.receiver_name,
                 "receiver_phone": p.receiver_phone,
-                "commission": float(p.commission),
+                "service_fee ": float(p.service_fee ),
                 "rider_earning": float(p.rider_earning),
                 "net_earning": max(net_earning, 0)
             })
@@ -1255,7 +1255,7 @@ class AcceptPackageView(APIView):
                 # =========================
                 # 💰 RESPONSE
                 # =========================
-                #net_earning = float(package.rider_earning - package.commission)
+                #net_earning = float(package.rider_earning - package.service_fee )
                 net_earning = float(package.rider_earning)
 
                 return Response({
@@ -1379,7 +1379,7 @@ class CreatePackageView(APIView):
             return Response({
                 "package_id": package.package_id,
                 "delivery_code": package.delivery_code,
-                "commission": package.commission,
+                "service_fee ": package.service_fee ,
                 "rider_earning": package.rider_earning
             }, status=201)
 
@@ -1500,8 +1500,8 @@ class UpdateDeliveryStatusView(APIView):
 
                     wallet, _ = RiderWallet.objects.select_for_update().get_or_create(rider=request.user)
 
-                    # Always subtract commission from rider earnings
-                    #net_earning = package.rider_earning - package.commission
+                    # Always subtract service_fee  from rider earnings
+                    #net_earning = package.rider_earning - package.service_fee 
                     net_earning = package.rider_earning
                     if net_earning < 0:
                         return Response({"error": "Earnings cannot be negative"}, status=400)
@@ -1639,7 +1639,7 @@ class RiderActivePackagesView(APIView):
                 "status": status,
                 "pickup": p.pickup_address,
                 "delivery": p.delivery_address,
-                #"net_earning": float(p.rider_earning - p.commission),
+                #"net_earning": float(p.rider_earning - p.service_fee ),
                 "net_earning": float(p.rider_earning),
             }
 
@@ -2458,7 +2458,8 @@ class RiderWithdrawView(APIView):
             amount=amount,
             bank_account=bank_account,
             bank_code=bank_code,
-            status="processing"
+            #status="processing"
+            status="pending"
         )
         notify_admin_dashboard()
 
@@ -2534,71 +2535,30 @@ class RiderWithdrawView(APIView):
                     "details": recipient_res
                 }, status=400)
         else:
+            #paystack_recipient_code = recipient_res["data"]["recipient_code"]
             recipient_code = recipient_res["data"]["recipient_code"]
 
-        #  STEP 3: TRANSFER
-        transfer_data = {
-            "source": "balance",
-            "amount": int(amount * 100),
-            "recipient": recipient_code,
-            "reason": "Rider payout"
-        }
-
-        transfer_res = requests.post(
-            "https://api.paystack.co/transfer",
-            json=transfer_data,
-            headers=headers
-        ).json()
-
-        print("TRANSFER RESPONSE:", transfer_res)
-
-        if not transfer_res.get("status"):
-            withdrawal.status = "failed"
-            withdrawal.failure_reason = transfer_res.get("message")
+            profile = request.user.riderprofile
+            profile.paystack_recipient_code = recipient_code
+            profile.save()
+            
+            withdrawal.status = "pending"
             withdrawal.save()
+
+            notify_admin_dashboard()
 
             send_fcm_notification(
                 request.user,
-                "Withdrawal Failed",
-                transfer_res.get("message"),
-                {"type": "withdrawal_failed"}
+                "Withdrawal Submitted",
+                "Your withdrawal request has been submitted and is awaiting admin approval.",
+                {
+                    "type": "withdrawal_pending"
+                }
             )
 
             return Response({
-                "error": "Transfer failed",
-                "paystack_message": transfer_res.get("message"),
-                "details": transfer_res
-            }, status=400)
-
-        #  SUCCESS
-        wallet.balance -= amount
-        wallet.save()
-
-        withdrawal.status = "success"
-        withdrawal.save()
-
-        #  LIVE ADMIN DASHBOARD UPDATE
-        channel_layer = get_channel_layer()
-
-        async_to_sync(channel_layer.group_send)(
-            "admin_dashboard",
-            {
-                "type": "dashboard_update",
-                "message": "refresh"
-            }
-        )
-
-        send_fcm_notification(
-            request.user,
-            "Withdrawal Successful",
-            "Withdrawal successful",
-            {"type": "withdrawal_success"}
-        )
-
-        return Response({
-            "message": "Withdrawal successful"
-        })
-    
+                "message": "Withdrawal request submitted successfully and is awaiting admin approval."
+            })
 
 class AdminWithdrawalsView(APIView):
     permission_classes = [IsAdminOrSupport]
@@ -2647,27 +2607,82 @@ class ApproveWithdrawalView(APIView):
     def post(self, request, withdrawal_id):
         withdrawal = get_object_or_404(Withdrawal, id=withdrawal_id)
 
-        if withdrawal.status not in ["pending", "processing"]:
+        if withdrawal.status != "pending":
             return Response(
-                {"error": "Cannot approve this withdrawal"},
+                {"error": "Only pending withdrawals can be approved"},
                 status=400
             )
 
-        withdrawal.status = "approved"
+        rider_profile = withdrawal.rider.riderprofile
+
+        recipient_code = rider_profile.paystack_recipient_code
+
+        if not recipient_code:
+            return Response(
+                {"error": "Rider has no Paystack recipient code"},
+                status=400
+            )
+
+        headers = {
+            "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
+            "Content-Type": "application/json"
+        }
+
+        transfer_data = {
+            "source": "balance",
+            "amount": int(withdrawal.amount * 100),
+            "recipient": recipient_code,
+            "reason": "Rider payout"
+        }
+
+        withdrawal.status = "processing"
         withdrawal.save()
+
+        transfer_res = requests.post(
+            "https://api.paystack.co/transfer",
+            json=transfer_data,
+            headers=headers
+        ).json()
+
+        if transfer_res.get("status"):
+
+            wallet = RiderWallet.objects.get(rider=withdrawal.rider)
+            wallet.balance -= withdrawal.amount
+            wallet.save()
+
+            withdrawal.status = "success"
+            withdrawal.reference = transfer_res["data"]["reference"]
+            withdrawal.save()
+
+            send_fcm_notification(
+                withdrawal.rider,
+                "Withdrawal Successful",
+                "Your withdrawal has been paid successfully.",
+                {"type": "withdrawal_success"}
+            )
+
+            notify_admin_dashboard()
+
+            return Response({
+                "message": "Withdrawal paid successfully"
+            })
+
+        withdrawal.status = "failed"
+        withdrawal.failure_reason = transfer_res.get("message")
+        withdrawal.save()
+
+        send_fcm_notification(
+            withdrawal.rider,
+            "Withdrawal Failed",
+            transfer_res.get("message"),
+            {"type": "withdrawal_failed"}
+        )
 
         notify_admin_dashboard()
 
-        send_fcm_notification(
-            withdrawal.rider.user,
-            "Withdrawal Approved",
-            "Your withdrawal has been approved",
-            {"type": "withdrawal_approved"}
-        )
-
         return Response({
-            "message": "Withdrawal approved"
-        })
+            "error": transfer_res.get("message")
+        }, status=400)
         
 
 class RejectWithdrawalView(APIView):

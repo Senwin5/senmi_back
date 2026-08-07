@@ -148,6 +148,7 @@ class RiderProfile(models.Model):
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
     is_online = models.BooleanField(default=False)
     rejection_reason = models.TextField(blank=True)
+    paystack_recipient_code = models.CharField(max_length=100,blank=True,null=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
 
     def save(self, *args, **kwargs):
@@ -197,7 +198,7 @@ class Package(models.Model):
     receiver_phone = models.CharField(max_length=20, blank=True)
     receiver_name = models.CharField(max_length=255,blank=True,default="")
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    commission = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    service_fee  = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     rider_earning = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     payment_reference = models.CharField(max_length=100, blank=True, null=True)
     payment_url = models.URLField( null=True,blank=True)
@@ -244,8 +245,8 @@ class Package(models.Model):
         base_fee = Decimal('200')
         percentage = Decimal('0.10')
 
-        self.commission = base_fee + (price * percentage)
-        self.rider_earning = price - self.commission
+        self.service_fee = base_fee + (price * percentage)
+        self.rider_earning = price - self.service_fee 
 
         if self.rider_earning < 0:
             self.rider_earning = Decimal('0')
@@ -333,7 +334,6 @@ class Withdrawal(models.Model):
 
     status = models.CharField(max_length=20, choices=STATUS, default="pending")
 
-    recipient_code = models.CharField(max_length=100, null=True, blank=True)
     reference = models.CharField(max_length=100, null=True, blank=True)
 
     failure_reason = models.TextField(null=True, blank=True)
