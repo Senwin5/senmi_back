@@ -886,7 +886,7 @@ def rider_details(request, rider_id):
         "address": profile.address,
         "status": profile.status,
         "profile_image": profile.profile_picture.url if profile.profile_picture else None,
-        "nin_image": profile.rider_image_1.url if profile.rider_image_1 else None,
+        "nin_image": profile.nin_image.url if profile.nin_image else None,
         "vehicle_image": profile.rider_image_with_vehicle.url if profile.rider_image_with_vehicle else None,
         "vehicle_number": profile.vehicle_number,
     })
