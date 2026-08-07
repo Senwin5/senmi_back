@@ -97,10 +97,10 @@ class PackageSerializer(serializers.ModelSerializer):
     rider_name = serializers.CharField(source='rider.username', read_only=True)
     rider_phone = serializers.CharField(source='rider.phone_number', read_only=True)
 
-    # ✅ already there
+    #  already there
     package_id = serializers.CharField(read_only=True)
 
-    # ✅ ADD THIS (only change)
+    #  ADD THIS (only change)
     delivery_code = serializers.SerializerMethodField()
 
     rider_profile_picture = serializers.SerializerMethodField()
@@ -148,12 +148,12 @@ class PackageSerializer(serializers.ModelSerializer):
             'is_paid'
         ]
 
-    # ✅ ADD THIS METHOD (core fix)
+    #  ADD THIS METHOD (core fix)
     def get_delivery_code(self, obj):
         request = self.context.get('request')
 
         if request and request.user == obj.customer:
-            return obj.delivery_code  # ✅ ONLY customer sees
+            return obj.delivery_code  #  ONLY customer sees
 
         return None  # ❌ rider sees null
 

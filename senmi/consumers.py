@@ -83,7 +83,7 @@ class AdminRidersConsumer(
 
         await self.accept()
 
-        print("✅ Admin connected")
+        print(" Admin connected")
 
     async def disconnect(self, close_code):
 
@@ -127,7 +127,7 @@ class AdminDashboardConsumer(AsyncWebsocketConsumer):
 
         await self.accept()
 
-        print("✅ Dashboard connected")
+        print(" Dashboard connected")
 
     async def disconnect(self, close_code):
 

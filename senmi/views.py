@@ -1032,7 +1032,7 @@ def save_fcm_token(request):
 class RiderProfileUpdateView(APIView):
     permission_classes = [IsAuthenticated]
 
-    # ✅ ADDED (this is the missing part — DO NOT change your logic)
+    #  ADDED (this is the missing part — DO NOT change your logic)
     def get(self, request):
         if request.user.role != 'rider':
             return Response({"error": "Only riders allowed"}, status=403)
@@ -1046,7 +1046,7 @@ class RiderProfileUpdateView(APIView):
         serializer = RiderProfileSerializer(profile)
         return Response(serializer.data, status=200)
 
-    # ✅ YOUR ORIGINAL CODE (UNCHANGED)
+    #  YOUR ORIGINAL CODE (UNCHANGED)
     def put(self, request):
         if request.user.role != 'rider':
             return Response({"detail": "Only riders can edit profile."}, status=403)
@@ -1177,7 +1177,7 @@ class AcceptPackageView(APIView):
                 package = Package.objects.select_for_update().get(package_id=package_id)
 
                 # =========================
-                # ✅ VALIDATION MUST BE FIRST
+                #  VALIDATION MUST BE FIRST
                 # =========================
 
                 # 🚫 only riders allowed
@@ -1204,7 +1204,7 @@ class AcceptPackageView(APIView):
                     }, status=400)
 
                 # =========================
-                # ✅ ASSIGN RIDER
+                #  ASSIGN RIDER
                 # =========================
                 package.rider = request.user
                 package.status = 'accepted'
@@ -1332,7 +1332,7 @@ class CreatePackageView(APIView):
         if serializer.is_valid():
             package = serializer.save(customer=request.user)
 
-            # ✅ ADDED EMAIL NOTIFICATION (NO STRUCTURE CHANGED)
+            #  ADDED EMAIL NOTIFICATION (NO STRUCTURE CHANGED)
             try:
                 """recipients = [request.user.email] + [settings.NOTIFY_EMAIL]
 
@@ -1491,7 +1491,7 @@ class UpdateDeliveryStatusView(APIView):
                             "message": "Package already delivered"
                         }, status=200)
 
-                    # ✅ validate code only if not delivered
+                    #  validate code only if not delivered
                     if not code_input or package.delivery_code != code_input:
                         return Response({
                             "success": False,
@@ -1518,7 +1518,7 @@ class UpdateDeliveryStatusView(APIView):
                         package.is_collected = True
                         package.save(update_fields=['is_collected'])
 
-                    # ✅ ADDED: expire code immediately after successful use
+                    #  ADDED: expire code immediately after successful use
                     package.delivery_code = None
                     package.save(update_fields=['delivery_code'])
 
@@ -1542,7 +1542,7 @@ class UpdateDeliveryStatusView(APIView):
 
 
 
-                # ✅ save delivery completion time
+                #  save delivery completion time
                 if new_status == "delivered" and not package.delivered_at:
                     package.delivered_at = now()
 
@@ -1682,7 +1682,7 @@ class InitializeReceiverPaymentView(APIView):
 
     def post(self, request, package_id):
         try:
-            # ✅ LOCK to prevent race condition
+            #  LOCK to prevent race condition
             with transaction.atomic():
                 package = Package.objects.select_for_update().get(package_id=package_id)
         except Package.DoesNotExist:
@@ -1766,7 +1766,7 @@ class InitializeReceiverPaymentView(APIView):
             "Content-Type": "application/json"
         }
 
-        # ✅ SAFE PRICE
+        #  SAFE PRICE
         try:
             amount = int(Decimal(str(package.price)) * 100)
         except Exception:
@@ -1791,7 +1791,7 @@ class InitializeReceiverPaymentView(APIView):
         try:
             res = requests.post(url, json=data, headers=headers, timeout=10)
 
-            # ✅ HANDLE HTTP ERRORS
+            #  HANDLE HTTP ERRORS
             if res.status_code != 200:
                 logger.error(f"Paystack HTTP Error: {res.status_code} - {res.text}")
                 return Response({
@@ -1799,7 +1799,7 @@ class InitializeReceiverPaymentView(APIView):
                     "body": res.text
                 }, status=500)
 
-            # ✅ SAFE JSON PARSE
+            #  SAFE JSON PARSE
             try:
                 res_data = res.json()
             except Exception:
@@ -2364,7 +2364,7 @@ class CustomerPackagesView(APIView):
             rider_profile = getattr(p.rider, 'riderprofile', None) if p.rider else None
             tracking = p.latest_tracking[0] if getattr(p, 'latest_tracking', []) else None
 
-            # ✅ FIX: proper delivery_code logic (moved OUT of dict)
+            #  FIX: proper delivery_code logic (moved OUT of dict)
             delivery_code = None
             if request.user.role == "customer" and request.user == p.customer:
                 delivery_code = p.delivery_code
@@ -2375,7 +2375,7 @@ class CustomerPackagesView(APIView):
                 "is_paid": p.is_paid,
                 "status": p.status,
 
-                # ✅ SAFE + CLEAN
+                #  SAFE + CLEAN
                 "delivery_code": delivery_code,
 
                 "rider": {
@@ -2474,7 +2474,7 @@ class RiderWithdrawView(APIView):
             "Content-Type": "application/json"
         }
 
-        # ✅ STEP 1: VERIFY ACCOUNT FIRST
+        #  STEP 1: VERIFY ACCOUNT FIRST
         verify_url = f"https://api.paystack.co/bank/resolve?account_number={bank_account}&bank_code={bank_code}"
 
         try:
@@ -2504,7 +2504,7 @@ class RiderWithdrawView(APIView):
 
         account_name = verify_json["data"]["account_name"]
 
-        # ✅ STEP 2: CREATE RECIPIENT
+        #  STEP 2: CREATE RECIPIENT
         recipient_data = {
             "type": "nuban",
             "name": account_name,
@@ -2536,7 +2536,7 @@ class RiderWithdrawView(APIView):
         else:
             recipient_code = recipient_res["data"]["recipient_code"]
 
-        # ✅ STEP 3: TRANSFER
+        #  STEP 3: TRANSFER
         transfer_data = {
             "source": "balance",
             "amount": int(amount * 100),
@@ -2570,14 +2570,14 @@ class RiderWithdrawView(APIView):
                 "details": transfer_res
             }, status=400)
 
-        # ✅ SUCCESS
+        #  SUCCESS
         wallet.balance -= amount
         wallet.save()
 
         withdrawal.status = "success"
         withdrawal.save()
 
-        # ✅ LIVE ADMIN DASHBOARD UPDATE
+        #  LIVE ADMIN DASHBOARD UPDATE
         channel_layer = get_channel_layer()
 
         async_to_sync(channel_layer.group_send)(
@@ -2911,7 +2911,7 @@ class HardDeleteUserView(APIView):
 
                 user.delete()
 
-            print("✅ USER DELETED:", email)
+            print(" USER DELETED:", email)
 
             return Response({
                 "success": True,
