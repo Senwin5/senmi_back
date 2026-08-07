@@ -866,6 +866,32 @@ def review_rider(request, rider_id):
     return Response({"message": f"Rider profile {status_value} successfully."}, status=200)
 
 
+@api_view(["GET"])
+@permission_classes([IsAdminOrSupport])
+def rider_details(request, rider_id):
+    try:
+        profile = RiderProfile.objects.select_related("user").get(
+            rider_id=rider_id
+        )
+    except RiderProfile.DoesNotExist:
+        return Response({"error": "Rider not found"}, status=404)
+
+    return Response({
+        "id": profile.id,
+        "rider_id": profile.rider_id,
+        "username": profile.user.username,
+        "email": profile.user.email,
+        "phone": profile.phone_number,
+        "city": profile.city,
+        "address": profile.address,
+        "status": profile.status,
+        "profile_image": profile.profile_picture.url if profile.profile_picture else None,
+        "nin_image": profile.rider_image_1.url if profile.rider_image_1 else None,
+        "vehicle_image": profile.rider_image_with_vehicle.url if profile.rider_image_with_vehicle else None,
+        "vehicle_number": profile.vehicle_number,
+    })
+
+
 
 from .models import Notification
 

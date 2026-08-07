@@ -2,7 +2,7 @@
 from django.urls import path
 
 from senmi.views import AdminNotificationView
-from .views import AdminPackagesView, AdminRiderWalletView, AdminRidersListView, AdminUserSearchView, AdminWithdrawalsView, EditPackageView 
+from .views import AdminPackagesView, AdminRiderWalletView, AdminRidersListView, AdminUserSearchView, AdminWithdrawalsView, EditPackageView, rider_details 
 from .views import admin_notifications,delete_package, save_fcm_token, search_package,AvailableRidersView
 from .views import AcceptPackageView,UpdateDeliveryStatusView,CustomLoginView,RegisterView,calculate_price_view
 from .views import ApproveWithdrawalView, CustomerPackagesView, HardDeleteUserView, RejectWithdrawalView,ResetPasswordView
@@ -23,6 +23,7 @@ urlpatterns = [
     path('api/rider-profile/', RiderProfileUpdateView.as_view(), name='rider-profile-update'),
     #path('api/review-rider/<int:rider_id>/', review_rider, name='review-rider'),
     path("api/review-rider/<str:rider_id>/",review_rider,name="review-rider"),
+    path("api/rider-details/<str:rider_id>/",rider_details,name="rider-details",),
     path('api/admin/packages/',AdminPackagesView.as_view()),
     path('api/admin/analytics/',views.admin_analytics,name='admin_analytics'),
     path('api/admin/dashboard/',views.admin_dashboard,name='admin_dashboard'),
