@@ -2,12 +2,12 @@
 from django.urls import path
 
 from senmi.views import AdminNotificationView
-from .views import AdminPackagesView, AdminRiderWalletView, AdminRidersListView, AdminUserSearchView, AdminWithdrawalsView, ForgotPasswordView, ResetPasswordView 
+from .views import AdminPackagesView, AdminRiderWalletView, AdminRidersListView, AdminUserSearchView, AdminWithdrawalsView, EditPackageView 
 from .views import admin_notifications,delete_package, save_fcm_token, search_package,AvailableRidersView
 from .views import AcceptPackageView,UpdateDeliveryStatusView,CustomLoginView,RegisterView,calculate_price_view
-from .views import ApproveWithdrawalView, CustomerPackagesView, HardDeleteUserView, RejectWithdrawalView
+from .views import ApproveWithdrawalView, CustomerPackagesView, HardDeleteUserView, RejectWithdrawalView,ResetPasswordView
 from .views import AvailablePackagesView,PaystackWebhookView,RiderEarningsView,RiderStatusView,ResolveAccountView, RetryWithdrawalView
-from .views import LogoutView, PackageDetailView, PaymentCallbackView, BankListView, CreatePackageView
+from .views import LogoutView, PackageDetailView, PaymentCallbackView, BankListView, CreatePackageView,ForgotPasswordView
 from .views import RiderProfileUpdateView, RiderWalletView, RiderWithdrawView,RateRiderView, TrackPackageView
 from .views import UpdateLocationView, UserProfileView, review_rider, InitializeReceiverPaymentView
 from senmi import views
@@ -31,6 +31,8 @@ urlpatterns = [
     path('api/packages/', AvailablePackagesView.as_view()),
     path('api/packages/<str:package_id>/accept/', AcceptPackageView.as_view()),
     path('api/create-package/', CreatePackageView.as_view()),
+    path("api/packages/<str:package_id>/edit/",EditPackageView.as_view(),
+),
     path('api/packages/<str:package_id>/update-status/', UpdateDeliveryStatusView.as_view()),
     path('api/rider-earnings/', RiderEarningsView.as_view()),
     path('api/rider/my-packages/', views.RiderActivePackagesView.as_view()),

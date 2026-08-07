@@ -1365,7 +1365,7 @@ class CreatePackageView(APIView):
                         "type": "new_package",
                         "data": {
                             "id": package.id,
-                            "description": package.description,
+                            #"description": package.description,
                             "pickup": package.pickup_address,
                             "delivery": package.delivery_address,
                             "price": float(package.price),
@@ -1379,14 +1379,106 @@ class CreatePackageView(APIView):
             return Response({
                 "package_id": package.package_id,
                 "delivery_code": package.delivery_code,
-                "service_fee ": package.service_fee ,
+                "service_fee": package.service_fee ,
                 "rider_earning": package.rider_earning
             }, status=201)
 
         # 🔥 IMPORTANT: show real error
         logger.error(serializer.errors)
         return Response(serializer.errors, status=400)
-    
+
+
+
+class EditPackageView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, package_id):
+        package = get_object_or_404(
+            Package,
+            package_id=package_id,
+            customer=request.user
+        )
+
+        # Customer can only edit before payment and before rider accepts
+        if package.status != "pending" or package.is_paid:
+            return Response(
+                {
+                    "error": "This package can no longer be edited."
+                },
+                status=400
+            )
+
+        data = request.data
+
+        # -------------------------
+        # Update editable fields
+        # -------------------------
+        package.pickup_address = data.get(
+            "pickup_address",
+            package.pickup_address
+        )
+
+        package.delivery_address = data.get(
+            "delivery_address",
+            package.delivery_address
+        )
+
+        package.receiver_name = data.get(
+            "receiver_name",
+            package.receiver_name
+        )
+
+        package.receiver_phone = data.get(
+            "receiver_phone",
+            package.receiver_phone
+        )
+
+        package.pickup_lat = data.get(
+            "pickup_lat",
+            package.pickup_lat
+        )
+
+        package.pickup_lng = data.get(
+            "pickup_lng",
+            package.pickup_lng
+        )
+
+        package.delivery_lat = data.get(
+            "delivery_lat",
+            package.delivery_lat
+        )
+
+        package.delivery_lng = data.get(
+            "delivery_lng",
+            package.delivery_lng
+        )
+
+        # -------------------------
+        # Recalculate delivery price
+        # -------------------------
+        distance = calculate_distance(
+            float(package.pickup_lat),
+            float(package.pickup_lng),
+            float(package.delivery_lat),
+            float(package.delivery_lng),
+        )
+
+        new_price = calculate_price(distance)
+
+        package.price = Decimal(str(new_price)).quantize(
+            Decimal("0.01")
+        )
+
+        # save() automatically recalculates
+        # service_fee and rider_earning
+        package.save()
+
+        serializer = PackageSerializer(
+            package,
+            context={"request": request}
+        )
+
+        return Response(serializer.data)
 
 
 class UpdateDeliveryStatusView(APIView):
@@ -2541,7 +2633,7 @@ class RiderWithdrawView(APIView):
             profile = request.user.riderprofile
             profile.paystack_recipient_code = recipient_code
             profile.save()
-            
+
             withdrawal.status = "pending"
             withdrawal.save()
 
