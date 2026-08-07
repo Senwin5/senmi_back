@@ -2544,23 +2544,69 @@ class RiderWalletTransactionsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        transactions = WalletTransaction.objects.filter(
-            rider=request.user
-        ).order_by("-created_at")
+        transactions = (
+            WalletTransaction.objects
+            .filter(rider=request.user)
+            .select_related("package")
+            .order_by("-created_at")
+        )
 
         data = []
 
         for t in transactions:
+
+            if t.transaction_type == "credit":
+                title = "Delivery Completed"
+                icon_type = "delivery"
+                amount_type = "credit"
+
+            else:
+                title = "Withdrawal"
+                icon_type = "withdrawal"
+                amount_type = "debit"
+
+            package_data = None
+
+            if t.package:
+                package_data = {
+                    "package_id": t.package.package_id,
+                    "pickup_address": t.package.pickup_address,
+                    "delivery_address": t.package.delivery_address,
+                    "price": float(t.package.price),
+                    "service_fee": float(t.package.service_fee),
+                    "rider_earning": float(t.package.rider_earning),
+                    "status": t.package.status,
+                }
+
             data.append({
                 "id": t.id,
+
+                # What the Flutter app should display
+                "title": title,
+
+                # delivery / withdrawal
+                "icon_type": icon_type,
+
+                # credit / debit
+                "type": amount_type,
+
                 "amount": float(t.amount),
-                "type": t.transaction_type,
+
                 "description": t.description,
-                "package_id": t.package.package_id if t.package else None,
-                "date": t.created_at,
+
+                "package": package_data,
+
+                "package_id": (
+                    t.package.package_id
+                    if t.package
+                    else None
+                ),
+
+                "date": t.created_at.isoformat(),
             })
 
         return Response(data)
+    
     
 # ------------------------------
 # Rider Wallet & Withdrawal
