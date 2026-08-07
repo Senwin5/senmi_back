@@ -210,11 +210,7 @@ class Package(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     refund_status = models.CharField(max_length=20,choices=[('none', 'None'), ('pending', 'Pending'), ('refunded', 'Refunded')],default='none')
     refund_reason = models.TextField(null=True, blank=True)
-    refund_method = models.CharField(
-        max_length=20,
-        choices=[('manual', 'Manual Bank Transfer'), ('wallet', 'Wallet Refund')],
-        default='manual'
-    )
+    refund_method = models.CharField(max_length=20,choices=[('manual', 'Manual Bank Transfer'), ('wallet', 'Wallet Refund')],default='manual' )
     refunded_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
     failure_reason = models.TextField(blank=True)
