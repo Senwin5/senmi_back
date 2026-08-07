@@ -4,6 +4,9 @@ from django.contrib import admin
 from django.conf import settings
 from simple_history.admin import SimpleHistoryAdmin
 from django.utils import timezone
+from django.contrib import admin
+from django.utils.html import format_html
+from .models import WalletTransaction
 from .models import FCMDevice, Notification, User, RiderProfile,Withdrawal, PricingConfig
 from .utils import send_email, send_fcm_notification
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
@@ -462,6 +465,50 @@ class WithdrawalAdmin(admin.ModelAdmin):
     def rider_email(self, obj):
         return obj.rider.email
     
+
+@admin.register(WalletTransaction)
+class WalletTransactionAdmin(admin.ModelAdmin):
+
+    list_display = (
+        "id",
+        "rider",
+        "package",
+        "colored_type",
+        "amount",
+        "description",
+        "created_at",
+    )
+
+    list_filter = (
+        "transaction_type",
+        "created_at",
+    )
+
+    search_fields = (
+        "rider__username",
+        "rider__email",
+        "package__package_id",
+    )
+
+    readonly_fields = (
+        "created_at",
+    )
+
+    ordering = ("-created_at",)
+
+    list_per_page = 25
+
+    def colored_type(self, obj):
+        if obj.transaction_type == "credit":
+            return format_html(
+                '<span style="color:green;font-weight:bold;">CREDIT</span>'
+            )
+
+        return format_html(
+            '<span style="color:red;font-weight:bold;">DEBIT</span>'
+        )
+
+    colored_type.short_description = "Type"
 
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):

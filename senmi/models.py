@@ -301,6 +301,45 @@ class RiderWallet(models.Model):
         self.save()
 
 
+class WalletTransaction(models.Model):
+    TRANSACTION_TYPES = [
+        ("credit", "Credit"),
+        ("debit", "Debit"),
+    ]
+
+    rider = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="wallet_transactions",
+    )
+
+    package = models.ForeignKey(
+        Package,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+    )
+
+    transaction_type = models.CharField(
+        max_length=20,
+        choices=TRANSACTION_TYPES,
+    )
+
+    description = models.CharField(max_length=255)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.rider.email} - {self.transaction_type} - ₦{self.amount}"
+
 
 class RiderRating(models.Model):
     rider = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='ratings')

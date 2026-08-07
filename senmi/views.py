@@ -39,7 +39,7 @@ from django.contrib.auth.password_validation import validate_password
 from math import radians, sin, cos, sqrt, atan2
 from senmi.permissions import IsAdminOrSupport
 from senmi.utils import (calculate_distance,calculate_price,send_email,)
-from .models import (FCMDevice,Package,PackageTracking, PasswordResetOTP,RiderProfile,RiderRating,RiderWallet,Withdrawal,)
+from .models import (FCMDevice,Package,PackageTracking, PasswordResetOTP,RiderProfile,RiderRating,RiderWallet, WalletTransaction,Withdrawal,)
 from .serializers import (AdminAnalyticsSerializer,CustomLoginSerializer, CustomerProfileUpdateSerializer,PackageSerializer,RegisterSerializer,RiderProfileSerializer,UserSerializer,)
 from .utils import (notify_admin_dashboard,send_fcm_notification,)
 
@@ -1631,6 +1631,14 @@ class UpdateDeliveryStatusView(APIView):
                     wallet.total_earned += net_earning
                     wallet.save(update_fields=['balance', 'total_earned'])
 
+                    WalletTransaction.objects.create(
+                        rider=request.user,
+                        package=package,
+                        amount=net_earning,
+                        transaction_type="credit",
+                        description=f"Earnings from package {package.package_id}",
+                    )
+
 
                     # Mark collected if payment type is receiver
                     if package.payment_type == "receiver" and not package.is_collected:
@@ -2529,6 +2537,30 @@ class PackageDetailView(APIView):
         #serializer = PackageSerializer(package)
         serializer = PackageSerializer(package, context={'request': request})
         return Response(serializer.data)
+
+
+
+class RiderWalletTransactionsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        transactions = WalletTransaction.objects.filter(
+            rider=request.user
+        ).order_by("-created_at")
+
+        data = []
+
+        for t in transactions:
+            data.append({
+                "id": t.id,
+                "amount": float(t.amount),
+                "type": t.transaction_type,
+                "description": t.description,
+                "package_id": t.package.package_id if t.package else None,
+                "date": t.created_at,
+            })
+
+        return Response(data)
     
 # ------------------------------
 # Rider Wallet & Withdrawal
@@ -2579,6 +2611,12 @@ class RiderWithdrawView(APIView):
             bank_code=bank_code,
             #status="processing"
             status="pending"
+        )
+        WalletTransaction.objects.create(
+            rider=request.user,
+            amount=amount,
+            transaction_type="debit",
+            description="Wallet withdrawal",
         )
         notify_admin_dashboard()
 
