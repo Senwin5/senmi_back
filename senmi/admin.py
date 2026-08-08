@@ -449,7 +449,7 @@ class WithdrawalAdmin(admin.ModelAdmin):
         "bank_account",
         "bank_code",
         "amount",
-        "list_display",
+        "identity_check",
         "status",
         "created_at",
     )
