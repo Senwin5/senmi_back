@@ -367,13 +367,10 @@ class Withdrawal(models.Model):
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     bank_account = models.CharField(max_length=50)
     bank_code = models.CharField(max_length=10)
-
+    recipient_code = models.CharField(max_length=100, blank=True,null=True)
     status = models.CharField(max_length=20, choices=STATUS, default="pending")
-
     reference = models.CharField(max_length=100, null=True, blank=True)
-
     failure_reason = models.TextField(null=True, blank=True)
-
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

@@ -936,7 +936,7 @@ class AdminNotificationView(APIView):
         with transaction.atomic():
             for user in users.distinct():
 
-                # 🔥 prevent duplicate DB spam
+                #  prevent duplicate DB spam
                 exists = Notification.objects.filter(
                     user=user,
                     message=body,
@@ -1200,7 +1200,7 @@ class AcceptPackageView(APIView):
         try:
             with transaction.atomic():
 
-                # 🔥 LOCK package to avoid 2 riders accepting same job
+                #  LOCK package to avoid 2 riders accepting same job
                 package = Package.objects.select_for_update().get(package_id=package_id)
 
                 # =========================
@@ -1410,7 +1410,7 @@ class CreatePackageView(APIView):
                 "rider_earning": package.rider_earning
             }, status=201)
 
-        # 🔥 IMPORTANT: show real error
+        #  IMPORTANT: show real error
         logger.error(serializer.errors)
         return Response(serializer.errors, status=400)
 
@@ -1543,7 +1543,7 @@ class UpdateDeliveryStatusView(APIView):
 
                     notify_admin_dashboard()
                      
-                    # 🔥 EMAIL NOTIFICATION
+                    #  EMAIL NOTIFICATION
                     try:
                         recipients = [
                             package.customer.email,
@@ -1566,7 +1566,7 @@ class UpdateDeliveryStatusView(APIView):
                     except Exception as e:
                         logger.exception("Cancel email failed")
 
-                    # 🔥 BROADCAST (keep yours)
+                    #  BROADCAST (keep yours)
                     try:
                         channel_layer = get_channel_layer()
                         async_to_sync(channel_layer.group_send)(
@@ -1815,7 +1815,7 @@ class InitializeReceiverPaymentView(APIView):
         except Package.DoesNotExist:
             return Response({"error": "Package not found"}, status=404)
 
-        # 🔥 detect payer (UNCHANGED)
+        #  detect payer (UNCHANGED)
         payer = request.data.get("payer")
 
         # =========================
@@ -1901,7 +1901,7 @@ class InitializeReceiverPaymentView(APIView):
             return Response({"error": "Invalid package price"}, status=400)
 
         # =========================
-        # 🔥 FIXED: ALWAYS UNIQUE REFERENCE
+        #  FIXED: ALWAYS UNIQUE REFERENCE
         # =========================
         reference = f"PKG-{package.package_id}-{uuid.uuid4().hex[:12]}-{uuid.uuid4().hex[:4]}"
 
@@ -1955,7 +1955,7 @@ class InitializeReceiverPaymentView(APIView):
                 'payment_initialized'
             ])
 
-            # 🔥 EMAIL (UNCHANGED)
+            #  EMAIL (UNCHANGED)
            
 
             return Response({
@@ -2624,19 +2624,27 @@ class RiderWalletView(APIView):
 
 
 # ------------------------------
-# Rider RidermWithdraw
+# Rider Withdraw
 # ------------------------------
 class RiderWithdrawView(APIView):
     permission_classes = [IsAuthenticated]
+
     def post(self, request):
         try:
-            amount = Decimal(request.data.get('amount'))
+            amount = Decimal(request.data.get("amount"))
+
             if amount <= 0:
                 raise InvalidOperation()
-        except:
-            return Response({"error": "Invalid amount"}, status=400)
 
-        wallet, _ = RiderWallet.objects.get_or_create(rider=request.user)
+        except:
+            return Response(
+                {"error": "Invalid amount"},
+                status=400
+            )
+
+        wallet, _ = RiderWallet.objects.get_or_create(
+            rider=request.user
+        )
 
         if amount > wallet.balance:
             return Response(
@@ -2644,66 +2652,59 @@ class RiderWithdrawView(APIView):
                 status=400
             )
 
-        bank_account = request.data.get('bank_account')
-        bank_code = request.data.get('bank_code')
+        bank_account = request.data.get("bank_account")
+        bank_code = request.data.get("bank_code")
 
         if not bank_account or not bank_code:
-            return Response({"error": "Bank details required"}, status=400)
-
-        withdrawal = Withdrawal.objects.create(
-            rider=request.user,
-            amount=amount,
-            bank_account=bank_account,
-            bank_code=bank_code,
-            #status="processing"
-            status="pending"
-        )
-       
-        notify_admin_dashboard()
-
-        send_fcm_notification(
-            request.user,
-            "Withdrawal Processing",
-            "Your withdrawal is being processed",
-            {"type": "withdrawal_processing"}
-        )
+            return Response(
+                {"error": "Bank details required"},
+                status=400
+            )
 
         headers = {
             "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
             "Content-Type": "application/json"
         }
 
-        #  STEP 1: VERIFY ACCOUNT FIRST
-        verify_url = f"https://api.paystack.co/bank/resolve?account_number={bank_account}&bank_code={bank_code}"
+        verify_url = (
+            "https://api.paystack.co/bank/resolve"
+            f"?account_number={bank_account}"
+            f"&bank_code={bank_code}"
+        )
 
         try:
-            verify_res = requests.get(verify_url, headers=headers)
-            verify_json = verify_res.json()
-            print("VERIFY RESPONSE:", verify_json)
-        except Exception as e:
-            withdrawal.status = "failed"
-            withdrawal.failure_reason = str(e)
-            withdrawal.save()
+            verify_res = requests.get(
+                verify_url,
+                headers=headers
+            )
 
-            return Response({
-                "error": "Verification request failed",
-                "details": str(e)
-            }, status=500)
+            verify_json = verify_res.json()
+
+            print("VERIFY RESPONSE:", verify_json)
+
+        except Exception as e:
+
+            return Response(
+                {
+                    "error": "Verification request failed",
+                    "details": str(e)
+                },
+                status=500
+            )
 
         if not verify_json.get("status"):
-            withdrawal.status = "failed"
-            withdrawal.failure_reason = verify_json.get("message")
-            withdrawal.save()
 
-            return Response({
-                "error": "Invalid bank details",
-                "paystack_message": verify_json.get("message"),
-                "full_response": verify_json
-            }, status=400)
+            return Response(
+                {
+                    "error": "Invalid bank details",
+                    "paystack_message": verify_json.get("message"),
+                    "full_response": verify_json
+                },
+                status=400
+            )
 
         account_name = verify_json["data"]["account_name"]
 
-        #  STEP 2: CREATE RECIPIENT
         recipient_data = {
             "type": "nuban",
             "name": account_name,
@@ -2711,52 +2712,76 @@ class RiderWithdrawView(APIView):
             "bank_code": bank_code,
             "currency": "NGN"
         }
+        try:
 
-        recipient_res = requests.post(
-            "https://api.paystack.co/transferrecipient",
-            json=recipient_data,
-            headers=headers
-        ).json()
-       
-        print("RECIPIENT RESPONSE:", recipient_res)
-
-        if not recipient_res.get("status"):
-            withdrawal.status = "failed"
-            withdrawal.failure_reason = recipient_res.get("message")
-            withdrawal.save()
-
-            if "recipient_code" in str(recipient_res):
-                recipient_code = recipient_res["data"].get("recipient_code")
-            else:
-                return Response({
-                    "error": "Recipient creation failed",
-                    "details": recipient_res
-                }, status=400)
-        else:
-            #paystack_recipient_code = recipient_res["data"]["recipient_code"]
-            recipient_code = recipient_res["data"]["recipient_code"]
-
-            profile = request.user.riderprofile
-            profile.paystack_recipient_code = recipient_code
-            profile.save()
-
-            withdrawal.status = "pending"
-            withdrawal.save()
-
-            notify_admin_dashboard()
-
-            send_fcm_notification(
-                request.user,
-                "Withdrawal Submitted",
-                "Your withdrawal request has been submitted and is awaiting admin approval.",
-                {
-                    "type": "withdrawal_pending"
-                }
+            recipient_response = requests.post(
+                "https://api.paystack.co/transferrecipient",
+                json=recipient_data,
+                headers=headers
             )
 
-            return Response({
-                "message": "Withdrawal request submitted successfully and is awaiting admin approval."
-            })
+            recipient_res = recipient_response.json()
+
+            print("RECIPIENT RESPONSE:", recipient_res)
+
+        except Exception as e:
+
+            return Response(
+                {
+                    "error": "Recipient creation request failed",
+                    "details": str(e)
+                },
+                status=500
+            )
+        if not recipient_res.get("status"):
+
+            return Response(
+                {
+                    "error": "Recipient creation failed",
+                    "details": recipient_res
+                },
+                status=400
+            )
+
+        recipient_code = recipient_res["data"]["recipient_code"]
+
+        profile = request.user.riderprofile
+
+        profile.paystack_recipient_code = recipient_code
+        profile.save(
+            update_fields=["paystack_recipient_code"]
+        )
+
+        withdrawal = Withdrawal.objects.create(
+            rider=request.user,
+            amount=amount,
+            bank_account=bank_account,
+            bank_code=bank_code,
+            recipient_code=recipient_code,
+            status="pending"
+        )
+
+        notify_admin_dashboard()
+
+        send_fcm_notification(
+            request.user,
+            "Withdrawal Submitted",
+            "Your withdrawal request has been submitted and is awaiting admin approval.",
+            {
+                "type": "withdrawal_pending"
+            }
+        )
+
+        return Response(
+            {
+                "message": (
+                    "Withdrawal request submitted successfully "
+                    "and is awaiting admin approval."
+                )
+            },
+            status=201
+        )
+
 
 class AdminWithdrawalsView(APIView):
     permission_classes = [IsAdminOrSupport]
@@ -3089,7 +3114,6 @@ class BankListView(APIView):
         return Response(res.json())
     
 
-
 class RetryWithdrawalView(APIView):
     permission_classes = [IsAdminOrSupport]
 
@@ -3102,7 +3126,7 @@ class RetryWithdrawalView(APIView):
                 status=400
             )
 
-        # 🔄 mark retry started
+        # mark retry started
         withdrawal.status = "processing"
         withdrawal.failure_reason = None
         withdrawal.save()
@@ -3274,7 +3298,7 @@ class HardDeleteUserView(APIView):
     permission_classes = [IsAuthenticated]
 
     def delete(self, request):
-        print("🔥 HARD DELETE HIT")
+        print(" HARD DELETE HIT")
 
         user = request.user
 
