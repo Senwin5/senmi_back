@@ -469,12 +469,36 @@ class WithdrawalAdmin(admin.ModelAdmin):
 @admin.register(WalletTransaction)
 class WalletTransactionAdmin(admin.ModelAdmin):
 
-    list_display = ("id","rider","package","colored_type","amount","description","created_at")
-    list_filter = ("transaction_type","created_at")
-    search_fields = ("rider__username","rider__email","package__package_id")
-    readonly_fields = ("created_at")
-    ordering = ("-created_at")
+
+    list_display = (
+        "id",
+        "rider",
+        "package",
+        "colored_type",
+        "amount",
+        "description",
+        "created_at",
+    )
+
+    list_filter = (
+        "transaction_type",
+        "created_at",
+    )
+
+    search_fields = (
+        "rider__username",
+        "rider__email",
+        "package__package_id",
+    )
+
+    readonly_fields = (
+        "created_at",
+    )
+
+    ordering = ("-created_at",)
+
     list_per_page = 25
+
     def colored_type(self, obj):
         if obj.transaction_type == "credit":
             return format_html(
@@ -486,7 +510,9 @@ class WalletTransactionAdmin(admin.ModelAdmin):
             '<span style="color:red;font-weight:bold;">{}</span>',
             "DEBIT",
         )
+
     colored_type.short_description = "Type"
+
 
 
 
