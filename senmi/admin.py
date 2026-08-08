@@ -465,13 +465,12 @@ class WithdrawalAdmin(admin.ModelAdmin):
     def rider_email(self, obj):
         return obj.rider.email
 
-
 @admin.register(WalletTransaction)
 class WalletTransactionAdmin(admin.ModelAdmin):
 
 
     list_display = (
-        "id",
+        "rider_id",
         "rider",
         "package",
         "colored_type",
@@ -488,6 +487,7 @@ class WalletTransactionAdmin(admin.ModelAdmin):
     search_fields = (
         "rider__username",
         "rider__email",
+        "rider__riderprofile__rider_id",
         "package__package_id",
     )
 
@@ -499,6 +499,14 @@ class WalletTransactionAdmin(admin.ModelAdmin):
 
     list_per_page = 25
 
+    @admin.display(description="Rider ID")
+    def rider_id(self, obj):
+        if hasattr(obj.rider, "riderprofile"):
+            return obj.rider.riderprofile.rider_id
+
+        return "—"
+
+    @admin.display(description="Type")
     def colored_type(self, obj):
         if obj.transaction_type == "credit":
             return format_html(
@@ -510,9 +518,6 @@ class WalletTransactionAdmin(admin.ModelAdmin):
             '<span style="color:red;font-weight:bold;">{}</span>',
             "DEBIT",
         )
-
-    colored_type.short_description = "Type"
-
 
 
 

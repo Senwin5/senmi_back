@@ -339,6 +339,7 @@ class WalletTransaction(models.Model):
 
     def __str__(self):
         return f"{self.rider.email} - {self.transaction_type} - ₦{self.amount}"
+
     
 
 class RiderRating(models.Model):
