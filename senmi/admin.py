@@ -467,20 +467,19 @@ class WithdrawalAdmin(admin.ModelAdmin):
 
     list_per_page = 50
     date_hierarchy = "created_at"
+
     actions = [
         "approve_withdrawals",
         "reject_withdrawals",
     ]
 
+    @admin.action(description="Approve selected withdrawals")
     def approve_withdrawals(self, request, queryset):
         queryset.update(status="approved")
 
-    approve_withdrawals.short_description = "Approve selected withdrawals"
-
+    @admin.action(description="Reject selected withdrawals")
     def reject_withdrawals(self, request, queryset):
         queryset.update(status="rejected")
-
-    reject_withdrawals.short_description = "Reject selected withdrawals"
 
     @admin.display(description="Rider ID")
     def get_rider_id(self, obj):
@@ -491,10 +490,11 @@ class WithdrawalAdmin(admin.ModelAdmin):
 
     @admin.display(description="Rider Email")
     def rider_email(self, obj):
-        return obj.rider.email  
+        return obj.rider.email
 
     @admin.display(description="Identity Check")
     def identity_check(self, obj):
+
         try:
             rider_name = (
                 obj.rider.riderprofile.full_name or ""
@@ -506,24 +506,28 @@ class WithdrawalAdmin(admin.ModelAdmin):
 
             if not rider_name or not account_name:
                 return format_html(
-                    '<span style="color:orange;font-weight:bold;">CHECK</span>'
+                    '<span style="color:orange;font-weight:bold;">{}</span>',
+                    "CHECK"
                 )
 
             if rider_name == account_name:
                 return format_html(
-                    '<span style="color:green;font-weight:bold;">✓ MATCH</span>'
+                    '<span style="color:green;font-weight:bold;">{}</span>',
+                    "✓ MATCH"
                 )
 
             return format_html(
-                '<span style="color:red;font-weight:bold;">⚠ NAME MISMATCH</span>'
+                '<span style="color:red;font-weight:bold;">{}</span>',
+                "⚠ NAME MISMATCH"
             )
 
         except RiderProfile.DoesNotExist:
             return format_html(
-                '<span style="color:red;font-weight:bold;">NO RIDER PROFILE</span>'
+                '<span style="color:red;font-weight:bold;">{}</span>',
+                "NO RIDER PROFILE"
             )
 
-
+        
 @admin.register(WalletTransaction)
 class WalletTransactionAdmin(admin.ModelAdmin):
 
