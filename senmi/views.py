@@ -3068,7 +3068,7 @@ class RejectWithdrawalView(APIView):
         notify_admin_dashboard()
 
         send_fcm_notification(
-            withdrawal.rider.user,
+            withdrawal.rider,
             "Withdrawal Rejected",
             withdrawal.failure_reason,
             {"type": "withdrawal_rejected"}
@@ -3109,7 +3109,7 @@ class RetryWithdrawalView(APIView):
         notify_admin_dashboard()
         # notify rider
         send_fcm_notification(
-            withdrawal.rider.user,
+            withdrawal.rider,
             "Withdrawal Retry",
             "Your withdrawal is being retried",
             {"type": "withdrawal_retry"}
@@ -3155,12 +3155,21 @@ def process_withdrawal(withdrawal):
 
     withdrawal.save()
     notify_admin_dashboard()
-    send_fcm_notification(
-        withdrawal.rider.user,
-        "Withdrawal Successful",
-        "Withdrawal successful",
-        {"type": "withdrawal_success"}
-    )
+
+    if withdrawal.status == "success":
+        send_fcm_notification(
+            withdrawal.rider,
+            "Withdrawal Successful",
+            "Withdrawal successful",
+            {"type": "withdrawal_success"}
+        )
+    else:
+        send_fcm_notification(
+            withdrawal.rider,
+            "Withdrawal Failed",
+            withdrawal.failure_reason or "Withdrawal failed",
+            {"type": "withdrawal_failed"}
+        )
 
 
 class ResolveAccountView(APIView):
