@@ -442,61 +442,96 @@ class RiderWalletAdmin(admin.ModelAdmin):
 @admin.register(Withdrawal)
 class WithdrawalAdmin(admin.ModelAdmin):
 
-    list_display = ("get_rider_id", "rider_email", "amount", "status", "created_at")
+    list_display = (
+        "get_rider_id",
+        "rider_email",
+        "account_name",
+        "bank_account",
+        "bank_code",
+        "amount",
+        "list_display",
+        "status",
+        "created_at",
+    )
 
     list_filter = ("status",)
-    search_fields = ("rider__email", "rider__riderprofile__rider_id", "bank_account")
+
+    search_fields = (
+        "rider__email",
+        "rider__riderprofile__rider_id",
+        "bank_account",
+        "account_name",
+    )
 
     list_editable = ("status",)
+
     list_per_page = 50
     date_hierarchy = "created_at"
-
-    actions = ["approve_withdrawals", "reject_withdrawals"]
+    actions = [
+        "approve_withdrawals",
+        "reject_withdrawals",
+    ]
 
     def approve_withdrawals(self, request, queryset):
         queryset.update(status="approved")
 
+    approve_withdrawals.short_description = "Approve selected withdrawals"
+
     def reject_withdrawals(self, request, queryset):
         queryset.update(status="rejected")
 
-    def get_rider_id(self, obj):
-        return obj.rider.riderprofile.rider_id
+    reject_withdrawals.short_description = "Reject selected withdrawals"
 
+    @admin.display(description="Rider ID")
+    def get_rider_id(self, obj):
+        try:
+            return obj.rider.riderprofile.rider_id
+        except RiderProfile.DoesNotExist:
+            return "—"
+
+    @admin.display(description="Rider Email")
     def rider_email(self, obj):
-        return obj.rider.email
+        return obj.rider.email  
+
+    @admin.display(description="Identity Check")
+    def identity_check(self, obj):
+        try:
+            rider_name = (
+                obj.rider.riderprofile.full_name or ""
+            ).strip().lower()
+
+            account_name = (
+                obj.account_name or ""
+            ).strip().lower()
+
+            if not rider_name or not account_name:
+                return format_html(
+                    '<span style="color:orange;font-weight:bold;">CHECK</span>'
+                )
+
+            if rider_name == account_name:
+                return format_html(
+                    '<span style="color:green;font-weight:bold;">✓ MATCH</span>'
+                )
+
+            return format_html(
+                '<span style="color:red;font-weight:bold;">⚠ NAME MISMATCH</span>'
+            )
+
+        except RiderProfile.DoesNotExist:
+            return format_html(
+                '<span style="color:red;font-weight:bold;">NO RIDER PROFILE</span>'
+            )
+
 
 @admin.register(WalletTransaction)
 class WalletTransactionAdmin(admin.ModelAdmin):
 
-
-    list_display = (
-        "rider_id",
-        "rider",
-        "package",
-        "colored_type",
-        "amount",
-        "description",
-        "created_at",
-    )
-
-    list_filter = (
-        "transaction_type",
-        "created_at",
-    )
-
-    search_fields = (
-        "rider__username",
-        "rider__email",
-        "rider__riderprofile__rider_id",
-        "package__package_id",
-    )
-
-    readonly_fields = (
-        "created_at",
-    )
-
+    list_display = ("rider_id","rider","package","colored_type","amount","description","created_at",)
+    list_filter = ("transaction_type","created_at",)
+    search_fields = ("rider__username","rider__email","rider__riderprofile__rider_id","package__package_id",)
+    readonly_fields = ("created_at",)
     ordering = ("-created_at",)
-
     list_per_page = 25
 
     @admin.display(description="Rider ID")

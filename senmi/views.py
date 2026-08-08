@@ -2744,21 +2744,32 @@ class RiderWithdrawView(APIView):
             )
 
         recipient_code = recipient_res["data"]["recipient_code"]
-
         profile = request.user.riderprofile
-
         profile.paystack_recipient_code = recipient_code
         profile.save(
             update_fields=["paystack_recipient_code"]
         )
+
+        # DEDUCT WITHDRAWAL AMOUNT NOW
+        wallet.balance -= amount
+        wallet.save(update_fields=["balance"])
 
         withdrawal = Withdrawal.objects.create(
             rider=request.user,
             amount=amount,
             bank_account=bank_account,
             bank_code=bank_code,
+            account_name=account_name,
             recipient_code=recipient_code,
             status="pending"
+        )
+
+        # Record the wallet debit
+        WalletTransaction.objects.create(
+            rider=request.user,
+            amount=amount,
+            transaction_type="debit",
+            description=f"Withdrawal request #{withdrawal.id}",
         )
 
         notify_admin_dashboard()
@@ -2857,25 +2868,6 @@ class ApproveWithdrawalView(APIView):
                     .get_or_create(rider=withdrawal.rider)
                 )
 
-                # Check wallet balance again
-                if withdrawal.amount > wallet.balance:
-                    withdrawal.status = "failed"
-                    withdrawal.failure_reason = "Insufficient wallet balance"
-                    withdrawal.save(
-                        update_fields=[
-                            "status",
-                            "failure_reason"
-                        ]
-                    )
-
-                    return Response(
-                        {
-                            "success": False,
-                            "error": "Rider has insufficient wallet balance"
-                        },
-                        status=400
-                    )
-
                 # Get Paystack recipient
                 rider_profile = getattr(
                     withdrawal.rider,
@@ -2947,6 +2939,17 @@ class ApproveWithdrawalView(APIView):
                         ]
                     )
 
+                    # ADD THESE
+                    wallet.balance += withdrawal.amount
+                    wallet.save(update_fields=["balance"])
+
+                    WalletTransaction.objects.create(
+                        rider=withdrawal.rider,
+                        amount=withdrawal.amount,
+                        transaction_type="credit",
+                        description=f"Refund for failed withdrawal #{withdrawal.id}",
+                    )
+
                     return Response(
                         {
                             "success": False,
@@ -2960,21 +2963,6 @@ class ApproveWithdrawalView(APIView):
                 # ==========================================
 
                 if transfer_res.get("status"):
-
-                    # Deduct wallet ONLY after Paystack accepted transfer
-                    wallet.balance -= withdrawal.amount
-
-                    wallet.save(
-                        update_fields=["balance"]
-                    )
-
-                    # Create wallet debit history
-                    WalletTransaction.objects.create(
-                        rider=withdrawal.rider,
-                        amount=withdrawal.amount,
-                        transaction_type="debit",
-                        description=f"Withdrawal #{withdrawal.id}",
-                    )
 
                     # Mark withdrawal successful
                     withdrawal.status = "success"
@@ -3027,6 +3015,16 @@ class ApproveWithdrawalView(APIView):
                     ]
                 )
 
+                wallet.balance += withdrawal.amount
+                wallet.save(update_fields=["balance"])
+
+                WalletTransaction.objects.create(
+                    rider=withdrawal.rider,
+                    amount=withdrawal.amount,
+                    transaction_type="credit",
+                    description=f"Refund for failed withdrawal #{withdrawal.id}",
+                )
+
                 notify_admin_dashboard()
 
                 send_fcm_notification(
@@ -3071,37 +3069,139 @@ class ApproveWithdrawalView(APIView):
             )
                
 
+
 class RejectWithdrawalView(APIView):
     permission_classes = [IsAdminOrSupport]
 
     def post(self, request, withdrawal_id):
-        withdrawal = get_object_or_404(Withdrawal, id=withdrawal_id)
 
-        if withdrawal.status in ["success", "rejected"]:
-            return Response(
-                {"error": "Cannot reject this withdrawal"},
-                status=400
+        try:
+            with transaction.atomic():
+
+                # Lock withdrawal
+                withdrawal = (
+                    Withdrawal.objects
+                    .select_for_update()
+                    .select_related("rider")
+                    .get(id=withdrawal_id)
+                )
+
+                # Only pending withdrawals can be rejected
+                if withdrawal.status != "pending":
+                    return Response(
+                        {
+                            "success": False,
+                            "error": (
+                                f"Cannot reject withdrawal "
+                                f"with status {withdrawal.status}"
+                            )
+                        },
+                        status=400
+                    )
+
+                # Lock rider wallet
+                wallet, _ = (
+                    RiderWallet.objects
+                    .select_for_update()
+                    .get_or_create(
+                        rider=withdrawal.rider
+                    )
+                )
+
+                # ==========================================
+                # RETURN THE RESERVED MONEY
+                # ==========================================
+
+                wallet.balance += withdrawal.amount
+
+                wallet.save(
+                    update_fields=["balance"]
+                )
+
+                # ==========================================
+                # RECORD WALLET REFUND
+                # ==========================================
+
+                WalletTransaction.objects.create(
+                    rider=withdrawal.rider,
+                    amount=withdrawal.amount,
+                    transaction_type="credit",
+                    description=(
+                        f"Refund for rejected withdrawal "
+                        f"#{withdrawal.id}"
+                    ),
+                )
+
+                # ==========================================
+                # MARK WITHDRAWAL REJECTED
+                # ==========================================
+
+                withdrawal.status = "rejected"
+
+                withdrawal.failure_reason = request.data.get(
+                    "reason",
+                    "Rejected by admin"
+                )
+
+                withdrawal.save(
+                    update_fields=[
+                        "status",
+                        "failure_reason"
+                    ]
+                )
+
+            notify_admin_dashboard()
+
+            send_fcm_notification(
+                withdrawal.rider,
+                "Withdrawal Rejected",
+                (
+                    f"{withdrawal.failure_reason}. "
+                    f"₦{withdrawal.amount:,.2f} "
+                    f"has been returned to your wallet."
+                ),
+                {
+                    "type": "withdrawal_rejected"
+                }
             )
 
-        withdrawal.status = "rejected"
-        withdrawal.failure_reason = request.data.get(
-            "reason",
-            "Rejected by admin"
-        )
-        withdrawal.save()
+            return Response(
+                {
+                    "success": True,
+                    "message": (
+                        "Withdrawal rejected and funds "
+                        "returned to wallet"
+                    ),
+                    "refunded": True,
+                    "balance": float(wallet.balance)
+                },
+                status=200
+            )
 
-        notify_admin_dashboard()
+        except Withdrawal.DoesNotExist:
 
-        send_fcm_notification(
-            withdrawal.rider,
-            "Withdrawal Rejected",
-            withdrawal.failure_reason,
-            {"type": "withdrawal_rejected"}
-        )
+            return Response(
+                {
+                    "success": False,
+                    "error": "Withdrawal not found"
+                },
+                status=404
+            )
 
-        return Response({
-            "message": "Withdrawal rejected"
-        })
+        except Exception as e:
+
+            logger.exception(
+                f"Error rejecting withdrawal {withdrawal_id}: {e}"
+            )
+
+            return Response(
+                {
+                    "success": False,
+                    "error": "Failed to reject withdrawal"
+                },
+                status=500
+            )
+
 
 class BankListView(APIView):
     def get(self, request):
