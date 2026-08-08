@@ -520,7 +520,6 @@ class WalletTransactionAdmin(admin.ModelAdmin):
         )
 
 
-
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
     list_display = ('user', 'type', 'is_read', 'created_at')
