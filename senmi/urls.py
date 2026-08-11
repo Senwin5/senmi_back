@@ -69,7 +69,8 @@ urlpatterns = [
     path('api/save-fcm-token/', save_fcm_token),
     path("api/send-notification/",AdminNotificationView.as_view(),name="admin-send-notification"),
     path("api/admin-notifications/",admin_notifications,name="admin-notifications"),
-    path("api/admin/customers/",views.admin_customers,name="admin_customers",)
+    path("api/admin/customers/",views.admin_customers,name="admin_customers"),
+    path("api/withdrawals/<int:withdrawal_id>/approve/",ApproveWithdrawalView.as_view(),name="approve-withdrawal"),
+    path("api/paystack/transfer-webhook/",PaystackTransferWebhookView.as_view(),name="paystack-transfer-webhook"),
  
-    
 ]

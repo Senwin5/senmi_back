@@ -454,8 +454,10 @@ class WithdrawalAdmin(admin.ModelAdmin):
         "amount",
         "identity_check",
         "status",
+        "recipient_code",
         "reference",
         "transfer_code",
+        "failure_reason",
         "created_at",
     )
 
@@ -469,13 +471,11 @@ class WithdrawalAdmin(admin.ModelAdmin):
         "rider__riderprofile__rider_id",
         "bank_account",
         "account_name",
+        "recipient_code",
         "reference",
         "transfer_code",
     )
 
-    # VERY IMPORTANT:
-    # Do not allow admin to manually change status.
-    # Status must be controlled by the payout workflow/webhook.
     readonly_fields = (
         "rider",
         "amount",
@@ -490,6 +490,7 @@ class WithdrawalAdmin(admin.ModelAdmin):
     )
 
     list_per_page = 50
+
     date_hierarchy = "created_at"
 
     actions = [
@@ -497,6 +498,7 @@ class WithdrawalAdmin(admin.ModelAdmin):
         "reject_withdrawals",
         "retry_failed_withdrawals",
     ]
+    
 
     # -----------------------------------------
     # APPROVE
