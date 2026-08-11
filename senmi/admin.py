@@ -439,8 +439,30 @@ class PackageTrackingAdmin(admin.ModelAdmin):
 
 @admin.register(RiderWallet)
 class RiderWalletAdmin(admin.ModelAdmin):
-    list_display = ('rider_id','rider', 'balance', 'total_earned')
-    search_fields = ('rider__email', 'rider__username')
+
+    list_display = (
+        "display_rider_id",
+        "rider",
+        "balance",
+        "total_earned",
+    )
+
+    search_fields = (
+        "rider__email",
+        "rider__username",
+        "rider__riderprofile__rider_id",
+        "rider__riderprofile__full_name",
+    )
+
+    list_per_page = 50
+
+    @admin.display(description="Rider ID", ordering="rider__riderprofile__rider_id")
+    def display_rider_id(self, obj):
+        try:
+            return obj.rider.riderprofile.rider_id
+        except RiderProfile.DoesNotExist:
+            return "—"
+        
 
 @admin.register(Withdrawal)
 class WithdrawalAdmin(admin.ModelAdmin):
