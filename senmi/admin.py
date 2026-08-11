@@ -2,13 +2,16 @@ import uuid
 from django.contrib.auth import get_user_model
 from django.contrib import admin
 from django.conf import settings
+from django.db import transaction
 from simple_history.admin import SimpleHistoryAdmin
 from django.utils import timezone
 from django.contrib import admin
 from django.utils.html import format_html
+
+from senmi.views import process_withdrawal
 from .models import WalletTransaction
 from .models import FCMDevice, Notification, User, RiderProfile,Withdrawal, PricingConfig
-from .utils import send_email, send_fcm_notification
+from .utils import notify_admin_dashboard, send_email, send_fcm_notification
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.core.exceptions import ValidationError
 from .models import User,RiderWallet, Package, PackageTracking,PasswordResetOTP
@@ -451,19 +454,40 @@ class WithdrawalAdmin(admin.ModelAdmin):
         "amount",
         "identity_check",
         "status",
+        "reference",
+        "transfer_code",
         "created_at",
     )
 
-    list_filter = ("status",)
+    list_filter = (
+        "status",
+        "created_at",
+    )
 
     search_fields = (
         "rider__email",
         "rider__riderprofile__rider_id",
         "bank_account",
         "account_name",
+        "reference",
+        "transfer_code",
     )
 
-    list_editable = ("status",)
+    # VERY IMPORTANT:
+    # Do not allow admin to manually change status.
+    # Status must be controlled by the payout workflow/webhook.
+    readonly_fields = (
+        "rider",
+        "amount",
+        "bank_account",
+        "bank_code",
+        "account_name",
+        "recipient_code",
+        "reference",
+        "transfer_code",
+        "failure_reason",
+        "created_at",
+    )
 
     list_per_page = 50
     date_hierarchy = "created_at"
@@ -471,20 +495,292 @@ class WithdrawalAdmin(admin.ModelAdmin):
     actions = [
         "approve_withdrawals",
         "reject_withdrawals",
+        "retry_failed_withdrawals",
     ]
 
-    @admin.action(description="Approve selected withdrawals")
-    def approve_withdrawals(self, request, queryset):
-        queryset.update(status="approved")
+    # -----------------------------------------
+    # APPROVE
+    # -----------------------------------------
 
-    @admin.action(description="Reject selected withdrawals")
+    @admin.action(
+        description="Approve and send to Paystack"
+    )
+    def approve_withdrawals(self, request, queryset):
+
+        for withdrawal in queryset:
+
+            if withdrawal.status not in [
+                "pending",
+                "approved",
+            ]:
+                self.message_user(
+                    request,
+                    (
+                        f"Withdrawal #{withdrawal.id} "
+                        f"cannot be approved because "
+                        f"it is {withdrawal.status}."
+                    ),
+                    level="ERROR",
+                )
+                continue
+
+            result = process_withdrawal(
+                withdrawal.id
+            )
+
+            if result.get("success"):
+
+                self.message_user(
+                    request,
+                    (
+                        f"Withdrawal #{withdrawal.id} "
+                        f"sent to Paystack. "
+                        f"Reference: "
+                        f"{result.get('reference')}"
+                    ),
+                )
+
+            else:
+
+                self.message_user(
+                    request,
+                    (
+                        f"Withdrawal #{withdrawal.id}: "
+                        f"{result.get('message')}"
+                    ),
+                    level="ERROR",
+                )
+
+    # -----------------------------------------
+    # REJECT
+    # -----------------------------------------
+
+    @admin.action(
+        description="Reject selected withdrawals"
+    )
     def reject_withdrawals(self, request, queryset):
-        queryset.update(status="rejected")
+
+        for withdrawal in queryset:
+
+            if withdrawal.status != "pending":
+
+                self.message_user(
+                    request,
+                    (
+                        f"Withdrawal #{withdrawal.id} "
+                        f"cannot be rejected because "
+                        f"it is {withdrawal.status}."
+                    ),
+                    level="ERROR",
+                )
+
+                continue
+
+            with transaction.atomic():
+
+                locked = (
+                    Withdrawal.objects
+                    .select_for_update()
+                    .select_related("rider")
+                    .get(id=withdrawal.id)
+                )
+
+                wallet = (
+                    RiderWallet.objects
+                    .select_for_update()
+                    .get_or_create(
+                        rider=locked.rider
+                    )[0]
+                )
+
+                # Return reserved money
+                wallet.balance += locked.amount
+
+                wallet.save(
+                    update_fields=["balance"]
+                )
+
+                WalletTransaction.objects.create(
+                    rider=locked.rider,
+                    amount=locked.amount,
+                    transaction_type="credit",
+                    description=(
+                        f"Refund for rejected "
+                        f"withdrawal #{locked.id}"
+                    ),
+                )
+
+                locked.status = "rejected"
+
+                locked.failure_reason = (
+                    "Rejected by admin"
+                )
+
+                locked.save(
+                    update_fields=[
+                        "status",
+                        "failure_reason",
+                    ]
+                )
+
+            send_fcm_notification(
+                locked.rider,
+                "Withdrawal Rejected",
+                (
+                    f"Your ₦{locked.amount:,.2f} "
+                    "withdrawal was rejected. "
+                    "The money has been returned "
+                    "to your wallet."
+                ),
+                {
+                    "type": "withdrawal_rejected",
+                    "withdrawal_id": locked.id,
+                }
+            )
+
+        notify_admin_dashboard()
+
+    # -----------------------------------------
+    # RETRY FAILED
+    # -----------------------------------------
+
+    @admin.action(
+        description="Retry failed withdrawals"
+    )
+    def retry_failed_withdrawals(
+        self,
+        request,
+        queryset
+    ):
+
+        for withdrawal in queryset:
+
+            if withdrawal.status not in [
+                "failed",
+                "reversed",
+            ]:
+
+                self.message_user(
+                    request,
+                    (
+                        f"Withdrawal #{withdrawal.id} "
+                        "is not failed/reversed."
+                    ),
+                    level="ERROR",
+                )
+
+                continue
+
+            # IMPORTANT:
+            # A failed/reversed withdrawal has already
+            # returned the money to the wallet.
+            #
+            # Therefore retrying requires deducting
+            # the money again.
+
+            with transaction.atomic():
+
+                locked = (
+                    Withdrawal.objects
+                    .select_for_update()
+                    .get(id=withdrawal.id)
+                )
+
+                wallet = (
+                    RiderWallet.objects
+                    .select_for_update()
+                    .get_or_create(
+                        rider=locked.rider
+                    )[0]
+                )
+
+                if wallet.balance < locked.amount:
+
+                    self.message_user(
+                        request,
+                        (
+                            f"Withdrawal #{locked.id}: "
+                            "rider does not have enough "
+                            "wallet balance for retry."
+                        ),
+                        level="ERROR",
+                    )
+
+                    continue
+
+                wallet.balance -= locked.amount
+
+                wallet.save(
+                    update_fields=["balance"]
+                )
+
+                WalletTransaction.objects.create(
+                    rider=locked.rider,
+                    amount=locked.amount,
+                    transaction_type="debit",
+                    description=(
+                        f"Retry withdrawal #{locked.id}"
+                    ),
+                )
+
+                locked.status = "pending"
+
+                locked.failure_reason = None
+
+                # IMPORTANT:
+                # Clear old reference because the old
+                # transfer reached a conclusive state.
+                #
+                # process_withdrawal will create a new
+                # reference for this new transfer attempt.
+                locked.reference = None
+                locked.transfer_code = None
+
+                locked.save(
+                    update_fields=[
+                        "status",
+                        "failure_reason",
+                        "reference",
+                        "transfer_code",
+                    ]
+                )
+
+            result = process_withdrawal(
+                locked.id
+            )
+
+            if result.get("success"):
+
+                self.message_user(
+                    request,
+                    (
+                        f"Retry for withdrawal "
+                        f"#{locked.id} sent to Paystack."
+                    ),
+                )
+
+            else:
+
+                self.message_user(
+                    request,
+                    (
+                        f"Retry failed for "
+                        f"withdrawal #{locked.id}: "
+                        f"{result.get('message')}"
+                    ),
+                    level="ERROR",
+                )
+
+    # -----------------------------------------
+    # DISPLAY HELPERS
+    # -----------------------------------------
 
     @admin.display(description="Rider ID")
     def get_rider_id(self, obj):
+
         try:
             return obj.rider.riderprofile.rider_id
+
         except RiderProfile.DoesNotExist:
             return "—"
 
@@ -496,6 +792,7 @@ class WithdrawalAdmin(admin.ModelAdmin):
     def identity_check(self, obj):
 
         try:
+
             rider_name = (
                 obj.rider.riderprofile.full_name or ""
             ).strip().lower()
@@ -505,28 +802,32 @@ class WithdrawalAdmin(admin.ModelAdmin):
             ).strip().lower()
 
             if not rider_name or not account_name:
+
                 return format_html(
                     '<span style="color:orange;font-weight:bold;">{}</span>',
-                    "CHECK"
+                    "CHECK",
                 )
 
             if rider_name == account_name:
+
                 return format_html(
                     '<span style="color:green;font-weight:bold;">{}</span>',
-                    "✓ MATCH"
+                    "✓ MATCH",
                 )
 
             return format_html(
                 '<span style="color:red;font-weight:bold;">{}</span>',
-                "⚠ NAME MISMATCH"
+                "⚠ NAME MISMATCH",
             )
 
         except RiderProfile.DoesNotExist:
+
             return format_html(
                 '<span style="color:red;font-weight:bold;">{}</span>',
-                "NO RIDER PROFILE"
+                "NO RIDER PROFILE",
             )
 
+        
         
 @admin.register(WalletTransaction)
 class WalletTransactionAdmin(admin.ModelAdmin):

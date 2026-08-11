@@ -41,7 +41,7 @@ urlpatterns = [
     path('api/my-orders/', views.my_orders),
     path('api/packages/<str:package_id>/pay/', InitializeReceiverPaymentView.as_view()),
     path('api/paystack/webhook/', PaystackWebhookView.as_view()),
-    path("paystack/transfer-webhook/",PaystackTransferWebhookView.as_view(),name="paystack-transfer-webhook"),
+    path("api/paystack/transfer-webhook/",PaystackTransferWebhookView.as_view(),name="paystack-transfer-webhook"),
     path('api/payment/callback/', PaymentCallbackView.as_view()),
     path('api/packages/<str:package_id>/update-location/', UpdateLocationView.as_view()),
     path('api/track/<str:package_id>/', TrackPackageView.as_view()),

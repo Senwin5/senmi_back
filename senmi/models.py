@@ -361,6 +361,7 @@ class Withdrawal(models.Model):
         ("processing", "Processing"),
         ("success", "Success"),
         ("failed", "Failed"),
+        ("reversed", "Reversed"),
     ]
 
     rider = models.ForeignKey(User, on_delete=models.CASCADE)
