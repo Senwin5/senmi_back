@@ -2,8 +2,8 @@
 from django.urls import path
 
 from senmi.views import AdminNotificationView
-from .views import AdminPackagesView, AdminRiderWalletView, AdminRidersListView, AdminUserSearchView, AdminWithdrawalsView, EditPackageView, RiderWalletTransactionsView, rider_details 
-from .views import admin_notifications,delete_package, save_fcm_token, search_package,AvailableRidersView
+from .views import AdminPackagesView, AdminRiderWalletView, AdminRidersListView, AdminUserSearchView, PaystackTransferWebhookView, RiderWalletTransactionsView, rider_details 
+from .views import admin_notifications,delete_package, save_fcm_token, search_package,AvailableRidersView,AdminWithdrawalsView, EditPackageView
 from .views import AcceptPackageView,UpdateDeliveryStatusView,CustomLoginView,RegisterView,calculate_price_view
 from .views import ApproveWithdrawalView, CustomerPackagesView, HardDeleteUserView, RejectWithdrawalView,ResetPasswordView
 from .views import AvailablePackagesView,PaystackWebhookView,RiderEarningsView,RiderStatusView,ResolveAccountView, RetryWithdrawalView
@@ -34,14 +34,14 @@ urlpatterns = [
     path('api/packages/', AvailablePackagesView.as_view()),
     path('api/packages/<str:package_id>/accept/', AcceptPackageView.as_view()),
     path('api/create-package/', CreatePackageView.as_view()),
-    path("api/packages/<str:package_id>/edit/",EditPackageView.as_view(),
-),
+    path("api/packages/<str:package_id>/edit/",EditPackageView.as_view(),),
     path('api/packages/<str:package_id>/update-status/', UpdateDeliveryStatusView.as_view()),
     path('api/rider-earnings/', RiderEarningsView.as_view()),
     path('api/rider/my-packages/', views.RiderActivePackagesView.as_view()),
     path('api/my-orders/', views.my_orders),
     path('api/packages/<str:package_id>/pay/', InitializeReceiverPaymentView.as_view()),
     path('api/paystack/webhook/', PaystackWebhookView.as_view()),
+    path("paystack/transfer-webhook/",PaystackTransferWebhookView.as_view(),name="paystack-transfer-webhook"),
     path('api/payment/callback/', PaymentCallbackView.as_view()),
     path('api/packages/<str:package_id>/update-location/', UpdateLocationView.as_view()),
     path('api/track/<str:package_id>/', TrackPackageView.as_view()),

@@ -436,7 +436,7 @@ class PackageTrackingAdmin(admin.ModelAdmin):
 
 @admin.register(RiderWallet)
 class RiderWalletAdmin(admin.ModelAdmin):
-    list_display = ('rider', 'balance', 'total_earned')
+    list_display = ('rider_id','rider', 'balance', 'total_earned')
     search_fields = ('rider__email', 'rider__username')
 
 @admin.register(Withdrawal)

@@ -370,6 +370,7 @@ class Withdrawal(models.Model):
     # ADD THIS
     account_name = models.CharField(max_length=255,blank=True,null=True)
     recipient_code = models.CharField(max_length=100,blank=True,null=True)
+    transfer_code = models.CharField(max_length=100,blank=True,null=True)
     status = models.CharField(max_length=20,choices=STATUS,default="pending")
     reference = models.CharField(max_length=100,null=True,blank=True)
     failure_reason = models.TextField(null=True,blank=True)
