@@ -3585,6 +3585,122 @@ class VerifyWithdrawalView(APIView):
         )
     
 
+
+@method_decorator(csrf_exempt, name="dispatch")
+class PaystackTransferApprovalView(APIView):
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+
+        logger.info(
+            "Paystack transfer approval request: %s",
+            request.data
+        )
+
+        data = request.data or {}
+
+        reference = data.get("reference")
+        amount = data.get("amount")
+
+        if not reference or amount is None:
+            logger.warning(
+                "Transfer approval missing reference or amount"
+            )
+
+            return Response(
+                {"error": "Missing transfer details"},
+                status=400
+            )
+
+        try:
+            withdrawal = Withdrawal.objects.get(
+                reference=reference
+            )
+        except Withdrawal.DoesNotExist:
+
+            logger.warning(
+                "Unknown transfer reference: %s",
+                reference
+            )
+
+            return Response(
+                {"error": "Unknown transfer"},
+                status=400
+            )
+
+        # Paystack amount is in kobo.
+        expected_amount = int(
+            Decimal(str(withdrawal.amount)) * 100
+        )
+
+        try:
+            received_amount = int(amount)
+        except (ValueError, TypeError):
+
+            return Response(
+                {"error": "Invalid amount"},
+                status=400
+            )
+
+        # =================================================
+        # VERIFY AMOUNT
+        # =================================================
+
+        if received_amount != expected_amount:
+
+            logger.warning(
+                "Transfer amount mismatch. "
+                "Withdrawal=%s expected=%s received=%s",
+                withdrawal.id,
+                expected_amount,
+                received_amount,
+            )
+
+            return Response(
+                {"error": "Amount mismatch"},
+                status=400
+            )
+
+        # =================================================
+        # VERIFY STATUS
+        # =================================================
+
+        if withdrawal.status in [
+            "success",
+            "rejected",
+            "reversed",
+        ]:
+
+            logger.warning(
+                "Transfer %s cannot be approved. "
+                "Current status=%s",
+                withdrawal.id,
+                withdrawal.status,
+            )
+
+            return Response(
+                {"error": "Withdrawal cannot be approved"},
+                status=400
+            )
+
+        logger.info(
+            "Transfer approved by Senmi server: "
+            "withdrawal=%s reference=%s amount=%s",
+            withdrawal.id,
+            reference,
+            received_amount,
+        )
+
+        # HTTP 200 = Paystack should continue processing.
+        return Response(
+            {"approved": True},
+            status=200
+        )
+
+    
+
 class ApproveWithdrawalView(APIView):
     permission_classes = [IsAdminOrSupport]
 
@@ -4094,33 +4210,78 @@ class RetryWithdrawalView(APIView):
     permission_classes = [IsAdminOrSupport]
 
     def post(self, request, withdrawal_id):
-        withdrawal = get_object_or_404(Withdrawal, id=withdrawal_id)
+
+        withdrawal = get_object_or_404(
+            Withdrawal,
+            id=withdrawal_id
+        )
 
         if withdrawal.status != "failed":
             return Response(
-                {"error": "Only failed withdrawals can be retried"},
+                {
+                    "error": (
+                        "Only failed withdrawals "
+                        "can be retried"
+                    )
+                },
                 status=400
             )
 
-        # mark retry started
-        withdrawal.status = "processing"
-        withdrawal.failure_reason = None
-        withdrawal.save()
+        # Do NOT set processing here.
+        # process_withdrawal() does that.
+
+        result = process_withdrawal(
+            withdrawal.id
+        )
+
+        if not result.get("success"):
+            return Response(
+                {
+                    "success": False,
+                    "error": result.get(
+                        "message",
+                        "Retry failed"
+                    )
+                },
+                status=400
+            )
+
         notify_admin_dashboard()
-        # notify rider
+
         send_fcm_notification(
             withdrawal.rider,
             "Withdrawal Retry",
-            "Your withdrawal is being retried",
-            {"type": "withdrawal_retry"}
+            (
+                "Your withdrawal has been "
+                "sent to Paystack again."
+            ),
+            {
+                "type": "withdrawal_retry",
+                "withdrawal_id": str(
+                    withdrawal.id
+                ),
+            }
         )
 
-        #process_withdrawal(withdrawal)
-        process_withdrawal(withdrawal.id)
-
-        return Response({
-            "message": "Withdrawal retry started"
-        })
+        return Response(
+            {
+                "success": True,
+                "message": (
+                    "Withdrawal retry sent "
+                    "to Paystack."
+                ),
+                "status": result.get("status"),
+                "reference": result.get("reference"),
+                "transfer_code": result.get(
+                    "transfer_code"
+                ),
+                "paystack_status": result.get(
+                    "paystack_status"
+                ),
+            },
+            status=200
+        )
+    
     
 
 class ResolveAccountView(APIView):

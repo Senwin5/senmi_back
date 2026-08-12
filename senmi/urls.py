@@ -2,7 +2,7 @@
 from django.urls import path
 
 from senmi.views import AdminNotificationView
-from .views import AdminPackagesView, AdminRiderWalletView, AdminRidersListView, AdminUserSearchView, PaystackTransferWebhookView, RiderWalletTransactionsView, rider_details 
+from .views import AdminPackagesView, AdminRiderWalletView, AdminRidersListView, AdminUserSearchView, PaystackTransferApprovalView, PaystackTransferWebhookView, RiderWalletTransactionsView, rider_details 
 from .views import admin_notifications,delete_package, save_fcm_token, search_package,AvailableRidersView,AdminWithdrawalsView, EditPackageView
 from .views import AcceptPackageView,UpdateDeliveryStatusView,CustomLoginView,RegisterView,calculate_price_view
 from .views import ApproveWithdrawalView, CustomerPackagesView, HardDeleteUserView, RejectWithdrawalView,ResetPasswordView
@@ -41,6 +41,7 @@ urlpatterns = [
     path('api/my-orders/', views.my_orders),
     path('api/packages/<str:package_id>/pay/', InitializeReceiverPaymentView.as_view()),
     path('api/paystack/webhook/', PaystackWebhookView.as_view()),
+    path("api/paystack/transfer-approval/",PaystackTransferApprovalView.as_view(),name="paystack-transfer-approval",),
     path("api/paystack/transfer-webhook/",PaystackTransferWebhookView.as_view(),name="paystack-transfer-webhook"),
     path('api/payment/callback/', PaymentCallbackView.as_view()),
     path('api/packages/<str:package_id>/update-location/', UpdateLocationView.as_view()),
