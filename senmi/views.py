@@ -4107,8 +4107,8 @@ class RetryWithdrawalView(APIView):
             {"type": "withdrawal_retry"}
         )
 
-        # run actual payout logic
-        process_withdrawal(withdrawal)
+        #process_withdrawal(withdrawal)
+        process_withdrawal(withdrawal.id)
 
         return Response({
             "message": "Withdrawal retry started"
