@@ -3899,16 +3899,21 @@ class AdminWithdrawalsView(APIView):
     permission_classes = [IsAdminOrSupport]
 
     def get(self, request):
-        withdrawals = Withdrawal.objects.all().order_by("-created_at")
+        withdrawals = Withdrawal.objects.select_related(
+            "rider"
+        ).all().order_by("-created_at")
 
         data = [
             {
+                "id": w.id,
                 "rider_id": w.rider.riderprofile.rider_id,
                 "rider": w.rider.email,
                 "amount": float(w.amount),
                 "status": w.status,
                 "reason": w.failure_reason,
-                "created_at": w.created_at
+                "reference": w.reference,
+                "transfer_code": w.transfer_code,
+                "created_at": w.created_at,
             }
             for w in withdrawals
         ]
