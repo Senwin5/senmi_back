@@ -62,7 +62,8 @@ urlpatterns = [
     path('api/calculate-price/', calculate_price_view),
     path('api/packages/<str:package_id>/delete/', delete_package),
     path('api/admin/withdrawals/', AdminWithdrawalsView.as_view()),
-    path('api/admin/withdrawals/<int:withdrawal_id>/approve/',ApproveWithdrawalView.as_view()),
+    path('api/admin/withdrawals/int:withdrawal_id/approve/',ApproveWithdrawalView.as_view(),name='approve-withdrawal'),
+    #path('api/admin/withdrawals/<int:withdrawal_id>/approve/',ApproveWithdrawalView.as_view()),
     path('api/admin/withdrawals/<int:withdrawal_id>/reject/',RejectWithdrawalView.as_view()),
     path('api/admin/withdrawals/<int:withdrawal_id>/retry/',RetryWithdrawalView.as_view()),
     path('api/payment-success/', views.payment_success),
@@ -70,7 +71,5 @@ urlpatterns = [
     path("api/send-notification/",AdminNotificationView.as_view(),name="admin-send-notification"),
     path("api/admin-notifications/",admin_notifications,name="admin-notifications"),
     path("api/admin/customers/",views.admin_customers,name="admin_customers"),
-    path("api/withdrawals/<int:withdrawal_id>/approve/",ApproveWithdrawalView.as_view(),name="approve-withdrawal"),
-    path("api/paystack/transfer-webhook/",PaystackTransferWebhookView.as_view(),name="paystack-transfer-webhook"),
- 
+   
 ]
