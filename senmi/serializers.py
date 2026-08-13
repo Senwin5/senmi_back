@@ -283,20 +283,3 @@ class AdminAnalyticsSerializer(serializers.Serializer):
     average_delivery_time = serializers.CharField()
 
 
-class AdminRiderUpdateSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=False)
-    phone_number = serializers.CharField(required=False, allow_blank=True)
-    city = serializers.CharField(required=False, allow_blank=True)
-    address = serializers.CharField(required=False, allow_blank=True)
-
-    def validate_email(self, value):
-        rider = self.context["rider"]
-
-        if User.objects.exclude(
-            id=rider.user.id
-        ).filter(email=value).exists():
-            raise serializers.ValidationError(
-                "Email already exists."
-            )
-
-        return value
