@@ -375,6 +375,7 @@ class Withdrawal(models.Model):
     # Our own transfer reference
     reference = models.CharField( max_length=100,unique=True,null=True, blank=True)
     failure_reason = models.TextField(null=True,blank=True)
+    refunded_at = models.DateTimeField(null=True,blank=True),
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

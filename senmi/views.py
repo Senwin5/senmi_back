@@ -60,7 +60,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from senmi.models import User
-from senmi.permissions import IsAdminOrSupport
+from senmi.permissions import IsAdmin, IsAdminOrSupport
 from senmi.utils import (
     calculate_distance,
     calculate_price,
@@ -3702,7 +3702,7 @@ class PaystackTransferApprovalView(APIView):
     
 
 class ApproveWithdrawalView(APIView):
-    permission_classes = [IsAdminOrSupport]
+    permission_classes = [IsAdmin]
 
     def post(self, request, withdrawal_id):
 
@@ -3731,10 +3731,7 @@ class ApproveWithdrawalView(APIView):
 
 
 
-def refund_failed_withdrawal(
-    withdrawal_id,
-    reason,
-):
+def refund_failed_withdrawal(withdrawal_id, reason):
     """
     Refund a failed/reversed withdrawal exactly once.
     """
@@ -3755,27 +3752,33 @@ def refund_failed_withdrawal(
         ]:
             return False
 
-        # Prevent double refund
-        already_refunded = (
-            WalletTransaction.objects.filter(
-                rider=withdrawal.rider,
-                transaction_type="credit",
-                description__icontains=(
-                    f"withdrawal #{withdrawal.id}"
-                ),
-            ).exists()
-        )
+        # ==========================================
+        # ALREADY REFUNDED
+        # ==========================================
 
-        if already_refunded:
+        if withdrawal.refunded_at:
+            logger.info(
+                "Withdrawal %s already refunded at %s",
+                withdrawal.id,
+                withdrawal.refunded_at,
+            )
             return False
 
-        wallet = (
+        # ==========================================
+        # LOCK RIDER WALLET
+        # ==========================================
+
+        wallet, _ = (
             RiderWallet.objects
             .select_for_update()
             .get_or_create(
                 rider=withdrawal.rider
-            )[0]
+            )
         )
+
+        # ==========================================
+        # RETURN MONEY
+        # ==========================================
 
         wallet.balance += withdrawal.amount
 
@@ -3784,6 +3787,10 @@ def refund_failed_withdrawal(
                 "balance"
             ]
         )
+
+        # ==========================================
+        # RECORD WALLET TRANSACTION
+        # ==========================================
 
         WalletTransaction.objects.create(
             rider=withdrawal.rider,
@@ -3796,6 +3803,18 @@ def refund_failed_withdrawal(
             ),
         )
 
+        # ==========================================
+        # MARK REFUNDED
+        # ==========================================
+
+        withdrawal.refunded_at = timezone.now()
+
+        withdrawal.save(
+            update_fields=[
+                "refunded_at"
+            ]
+        )
+
         logger.info(
             "Refunded withdrawal %s: ₦%s",
             withdrawal.id,
@@ -3803,6 +3822,7 @@ def refund_failed_withdrawal(
         )
 
     return True
+
 
 
 # ------------------------------
@@ -4063,7 +4083,7 @@ class AdminRiderWalletView(APIView):
 
 
 class RejectWithdrawalView(APIView):
-    permission_classes = [IsAdminOrSupport]
+    permission_classes = [IsAdmin]
 
     def post(self, request, withdrawal_id):
 
@@ -4207,7 +4227,7 @@ class BankListView(APIView):
     
 
 class RetryWithdrawalView(APIView):
-    permission_classes = [IsAdminOrSupport]
+    permission_classes = [IsAdmin]
 
     def post(self, request, withdrawal_id):
 

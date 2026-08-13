@@ -11,7 +11,13 @@ class IsAdminOrSupport(BasePermission):
             request.user.is_authenticated and
             request.user.role in ['admin', 'support']
         )
-    
+
+class IsAdmin(BasePermission):
+    def has_permission(self, request, view):
+        return (
+            request.user.is_authenticated
+            and request.user.role == "admin"
+        )
 
  
 """# ------------------------------
