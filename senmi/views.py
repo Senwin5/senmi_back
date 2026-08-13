@@ -540,7 +540,6 @@ def admin_customer_detail(request, customer_id):
     for p in recent_packages:
         package_data.append({
             "package_id": p.package_id,
-            "description": p.description,
             "status": p.status,
             "price": p.price,
             "created_at": p.created_at,
