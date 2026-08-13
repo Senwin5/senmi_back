@@ -4035,7 +4035,9 @@ class AdminWithdrawalsView(APIView):
 
     def get(self, request):
         withdrawals = Withdrawal.objects.select_related(
-            "rider"
+            "rider",
+            "rider__riderprofile",
+            "rider__riderwallet",
         ).all().order_by("-created_at")
 
         data = [
@@ -4043,8 +4045,13 @@ class AdminWithdrawalsView(APIView):
                 "id": w.id,
                 "rider_id": w.rider.riderprofile.rider_id,
                 "rider": w.rider.email,
+
                 "amount": float(w.amount),
                 "status": w.status,
+
+                "wallet_balance": float(w.rider.riderwallet.balance),
+                "wallet_total_earned": float(w.rider.riderwallet.total_earned),
+
                 "reason": w.failure_reason,
                 "bank_account": w.bank_account,
                 "bank_code": w.bank_code,
