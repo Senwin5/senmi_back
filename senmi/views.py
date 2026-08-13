@@ -81,6 +81,7 @@ from .models import (
 
 from .serializers import (
     AdminAnalyticsSerializer,
+    AdminRiderUpdateSerializer,
     CustomLoginSerializer,
     CustomerProfileUpdateSerializer,
     PackageSerializer,
@@ -755,6 +756,70 @@ def admin_analytics(request):
     return Response(data)
 
 
+
+
+class AdminRiderUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, rider_id):
+        try:
+            rider = RiderProfile.objects.select_related("user").get(
+                rider_id=rider_id
+            )
+        except RiderProfile.DoesNotExist:
+            return Response(
+                {"detail": "Rider not found."},
+                status=404
+            )
+
+        serializer = AdminRiderUpdateSerializer(
+            data=request.data,
+            context={"rider": rider},
+            partial=True
+        )
+
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors,
+                status=400
+            )
+
+        data = serializer.validated_data
+
+        # =========================
+        # USER PROFILE
+        # =========================
+        user = rider.user
+
+        if "email" in data:
+            user.email = data["email"]
+
+        user.save()
+
+        # =========================
+        # RIDER PROFILE
+        # =========================
+        if "phone_number" in data:
+            rider.phone_number = data["phone_number"]
+
+        if "city" in data:
+            rider.city = data["city"]
+
+        if "address" in data:
+            rider.address = data["address"]
+
+        rider.save()
+
+        return Response({
+            "message": "Rider profile updated successfully.",
+            "rider_id": rider.rider_id,
+            "email": user.email,
+            "phone_number": rider.phone_number,
+            "city": rider.city,
+            "address": rider.address,
+        })
+
+    
 
 @api_view(['GET'])
 @permission_classes([IsAdminOrSupport])
