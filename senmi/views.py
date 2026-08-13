@@ -951,77 +951,164 @@ def rider_details(request, rider_id):
 
 from .models import Notification
 
+from django.db import transaction
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from .models import User, Notification
+from .permissions import IsAdminOrSupport
+from .utils import send_fcm_notification
+
+
 class AdminNotificationView(APIView):
     permission_classes = [IsAdminOrSupport]
 
     def post(self, request):
-        title = request.data.get("title")
-        body = request.data.get("body")
-        target = request.data.get("target", "all")
-        user_id = request.data.get("user_id", None)
 
-        if not title or not body:
-            return Response({"error": "title and body required"}, status=400)
+        title = str(request.data.get("title", "")).strip()
+        body = str(request.data.get("body", "")).strip()
+        target = str(request.data.get("target", "all")).strip().lower()
+        user_id = request.data.get("user_id")
+
+        # =====================================================
+        # VALIDATION
+        # =====================================================
+
+        if not title:
+            return Response(
+                {"error": "Title is required"},
+                status=400,
+            )
+
+        if not body:
+            return Response(
+                {"error": "Message body is required"},
+                status=400,
+            )
+
+        allowed_targets = {
+            "all",
+            "riders",
+            "customers",
+            "single",
+        }
+
+        if target not in allowed_targets:
+            return Response(
+                {
+                    "error": "Invalid target",
+                    "allowed_targets": list(allowed_targets),
+                },
+                status=400,
+            )
+
+        # =====================================================
+        # SELECT USERS
+        # =====================================================
+
+        if target == "single":
+
+            if not user_id:
+                return Response(
+                    {
+                        "error": "user_id is required for single user notifications"
+                    },
+                    status=400,
+                )
+
+            users = User.objects.filter(
+                id=user_id
+            )
+
+            if not users.exists():
+                return Response(
+                    {
+                        "error": "User not found"
+                    },
+                    status=404,
+                )
+
+        elif target == "riders":
+
+            users = User.objects.filter(
+                role="rider"
+            )
+
+        elif target == "customers":
+
+            users = User.objects.filter(
+                role="customer"
+            )
+
+        else:
+
+            users = User.objects.all()
+
+        # =====================================================
+        # SEND + SAVE
+        # =====================================================
+
+        created_count = 0
 
         data = {
             "type": "admin_message",
             "title": title,
-            "body": body
+            "body": body,
+            "target": target,
         }
 
-        # =========================
-        # SELECT USERS
-        # =========================
-        if target == "single":
-            users = User.objects.filter(id=user_id)
-
-        elif target == "riders":
-            users = User.objects.filter(role="rider")
-
-        elif target == "customers":
-            users = User.objects.filter(role="customer")
-
-        else:
-            users = User.objects.all()
-
-        # =========================
-        # SEND + SAVE (NO DUPLICATES)
-        # =========================
-        created_count = 0
+        if user_id:
+            data["user_id"] = str(user_id)
 
         with transaction.atomic():
+
             for user in users.distinct():
 
-                #  prevent duplicate DB spam
+                # ---------------------------------------------
+                # Prevent duplicate DB notification
+                # ---------------------------------------------
+
                 exists = Notification.objects.filter(
                     user=user,
                     message=body,
-                    type="admin_message"
+                    type="admin_message",
                 ).exists()
 
                 if exists:
                     continue
 
+                # ---------------------------------------------
+                # SEND FCM
+                # ---------------------------------------------
+
                 send_fcm_notification(
                     user=user,
                     title=title,
                     body=body,
-                    data=data
+                    data=data,
                 )
+
+                # ---------------------------------------------
+                # SAVE NOTIFICATION
+                # ---------------------------------------------
 
                 Notification.objects.create(
                     user=user,
                     message=body,
-                    type="admin_message"
+                    type="admin_message",
+                    target=target,
                 )
 
                 created_count += 1
 
-        return Response({
-            "success": True,
-            "target": target,
-            "count": created_count
-        })
+        return Response(
+            {
+                "success": True,
+                "target": target,
+                "count": created_count,
+            },
+            status=200,
+        )
     
 
 

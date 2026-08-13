@@ -61,70 +61,45 @@ def send_fcm_notification(
     title="",
     body="",
     data=None,
-    target="single"
 ):
     """
-    target:
-        - single  → one user
-        - all     → all users
-        - rider   → all riders
-        - customer→ all customers
-        - admin   → all admins
+    Send an FCM push notification to ONE supplied user.
+
+    Recipient selection is handled by the caller.
     """
 
-    User = get_user_model()
-
-    # ==============================
-    # 1. Select recipients
-    # ==============================
-    if target == "all":
-        users = User.objects.all()
-
-    elif target == "rider":
-        users = User.objects.filter(role="rider")
-
-    elif target == "customer":
-        users = User.objects.filter(role="customer")
-
-    elif target == "admin":
-        users = User.objects.filter(role="admin")
-
-    else:
-        users = [user] if user else []
-
-    if not users:
+    if not user:
+        logger.warning(
+            "send_fcm_notification called without user"
+        )
         return False
 
-    # ==============================
-    # 2. Save notification in DB
-    # ==============================
-    for u in users:
-        try:
-            Notification.objects.create(
-                user=u,
-                type=(data.get("type") if data else "general"),
-                message=body
-            )
-        except Exception as e:
-            logger.exception(e)
+    # =========================================================
+    # GET USER'S ACTIVE FCM TOKENS
+    # =========================================================
 
-    # ==============================
-    # 3. Get FCM tokens
-    # ==============================
     tokens = list(
         FCMDevice.objects.filter(
-            user__in=users,
-            is_active=True
-        ).values_list("token", flat=True)
+            user=user,
+            is_active=True,
+        ).values_list(
+            "token",
+            flat=True,
+        )
     )
 
     if not tokens:
-        print("❌ NO TOKENS FOUND")
+        logger.warning(
+            f"No active FCM tokens found for user {user.id}"
+        )
         return False
 
-    # ==============================
-    # 4. Send push
-    # ==============================
+    # =========================================================
+    # SEND PUSH
+    # =========================================================
+
+    success = False
+
     for token in tokens:
         try:
             message = messaging.Message(
@@ -137,8 +112,8 @@ def send_fcm_notification(
                 android=messaging.AndroidConfig(
                     notification=messaging.AndroidNotification(
                         image="https://www.senmi.com.ng/static/logo.png",
-                        icon="notification_icon",  # ✔ Android status icon
-                        color="#ffffff"
+                        icon="notification_icon",
+                        color="#ffffff",
                     )
                 ),
 
@@ -147,21 +122,30 @@ def send_fcm_notification(
                         aps=messaging.Aps(
                             sound="default",
                             badge=1,
-                            content_available=True
+                            content_available=True,
                         )
                     )
                 ),
 
-                data={k: str(v) for k, v in (data or {}).items()},
+                data={
+                    k: str(v)
+                    for k, v in (data or {}).items()
+                },
+
                 token=token,
             )
 
             messaging.send(message)
 
-        except Exception as e:
-            logger.exception(e)
+            success = True
 
-    return True
+        except Exception as e:
+            logger.exception(
+                f"FCM send failed for user {user.id}: {e}"
+            )
+
+    return success
+
 
 
 
