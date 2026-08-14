@@ -420,7 +420,8 @@ class AdminRidersListView(APIView):
     permission_classes = [IsAdminOrSupport]
 
     def get(self, request):
-        riders = RiderProfile.objects.select_related('user').all()
+        #riders = RiderProfile.objects.select_related('user').all()
+        riders = RiderProfile.objects.select_related('user').order_by('-created_at')
         data = [{
             "id": r.id,
             "rider_id": r.rider_id,
