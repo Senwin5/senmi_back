@@ -51,7 +51,6 @@ class RiderProfileSerializer(serializers.ModelSerializer):
     email = serializers.CharField(source='user.email', read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
 
-    #profile_picture = serializers.SerializerMethodField()
     profile_picture = serializers.ImageField(required=False)
 
     class Meta:
@@ -60,15 +59,29 @@ class RiderProfileSerializer(serializers.ModelSerializer):
             'rider_id',
             'full_name',
             'phone_number',
+
+            # RIDER VERIFICATION
+            'nin_number',
+            'date_of_birth',
+            'nin_image',
+
+            # EMERGENCY CONTACT
+            'emergency_contact_name',
+            'emergency_contact_phone',
+            'emergency_contact_address',
+            'emergency_contact_relationship',
+
+            # BIKE
             'vehicle_number',
+            'rider_image_with_vehicle',
+
+            # OTHER
             'address',
             'city',
             'status',
             'email',
             'username',
             'profile_picture',
-            'nin_image',
-            'rider_image_with_vehicle',
             'rating',
             'rating_count',
         ]

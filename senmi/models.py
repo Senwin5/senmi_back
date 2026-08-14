@@ -131,36 +131,96 @@ class RiderProfile(models.Model):
     ]
 
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+
     # Unique Rider Tracking ID
     rider_id = models.CharField(max_length=20, unique=True, blank=True, editable=False)
+
     # Profile fields
     full_name = models.CharField(max_length=255, blank=True)
     phone_number = models.CharField(max_length=20, blank=True)
-    profile_picture = CloudinaryField(folder ='riders_profile/', blank=True, null=True)
-    nin_image = CloudinaryField(folder ='nin_image/', blank=True, null=True)
-    rider_image_with_vehicle = CloudinaryField(folder ='riders_vehicle_images2/', blank=True, null=True)
+    date_of_birth = models.DateField(null=True, blank=True)
+    nin_number = models.CharField(max_length=11, blank=True)
+
+    profile_picture = CloudinaryField(
+        folder='riders_profile/',
+        blank=True,
+        null=True
+    )
+
+    nin_image = CloudinaryField(
+        folder='nin_image/',
+        blank=True,
+        null=True
+    )
+
+    rider_image_with_vehicle = CloudinaryField(
+        folder='riders_vehicle_images2/',
+        blank=True,
+        null=True
+    )
+
     vehicle_number = models.CharField(max_length=50, blank=True)
+
+    # Address
     address = models.TextField(blank=True)
     city = models.CharField(max_length=100, blank=True)
+
+    # Emergency Contact
+    emergency_contact_name = models.CharField(
+        max_length=255,
+        blank=True
+    )
+
+    emergency_contact_phone = models.CharField(
+        max_length=20,
+        blank=True
+    )
+
+    emergency_contact_address = models.TextField(
+        blank=True
+    )
+
+    emergency_contact_relationship = models.CharField(
+        max_length=100,
+        blank=True
+    )
+
+    # Rating
     rating = models.FloatField(default=0)
-    rating_count = models.IntegerField(default=0) 
+    rating_count = models.IntegerField(default=0)
+
     # Status fields
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default='pending'
+    )
+
     is_online = models.BooleanField(default=False)
+
     rejection_reason = models.TextField(blank=True)
-    paystack_recipient_code = models.CharField(max_length=100,blank=True,null=True)
-    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+
+    paystack_recipient_code = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        null=True,
+        blank=True
+    )
 
     def save(self, *args, **kwargs):
         # Generate a unique rider ID if it doesn't exist
         if not self.rider_id:
             self.rider_id = f"RIDER-{uuid.uuid4().hex[:8].upper()}"
+
         super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.user.username} - {self.status}"
-    
-    
     
 
 

@@ -922,29 +922,108 @@ def review_rider(request, rider_id):
     return Response({"message": f"Rider profile {status_value} successfully."}, status=200)
 
 
-@api_view(["GET"])
+
 @permission_classes([IsAdminOrSupport])
 def rider_details(request, rider_id):
     try:
         profile = RiderProfile.objects.select_related("user").get(
             rider_id=rider_id
         )
+
     except RiderProfile.DoesNotExist:
-        return Response({"error": "Rider not found"}, status=404)
+        return Response(
+            {"error": "Rider not found"},
+            status=404
+        )
 
     return Response({
+        # =========================
+        # BASIC RIDER INFORMATION
+        # =========================
         "id": profile.id,
         "rider_id": profile.rider_id,
         "username": profile.user.username,
         "email": profile.user.email,
         "phone": profile.phone_number,
-        "city": profile.city,
+        "full_name": profile.full_name,
+
+        # =========================
+        # PERSONAL / NIN VERIFICATION
+        # =========================
+        "nin_number": profile.nin_number,
+        "date_of_birth": (
+            profile.date_of_birth.isoformat()
+            if profile.date_of_birth
+            else None
+        ),
+
+        "nin_image": (
+            profile.nin_image.url
+            if profile.nin_image
+            else None
+        ),
+
+        # =========================
+        # ADDRESS
+        # =========================
         "address": profile.address,
-        "status": profile.status,
-        "profile_image": profile.profile_picture.url if profile.profile_picture else None,
-        "nin_image": profile.nin_image.url if profile.nin_image else None,
-        "vehicle_image": profile.rider_image_with_vehicle.url if profile.rider_image_with_vehicle else None,
+        "city": profile.city,
+
+        # =========================
+        # BIKE INFORMATION
+        # =========================
         "vehicle_number": profile.vehicle_number,
+
+        "vehicle_image": (
+            profile.rider_image_with_vehicle.url
+            if profile.rider_image_with_vehicle
+            else None
+        ),
+
+        # =========================
+        # PROFILE IMAGE
+        # =========================
+        "profile_image": (
+            profile.profile_picture.url
+            if profile.profile_picture
+            else None
+        ),
+
+        # =========================
+        # EMERGENCY CONTACT
+        # =========================
+        "emergency_contact_name": profile.emergency_contact_name,
+        "emergency_contact_phone": profile.emergency_contact_phone,
+        "emergency_contact_address": profile.emergency_contact_address,
+        "emergency_contact_relationship": (
+            profile.emergency_contact_relationship
+        ),
+
+        # =========================
+        # RIDER STATUS
+        # =========================
+        "status": profile.status,
+        "rejection_reason": profile.rejection_reason,
+
+        # =========================
+        # RATING
+        # =========================
+        "rating": profile.rating,
+        "rating_count": profile.rating_count,
+
+        # =========================
+        # ONLINE STATUS
+        # =========================
+        "is_online": profile.is_online,
+
+        # =========================
+        # CREATED DATE
+        # =========================
+        "created_at": (
+            profile.created_at.isoformat()
+            if profile.created_at
+            else None
+        ),
     })
 
 

@@ -21,7 +21,6 @@ urlpatterns = [
     path('api/reset-password/',ResetPasswordView.as_view(),name='reset-password'),
     path('api/packages/search/', search_package),
     path('api/rider-profile/', RiderProfileUpdateView.as_view(), name='rider-profile-update'),
-    #path('api/review-rider/<int:rider_id>/', review_rider, name='review-rider'),
     path("api/review-rider/<str:rider_id>/",review_rider,name="review-rider"),
     path("api/rider-details/<str:rider_id>/",rider_details,name="rider-details"),
     path("api/rider/wallet/transactions/",RiderWalletTransactionsView.as_view()),
