@@ -91,13 +91,32 @@ class RiderProfileSerializer(serializers.ModelSerializer):
 
         request = self.context.get("request")
 
-        if instance.profile_picture:
-            if request:
+        if request:
+            if instance.profile_picture:
                 data["profile_picture"] = request.build_absolute_uri(
                     instance.profile_picture.url
                 )
-            else:
+
+            if instance.nin_image:
+                data["nin_image"] = request.build_absolute_uri(
+                    instance.nin_image.url
+                )
+
+            if instance.rider_image_with_vehicle:
+                data["rider_image_with_vehicle"] = request.build_absolute_uri(
+                    instance.rider_image_with_vehicle.url
+                )
+        else:
+            if instance.profile_picture:
                 data["profile_picture"] = instance.profile_picture.url
+
+            if instance.nin_image:
+                data["nin_image"] = instance.nin_image.url
+
+            if instance.rider_image_with_vehicle:
+                data["rider_image_with_vehicle"] = (
+                    instance.rider_image_with_vehicle.url
+                )
 
         return data
 
