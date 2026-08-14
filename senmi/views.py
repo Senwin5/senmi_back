@@ -976,7 +976,7 @@ def rider_details(request, rider_id):
         # =========================
         "vehicle_number": profile.vehicle_number,
 
-        "vehicle_image": (
+        "rider_image_with_vehicle": (
             profile.rider_image_with_vehicle.url
             if profile.rider_image_with_vehicle
             else None
@@ -985,7 +985,7 @@ def rider_details(request, rider_id):
         # =========================
         # PROFILE IMAGE
         # =========================
-        "profile_image": (
+        "profile_picture": (
             profile.profile_picture.url
             if profile.profile_picture
             else None
