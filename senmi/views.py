@@ -1307,6 +1307,7 @@ class RiderProfileUpdateView(APIView):
         serializer = RiderProfileSerializer(profile, data=request.data, partial=True)
         if serializer.is_valid():
             required_fields = ['full_name', 'phone_number', 'vehicle_number', 'address', 'city']
+            #required_fields = ['full_name','phone_number','nin_number','date_of_birth','emergency_contact_name','emergency_contact_phone','emergency_contact_address','emergency_contact_relationship','vehicle_number','address','city']
             missing_text = [f for f in required_fields if not request.data.get(f)]
             
             required_images = ['profile_picture', 'nin_image', 'rider_image_with_vehicle']
