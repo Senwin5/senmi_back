@@ -360,6 +360,9 @@ def email_admin_withdrawal_request(withdrawal):
             Amount:
             ₦{withdrawal.amount:,.2f}
 
+            Bank:
+            {withdrawal.bank_name or "N/A"}
+
             Bank Account:
             {withdrawal.bank_account}
 
