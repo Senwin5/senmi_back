@@ -1456,7 +1456,6 @@ class AcceptPackageView(APIView):
                         "error": "You already have an active delivery. Complete it first."
                     }, status=400)
 
-                # =========================
                 #  ASSIGN RIDER
                 # =========================
                 package.rider = request.user
@@ -1477,7 +1476,7 @@ class AcceptPackageView(APIView):
                     logger.exception(f"WebSocket error: {e}")
 
                 # =========================
-                # 📧 EMAIL NOTIFICATION
+                # EMAIL NOTIFICATION
                 # =========================
                 recipients = [
                     package.customer.email,
