@@ -3141,6 +3141,7 @@ class RiderWithdrawView(APIView):
         bank_account = request.data.get("bank_account")
         bank_code = request.data.get("bank_code")
         account_name = request.data.get("account_name")
+        bank_name = request.data.get("bank_name")
 
         if not bank_account or not bank_code:
             return Response(
@@ -3186,7 +3187,6 @@ class RiderWithdrawView(APIView):
                     status__in=[
                         "pending",
                         "approved",
-                        "processing",
                     ]
                 )
                 .first()
@@ -3234,6 +3234,7 @@ class RiderWithdrawView(APIView):
                 amount=amount,
                 bank_account=bank_account,
                 bank_code=bank_code,
+                bank_name=bank_name,
                 account_name=account_name,
                 reference=reference,
                 status="pending",
@@ -3337,6 +3338,7 @@ class AdminWithdrawalsView(APIView):
 
                 "bank_account": w.bank_account,
                 "bank_code": w.bank_code,
+                "bank_name": w.bank_name,
                 "account_name": w.account_name,
 
                 "reference": w.reference,
@@ -3534,26 +3536,84 @@ class ResolveAccountView(APIView):
         bank_code = request.data.get("bank_code")
 
         if not account_number or not bank_code:
-            return Response({"error": "Missing details"}, status=400)
+            return Response(
+                {"error": "Missing account number or bank code"},
+                status=400
+            )
 
         headers = {
             "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"
         }
 
-        url = f"https://api.paystack.co/bank/resolve?account_number={account_number}&bank_code={bank_code}"
+        # ==========================================
+        # RESOLVE ACCOUNT
+        # ==========================================
+
+        url = (
+            "https://api.paystack.co/bank/resolve"
+            f"?account_number={account_number}"
+            f"&bank_code={bank_code}"
+        )
 
         try:
-            res = requests.get(url, headers=headers).json()
+            res = requests.get(
+                url,
+                headers=headers,
+                timeout=15
+            ).json()
+
         except Exception:
-            return Response({"error": "Verification failed"}, status=500)
+            return Response(
+                {"error": "Account verification failed"},
+                status=500
+            )
 
-        if res.get("status"):
-            return Response({
-                "account_name": res["data"]["account_name"]
-            })
+        if not res.get("status"):
+            return Response(
+                {
+                    "error": res.get(
+                        "message",
+                        "Unable to resolve bank account"
+                    )
+                },
+                status=400
+            )
 
-        return Response({"error": res.get("message")}, status=400)
+        account_name = res["data"].get("account_name")
 
+        # ==========================================
+        # GET BANK NAME
+        # ==========================================
+
+        banks_url = "https://api.paystack.co/bank"
+
+        try:
+            banks_res = requests.get(
+                banks_url,
+                headers=headers,
+                timeout=15
+            ).json()
+
+        except Exception:
+            banks_res = {}
+
+        bank_name = None
+
+        if banks_res.get("status"):
+            for bank in banks_res.get("data", []):
+                if str(bank.get("code")) == str(bank_code):
+                    bank_name = bank.get("name")
+                    break
+
+        return Response(
+            {
+                "account_name": account_name,
+                "bank_name": bank_name,
+                "bank_code": bank_code,
+                "account_number": account_number,
+            }
+        )
+    
 
 # ------------------------------
 # Rating & Reviews

@@ -380,6 +380,12 @@ class Withdrawal(models.Model):
         max_length=10,
     )
 
+    bank_name = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+    )
+
     account_name = models.CharField(
         max_length=255,
         blank=True,
