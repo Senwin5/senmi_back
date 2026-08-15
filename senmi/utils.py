@@ -252,16 +252,31 @@ def notify_admin_withdrawal_request(withdrawal):
 
 def email_admin_withdrawal_request(withdrawal):
     """
-    Email all active admins when a rider requests a withdrawal.
+    Email withdrawal requests to:
+    1. Main admin users
+    2. Resend/main Senmi email
+    3. All future support users
     """
 
     User = get_user_model()
 
     try:
-        admins = (
+        recipients = []
+
+        # ==========================================
+        # MAIN SENMI EMAIL
+        # ==========================================
+
+        recipients.append("senmisupport@gmail.com")
+
+        # ==========================================
+        # ADMIN + SUPPORT USERS
+        # ==========================================
+
+        users = (
             User.objects
             .filter(
-                role="admin",
+                role__in=["admin", "support"],
                 is_active=True,
             )
             .exclude(
@@ -272,11 +287,25 @@ def email_admin_withdrawal_request(withdrawal):
             )
         )
 
-        if not admins.exists():
+        recipients.extend(
+            users.values_list(
+                "email",
+                flat=True,
+            )
+        )
+
+        # Remove duplicate emails
+        recipients = list(set(recipients))
+
+        if not recipients:
             logger.warning(
-                "No active admin email addresses found."
+                "No withdrawal notification email recipients found."
             )
             return False
+
+        # ==========================================
+        # RIDER INFORMATION
+        # ==========================================
 
         rider_profile = getattr(
             withdrawal.rider,
@@ -301,6 +330,10 @@ def email_admin_withdrawal_request(withdrawal):
             )
             or "N/A"
         )
+
+        # ==========================================
+        # EMAIL
+        # ==========================================
 
         subject = (
             f"New Withdrawal Request "
@@ -347,13 +380,6 @@ def email_admin_withdrawal_request(withdrawal):
 
             Please log in to the Senmi admin dashboard to review this request.
             """
-
-        recipients = list(
-            admins.values_list(
-                "email",
-                flat=True,
-            )
-        )
 
         return send_email(
             subject=subject,
