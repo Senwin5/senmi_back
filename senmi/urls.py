@@ -2,11 +2,11 @@
 from django.urls import path
 
 from senmi.views import AdminNotificationView
-from .views import AdminPackagesView, AdminRiderWalletView, AdminRidersListView, AdminUserSearchView, PaystackTransferApprovalView, PaystackTransferWebhookView, RiderWalletTransactionsView, rider_details 
+from .views import AdminPackagesView, AdminRiderWalletView, AdminRidersListView, AdminUserSearchView, MarkWithdrawalPaidView, RiderWalletTransactionsView, rider_details 
 from .views import admin_notifications,delete_package, save_fcm_token, search_package,AvailableRidersView,AdminWithdrawalsView, EditPackageView
 from .views import AcceptPackageView,UpdateDeliveryStatusView,CustomLoginView,RegisterView,calculate_price_view
 from .views import ApproveWithdrawalView, CustomerPackagesView, HardDeleteUserView, RejectWithdrawalView,ResetPasswordView
-from .views import AvailablePackagesView,PaystackWebhookView,RiderEarningsView,RiderStatusView,ResolveAccountView, RetryWithdrawalView
+from .views import AvailablePackagesView,PaystackWebhookView,RiderEarningsView,RiderStatusView,ResolveAccountView
 from .views import LogoutView, PackageDetailView, PaymentCallbackView, BankListView, CreatePackageView,ForgotPasswordView
 from .views import RiderProfileUpdateView, RiderWalletView, RiderWithdrawView,RateRiderView, TrackPackageView
 from .views import UpdateLocationView, UserProfileView, review_rider, InitializeReceiverPaymentView
@@ -38,10 +38,11 @@ urlpatterns = [
     path('api/rider-earnings/', RiderEarningsView.as_view()),
     path('api/rider/my-packages/', views.RiderActivePackagesView.as_view()),
     path('api/my-orders/', views.my_orders),
+    path('api/admin/withdrawals/<int:withdrawal_id>/approve/',ApproveWithdrawalView.as_view(),name='approve-withdrawal'),
+    path('api/admin/withdrawals/<int:withdrawal_id>/paid/',MarkWithdrawalPaidView.as_view(),name='mark-withdrawal-paid'),
+    path('api/admin/withdrawals/<int:withdrawal_id>/reject/',RejectWithdrawalView.as_view(),name='reject-withdrawal'),
     path('api/packages/<str:package_id>/pay/', InitializeReceiverPaymentView.as_view()),
     path('api/paystack/webhook/', PaystackWebhookView.as_view()),
-    path("api/paystack/transfer-approval/",PaystackTransferApprovalView.as_view(),name="paystack-transfer-approval",),
-    path("api/paystack/transfer-webhook/",PaystackTransferWebhookView.as_view(),name="paystack-transfer-webhook"),
     path('api/payment/callback/', PaymentCallbackView.as_view()),
     path('api/packages/<str:package_id>/update-location/', UpdateLocationView.as_view()),
     path('api/track/<str:package_id>/', TrackPackageView.as_view()),
@@ -64,7 +65,6 @@ urlpatterns = [
     path('api/admin/withdrawals/', AdminWithdrawalsView.as_view()),
     path('api/admin/withdrawals/<int:withdrawal_id>/approve/',ApproveWithdrawalView.as_view(),name='approve-withdrawal'),
     path('api/admin/withdrawals/<int:withdrawal_id>/reject/',RejectWithdrawalView.as_view()),
-    path('api/admin/withdrawals/<int:withdrawal_id>/retry/',RetryWithdrawalView.as_view()),
     path('api/payment-success/', views.payment_success),
     path('api/save-fcm-token/', save_fcm_token),
     path("api/send-notification/",AdminNotificationView.as_view(),name="admin-send-notification"),

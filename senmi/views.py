@@ -2298,338 +2298,6 @@ class PaystackWebhookView(APIView):
     
 
 
-@method_decorator(csrf_exempt, name="dispatch")
-class PaystackTransferWebhookView(APIView):
-
-    authentication_classes = []
-    permission_classes = [AllowAny]
-
-    def post(self, request):
-
-        # =====================================================
-        # VERIFY SIGNATURE
-        # =====================================================
-
-        signature = request.headers.get(
-            "x-paystack-signature"
-        )
-
-        if not signature:
-            logger.warning(
-                "Paystack transfer webhook missing signature"
-            )
-
-            return HttpResponse(
-                "Missing signature",
-                status=401,
-            )
-
-        expected_signature = hmac.new(
-            settings.PAYSTACK_SECRET_KEY.encode("utf-8"),
-            request.body,
-            hashlib.sha512,
-        ).hexdigest()
-
-        if not hmac.compare_digest(
-            signature,
-            expected_signature,
-        ):
-
-            logger.warning(
-                "Invalid Paystack transfer webhook signature"
-            )
-
-            return HttpResponse(
-                "Invalid signature",
-                status=401,
-            )
-
-        # =====================================================
-        # PARSE JSON
-        # =====================================================
-
-        try:
-
-            payload = json.loads(
-                request.body.decode("utf-8")
-            )
-
-        except json.JSONDecodeError:
-
-            return HttpResponse(
-                "Invalid JSON",
-                status=400,
-            )
-
-        event = payload.get("event")
-        data = payload.get("data") or {}
-
-        # =====================================================
-        # ONLY HANDLE TRANSFER EVENTS
-        # =====================================================
-
-        if event not in [
-            "transfer.success",
-            "transfer.failed",
-            "transfer.reversed",
-        ]:
-
-            logger.info(
-                "Ignoring Paystack event: %s",
-                event,
-            )
-
-            return HttpResponse(
-                "Event ignored",
-                status=200,
-            )
-
-        reference = data.get("reference")
-        transfer_code = data.get("transfer_code")
-
-        if not reference:
-
-            logger.error(
-                "Paystack transfer webhook missing reference"
-            )
-
-            return HttpResponse(
-                "Missing reference",
-                status=400,
-            )
-
-        # =====================================================
-        # FIND WITHDRAWAL
-        # =====================================================
-
-        try:
-
-            with transaction.atomic():
-
-                withdrawal = (
-                    Withdrawal.objects
-                    .select_for_update()
-                    .select_related("rider")
-                    .get(reference=reference)
-                )
-
-                # =================================================
-                # DUPLICATE WEBHOOK
-                # =================================================
-
-                if withdrawal.status in [
-                    "success",
-                    "failed",
-                    "reversed",
-                ]:
-
-                    logger.info(
-                        "Withdrawal %s already finalized as %s",
-                        withdrawal.id,
-                        withdrawal.status,
-                    )
-
-                    return HttpResponse(
-                        "Already processed",
-                        status=200,
-                    )
-
-                # =================================================
-                # SAVE TRANSFER CODE
-                # =================================================
-
-                if transfer_code:
-                    withdrawal.transfer_code = (
-                        transfer_code
-                    )
-
-                # =================================================
-                # SUCCESS
-                # =================================================
-
-                if event == "transfer.success":
-
-                    withdrawal.status = "success"
-                    withdrawal.failure_reason = None
-
-                    withdrawal.save(
-                        update_fields=[
-                            "status",
-                            "transfer_code",
-                            "failure_reason",
-                        ]
-                    )
-
-                    notification_title = (
-                        "Withdrawal Successful"
-                    )
-
-                    notification_message = (
-                        f"Your ₦"
-                        f"{withdrawal.amount:,.2f} "
-                        "withdrawal has been "
-                        "successfully processed."
-                    )
-
-                    notification_type = (
-                        "withdrawal_success"
-                    )
-
-                    should_refund = False
-
-                # =================================================
-                # FAILED
-                # =================================================
-
-                elif event == "transfer.failed":
-
-                    reason = (
-                        data.get("reason")
-                        or data.get("message")
-                        or data.get("failures")
-                        or "Paystack transfer failed."
-                    )
-
-                    if isinstance(
-                        reason,
-                        (dict, list),
-                    ):
-                        reason = json.dumps(reason)
-
-                    withdrawal.status = "failed"
-
-                    withdrawal.failure_reason = str(
-                        reason
-                    )
-
-                    withdrawal.save(
-                        update_fields=[
-                            "status",
-                            "transfer_code",
-                            "failure_reason",
-                        ]
-                    )
-
-                    notification_title = (
-                        "Withdrawal Failed"
-                    )
-
-                    notification_message = (
-                        f"Your ₦"
-                        f"{withdrawal.amount:,.2f} "
-                        "withdrawal failed. "
-                        "The money has been returned "
-                        "to your wallet."
-                    )
-
-                    notification_type = (
-                        "withdrawal_failed"
-                    )
-
-                    should_refund = True
-
-                # =================================================
-                # REVERSED
-                # =================================================
-
-                else:
-
-                    reason = (
-                        data.get("reason")
-                        or data.get("message")
-                        or "Paystack transfer was reversed."
-                    )
-
-                    withdrawal.status = "reversed"
-
-                    withdrawal.failure_reason = str(
-                        reason
-                    )
-
-                    withdrawal.save(
-                        update_fields=[
-                            "status",
-                            "transfer_code",
-                            "failure_reason",
-                        ]
-                    )
-
-                    notification_title = (
-                        "Withdrawal Reversed"
-                    )
-
-                    notification_message = (
-                        f"Your ₦"
-                        f"{withdrawal.amount:,.2f} "
-                        "withdrawal was reversed. "
-                        "The money has been returned "
-                        "to your wallet."
-                    )
-
-                    notification_type = (
-                        "withdrawal_reversed"
-                    )
-
-                    should_refund = True
-
-                withdrawal_id = withdrawal.id
-                rider = withdrawal.rider
-                amount = withdrawal.amount
-                failure_reason = (
-                    withdrawal.failure_reason
-                )
-
-        except Withdrawal.DoesNotExist:
-
-            logger.error(
-                "Withdrawal not found for reference %s",
-                reference,
-            )
-
-            return HttpResponse(
-                "Withdrawal not found",
-                status=404,
-            )
-
-        # =====================================================
-        # REFUND ONLY FAILED / REVERSED
-        # =====================================================
-
-        if should_refund:
-
-            refunded = refund_failed_withdrawal(
-                withdrawal_id,
-                failure_reason,
-            )
-
-            logger.info(
-                "Withdrawal %s refund result: %s",
-                withdrawal_id,
-                refunded,
-            )
-
-        # =====================================================
-        # NOTIFY RIDER
-        # =====================================================
-
-        send_fcm_notification(
-            rider,
-            notification_title,
-            notification_message,
-            {
-                "type": notification_type,
-                "withdrawal_id": withdrawal_id,
-            },
-        )
-
-        notify_admin_dashboard()
-
-        return HttpResponse(
-            "Webhook processed",
-            status=200,
-        )
-    
-    
 
 
 
@@ -3168,116 +2836,6 @@ class RiderWalletTransactionsView(APIView):
     
 
 
-def create_paystack_recipient(withdrawal):
-
-    if withdrawal.recipient_code:
-        return {
-            "success": True,
-            "recipient_code": withdrawal.recipient_code,
-        }
-
-    if not withdrawal.account_name:
-        return {
-            "success": False,
-            "message": "Bank account name is missing.",
-        }
-
-    headers = {
-        "Authorization": (
-            f"Bearer {settings.PAYSTACK_SECRET_KEY}"
-        ),
-        "Content-Type": "application/json",
-    }
-
-    data = {
-        "type": "nuban",
-        "name": withdrawal.account_name,
-        "account_number": withdrawal.bank_account,
-        "bank_code": withdrawal.bank_code,
-        "currency": "NGN",
-    }
-
-    try:
-
-        response = requests.post(
-            "https://api.paystack.co/transferrecipient",
-            json=data,
-            headers=headers,
-            timeout=30,
-        )
-
-        try:
-            result = response.json()
-        except ValueError:
-            return {
-                "success": False,
-                "message": (
-                    "Invalid response from Paystack."
-                ),
-            }
-
-    except requests.RequestException as exc:
-
-        logger.exception(
-            "Paystack recipient request failed"
-        )
-
-        return {
-            "success": False,
-            "message": (
-                f"Paystack request failed: {str(exc)}"
-            ),
-        }
-
-    if not result.get("status"):
-
-        return {
-            "success": False,
-            "message": (
-                result.get("message")
-                or "Could not create Paystack recipient."
-            ),
-            "paystack_response": result,
-        }
-
-    data = result.get("data") or {}
-
-    recipient_code = data.get("recipient_code")
-
-    if not recipient_code:
-
-        return {
-            "success": False,
-            "message": (
-                "Paystack did not return recipient_code."
-            ),
-        }
-
-    withdrawal.recipient_code = recipient_code
-
-    details = data.get("details") or {}
-
-    paystack_account_name = details.get(
-        "account_name"
-    )
-
-    if paystack_account_name:
-        withdrawal.account_name = (
-            paystack_account_name
-        )
-
-    withdrawal.save(
-        update_fields=[
-            "recipient_code",
-            "account_name",
-        ]
-    )
-
-    return {
-        "success": True,
-        "recipient_code": recipient_code,
-    }
-
 
 # ------------------------------
 # Rider Wallet & Withdrawal
@@ -3296,606 +2854,166 @@ class RiderWalletView(APIView):
 
 
 
-def process_withdrawal(withdrawal_id):
-    """
-    Send a rider withdrawal to Paystack.
-
-    IMPORTANT:
-    - This function does NOT mark the withdrawal as success.
-    - Paystack webhook determines the final result.
-    - Paystack accepted/queued != rider has been paid.
-    """
-
-    # =====================================================
-    # STEP 1: LOCK WITHDRAWAL
-    # =====================================================
-
-    try:
-        with transaction.atomic():
-
-            withdrawal = (
-                Withdrawal.objects
-                .select_for_update()
-                .select_related("rider")
-                .get(id=withdrawal_id)
-            )
-
-            # ---------------------------------------------
-            # DO NOT PROCESS CONCLUSIVE STATES
-            # ---------------------------------------------
-
-            if withdrawal.status in [
-                "success",
-                "rejected",
-                "reversed",
-            ]:
-                return {
-                    "success": False,
-                    "message": (
-                        f"Withdrawal is already "
-                        f"{withdrawal.status}."
-                    ),
-                }
-
-            # ---------------------------------------------
-            # ALREADY PROCESSING
-            # ---------------------------------------------
-
-            if withdrawal.status == "processing":
-                return {
-                    "success": False,
-                    "message": (
-                        "Withdrawal is already "
-                        "being processed by Paystack."
-                    ),
-                    "status": "processing",
-                    "reference": withdrawal.reference,
-                    "transfer_code": withdrawal.transfer_code,
-                }
-
-            # ---------------------------------------------
-            # ONLY THESE CAN BE SENT
-            # ---------------------------------------------
-
-            if withdrawal.status not in [
-                "pending",
-                "approved",
-                "failed",
-            ]:
-                return {
-                    "success": False,
-                    "message": (
-                        f"Cannot process withdrawal "
-                        f"with status "
-                        f"{withdrawal.status}."
-                    ),
-                }
-
-            # =================================================
-            # STEP 2: CREATE / GET PAYSTACK RECIPIENT
-            # =================================================
-
-            recipient_result = create_paystack_recipient(
-                withdrawal
-            )
-
-            if not recipient_result.get("success"):
-                return recipient_result
-
-            recipient_code = (
-                recipient_result["recipient_code"]
-            )
-
-            # =================================================
-            # STEP 3: CREATE UNIQUE REFERENCE
-            # =================================================
-
-            if not withdrawal.reference:
-
-                withdrawal.reference = (
-                    f"senmi_wd_"
-                    f"{withdrawal.id}_"
-                    f"{uuid.uuid4().hex[:16]}"
-                ).lower()
-
-            # =================================================
-            # STEP 4: MARK PROCESSING
-            # =================================================
-
-            withdrawal.status = "processing"
-            withdrawal.failure_reason = None
-
-            withdrawal.save(
-                update_fields=[
-                    "status",
-                    "reference",
-                    "recipient_code",
-                    "failure_reason",
-                ]
-            )
-
-            reference = withdrawal.reference
-            amount = withdrawal.amount
-            rider = withdrawal.rider
-
-    except Withdrawal.DoesNotExist:
-
-        return {
-            "success": False,
-            "message": "Withdrawal not found.",
-        }
-
-    # =====================================================
-    # STEP 5: SEND TRANSFER TO PAYSTACK
-    # =====================================================
-
-    headers = {
-        "Authorization": (
-            f"Bearer {settings.PAYSTACK_SECRET_KEY}"
-        ),
-        "Content-Type": "application/json",
-    }
-
-    transfer_data = {
-        "source": "balance",
-        "amount": int(
-            Decimal(str(amount)) * 100
-        ),
-        "recipient": recipient_code,
-        "reason": (
-            f"Senmi rider withdrawal #{withdrawal_id}"
-        ),
-        "reference": reference,
-        "currency": "NGN",
-    }
-
-    logger.info(
-        "Sending withdrawal %s to Paystack. "
-        "reference=%s amount=%s recipient=%s",
-        withdrawal_id,
-        reference,
-        amount,
-        recipient_code,
-    )
-
-    try:
-
-        response = requests.post(
-            "https://api.paystack.co/transfer",
-            json=transfer_data,
-            headers=headers,
-            timeout=30,
-        )
-
-        logger.info(
-            "Paystack transfer HTTP status: %s",
-            response.status_code,
-        )
-
-        try:
-            result = response.json()
-        except ValueError:
-
-            logger.error(
-                "Invalid JSON from Paystack: %s",
-                response.text,
-            )
-
-            refund_failed_withdrawal(
-                withdrawal_id,
-                "Invalid response received from Paystack.",
-            )
-
-            return {
-                "success": False,
-                "message": (
-                    "Invalid response received "
-                    "from Paystack."
-                ),
-            }
-
-    except requests.RequestException as exc:
-
-        logger.exception(
-            "Paystack transfer request failed"
-        )
-
-        refund_failed_withdrawal(
-            withdrawal_id,
-            f"Paystack request failed: {str(exc)}",
-        )
-
-        return {
-            "success": False,
-            "message": (
-                "Paystack transfer request failed."
-            ),
-        }
-
-    # =====================================================
-    # STEP 6: PAYSTACK API ERROR
-    # =====================================================
-
-    if not result.get("status"):
-
-        message = (
-            result.get("message")
-            or "Paystack transfer request failed."
-        )
-
-        logger.error(
-            "Paystack rejected withdrawal %s: %s",
-            withdrawal_id,
-            result,
-        )
-
-        # Immediate API rejection means Paystack did
-        # not accept the transfer.
-        with transaction.atomic():
-
-            withdrawal = (
-                Withdrawal.objects
-                .select_for_update()
-                .get(id=withdrawal_id)
-            )
-
-            withdrawal.status = "failed"
-            withdrawal.failure_reason = str(message)
-
-            withdrawal.save(
-                update_fields=[
-                    "status",
-                    "failure_reason",
-                ]
-            )
-
-        refund_failed_withdrawal(
-            withdrawal_id,
-            str(message),
-        )
-
-        return {
-            "success": False,
-            "message": str(message),
-            "paystack_response": result,
-        }
-
-    # =====================================================
-    # STEP 7: PAYSTACK ACCEPTED THE TRANSFER REQUEST
-    # =====================================================
-
-    data = result.get("data") or {}
-
-    transfer_code = data.get("transfer_code")
-    paystack_status = data.get("status")
-    paystack_reference = data.get("reference")
-
-    logger.info(
-        "Paystack transfer response for withdrawal %s: "
-        "status=%s transfer_code=%s reference=%s",
-        withdrawal_id,
-        paystack_status,
-        transfer_code,
-        paystack_reference,
-    )
-
-    # =====================================================
-    # STEP 8: SAVE PAYSTACK TRANSFER INFORMATION
-    # =====================================================
-
-    with transaction.atomic():
-
-        withdrawal = (
-            Withdrawal.objects
-            .select_for_update()
-            .select_related("rider")
-            .get(id=withdrawal_id)
-        )
-
-        if transfer_code:
-            withdrawal.transfer_code = transfer_code
-
-        # IMPORTANT:
-        # Do not blindly set success.
-        #
-        # We let the webhook determine the final result.
-        withdrawal.status = "processing"
-
-        withdrawal.save(
-            update_fields=[
-                "status",
-                "transfer_code",
-            ]
-        )
-
-    notify_admin_dashboard()
-
-    send_fcm_notification(
-        rider,
-        "Withdrawal Processing",
-        (
-            f"Your ₦{amount:,.2f} withdrawal "
-            "has been sent to Paystack and "
-            "is being processed."
-        ),
-        {
-            "type": "withdrawal_processing",
-            "withdrawal_id": str(withdrawal_id),
-        },
-    )
-
-    return {
-        "success": True,
-        "message": (
-            "Withdrawal sent to Paystack "
-            "and is being processed."
-        ),
-        "status": "processing",
-        "reference": reference,
-        "transfer_code": transfer_code,
-        "paystack_status": paystack_status,
-    }
-
-
-
-class VerifyWithdrawalView(APIView):
-
-    permission_classes = [IsAdminOrSupport]
-
-    def get(self, request, withdrawal_id):
-
-        try:
-
-            withdrawal = Withdrawal.objects.get(
-                id=withdrawal_id
-            )
-
-        except Withdrawal.DoesNotExist:
-
-            return Response(
-                {
-                    "success": False,
-                    "error": "Withdrawal not found",
-                },
-                status=404,
-            )
-
-        if not withdrawal.reference:
-
-            return Response(
-                {
-                    "success": False,
-                    "error": (
-                        "Withdrawal has no Paystack "
-                        "reference."
-                    ),
-                },
-                status=400,
-            )
-
-        headers = {
-            "Authorization": (
-                f"Bearer "
-                f"{settings.PAYSTACK_SECRET_KEY}"
-            )
-        }
-
-        try:
-
-            response = requests.get(
-                (
-                    "https://api.paystack.co/"
-                    "transfer/verify/"
-                    f"{withdrawal.reference}"
-                ),
-                headers=headers,
-                timeout=30,
-            )
-
-            result = response.json()
-
-        except requests.RequestException as exc:
-
-            logger.exception(
-                "Paystack transfer verification failed"
-            )
-
-            return Response(
-                {
-                    "success": False,
-                    "error": str(exc),
-                },
-                status=500,
-            )
-
-        if not result.get("status"):
-
-            return Response(
-                {
-                    "success": False,
-                    "error": result.get(
-                        "message",
-                        "Paystack verification failed.",
-                    ),
-                    "paystack_response": result,
-                },
-                status=400,
-            )
-
-        data = result.get("data") or {}
-
-        return Response(
-            {
-                "success": True,
-                "withdrawal_id": withdrawal.id,
-                "our_status": withdrawal.status,
-                "paystack_status": data.get(
-                    "status"
-                ),
-                "reference": data.get(
-                    "reference"
-                ),
-                "transfer_code": data.get(
-                    "transfer_code"
-                ),
-                "amount": data.get(
-                    "amount"
-                ),
-                "currency": data.get(
-                    "currency"
-                ),
-                "failures": data.get(
-                    "failures"
-                ),
-            },
-            status=200,
-        )
-    
-
-
-@method_decorator(csrf_exempt, name="dispatch")
-class PaystackTransferApprovalView(APIView):
-
-    authentication_classes = []
-    permission_classes = [AllowAny]
-
-    def post(self, request):
-
-        logger.info(
-            "Paystack transfer approval request: %s",
-            request.data
-        )
-
-        data = request.data or {}
-
-        reference = data.get("reference")
-        amount = data.get("amount")
-
-        if not reference or amount is None:
-            logger.warning(
-                "Transfer approval missing reference or amount"
-            )
-
-            return Response(
-                {"error": "Missing transfer details"},
-                status=400
-            )
-
-        try:
-            withdrawal = Withdrawal.objects.get(
-                reference=reference
-            )
-        except Withdrawal.DoesNotExist:
-
-            logger.warning(
-                "Unknown transfer reference: %s",
-                reference
-            )
-
-            return Response(
-                {"error": "Unknown transfer"},
-                status=400
-            )
-
-        # Paystack amount is in kobo.
-        expected_amount = int(
-            Decimal(str(withdrawal.amount)) * 100
-        )
-
-        try:
-            received_amount = int(amount)
-        except (ValueError, TypeError):
-
-            return Response(
-                {"error": "Invalid amount"},
-                status=400
-            )
-
-        # =================================================
-        # VERIFY AMOUNT
-        # =================================================
-
-        if received_amount != expected_amount:
-
-            logger.warning(
-                "Transfer amount mismatch. "
-                "Withdrawal=%s expected=%s received=%s",
-                withdrawal.id,
-                expected_amount,
-                received_amount,
-            )
-
-            return Response(
-                {"error": "Amount mismatch"},
-                status=400
-            )
-
-        # =================================================
-        # VERIFY STATUS
-        # =================================================
-
-        if withdrawal.status in [
-            "success",
-            "rejected",
-            "reversed",
-        ]:
-
-            logger.warning(
-                "Transfer %s cannot be approved. "
-                "Current status=%s",
-                withdrawal.id,
-                withdrawal.status,
-            )
-
-            return Response(
-                {"error": "Withdrawal cannot be approved"},
-                status=400
-            )
-
-        logger.info(
-            "Transfer approved by Senmi server: "
-            "withdrawal=%s reference=%s amount=%s",
-            withdrawal.id,
-            reference,
-            received_amount,
-        )
-
-        # HTTP 200 = Paystack should continue processing.
-        return Response(
-            {"approved": True},
-            status=200
-        )
-
-    
 
 class ApproveWithdrawalView(APIView):
     permission_classes = [IsAdmin]
 
     def post(self, request, withdrawal_id):
 
-        result = process_withdrawal(withdrawal_id)
+        try:
 
-        if result.get("success"):
+            with transaction.atomic():
+
+                withdrawal = (
+                    Withdrawal.objects
+                    .select_for_update()
+                    .select_related("rider")
+                    .get(id=withdrawal_id)
+                )
+
+                if withdrawal.status != "pending":
+
+                    return Response(
+                        {
+                            "success": False,
+                            "error": (
+                                f"Withdrawal is already "
+                                f"{withdrawal.status}."
+                            )
+                        },
+                        status=400
+                    )
+
+                withdrawal.status = "approved"
+
+                withdrawal.save(
+                    update_fields=["status", "updated_at"]
+                )
+
+        except Withdrawal.DoesNotExist:
+
             return Response(
                 {
-                    "success": True,
-                    "message": result.get("message"),
-                    "status": result.get("status"),
-                    "reference": result.get("reference"),
-                    "transfer_code": result.get("transfer_code"),
-                    "paystack_status": result.get("paystack_status"),
+                    "success": False,
+                    "error": "Withdrawal not found"
                 },
-                status=200,
+                status=404
             )
+
+        notify_admin_dashboard()
+
+        send_fcm_notification(
+            withdrawal.rider,
+            "Withdrawal Approved",
+            (
+                f"Your withdrawal of "
+                f"₦{withdrawal.amount:,.2f} "
+                f"has been approved and is being paid."
+            ),
+            {
+                "type": "withdrawal_approved",
+                "withdrawal_id": withdrawal.id,
+            }
+        )
 
         return Response(
             {
-                "success": False,
-                "error": result.get("message"),
+                "success": True,
+                "message": (
+                    "Withdrawal approved. "
+                    "Send the money manually to the "
+                    "rider's bank account."
+                ),
+                "withdrawal_id": withdrawal.id,
+                "status": withdrawal.status,
+                "amount": float(withdrawal.amount),
+                "bank_account": withdrawal.bank_account,
+                "bank_code": withdrawal.bank_code,
+                "account_name": withdrawal.account_name,
+                "reference": withdrawal.reference,
             },
-            status=400,
-        )        
+            status=200
+        )
 
+
+
+class MarkWithdrawalPaidView(APIView):
+    permission_classes = [IsAdmin]
+
+    def post(self, request, withdrawal_id):
+
+        try:
+
+            with transaction.atomic():
+
+                withdrawal = (
+                    Withdrawal.objects
+                    .select_for_update()
+                    .select_related("rider")
+                    .get(id=withdrawal_id)
+                )
+
+                if withdrawal.status != "approved":
+
+                    return Response(
+                        {
+                            "success": False,
+                            "error": (
+                                "Only approved withdrawals "
+                                "can be marked as paid."
+                            ),
+                        },
+                        status=400,
+                    )
+
+                withdrawal.status = "success"
+                withdrawal.paid_at = timezone.now()
+
+                withdrawal.save(
+                    update_fields=[
+                        "status",
+                        "paid_at",
+                    ]
+                )
+
+        except Withdrawal.DoesNotExist:
+
+            return Response(
+                {
+                    "success": False,
+                    "error": "Withdrawal not found.",
+                },
+                status=404,
+            )
+
+        send_fcm_notification(
+            withdrawal.rider,
+            "Withdrawal Successful",
+            (
+                f"Your withdrawal of "
+                f"₦{withdrawal.amount:,.2f} "
+                "has been paid successfully."
+            ),
+            {
+                "type": "withdrawal_success",
+                "withdrawal_id": withdrawal.id,
+            },
+        )
+
+        notify_admin_dashboard()
+
+        return Response(
+            {
+                "success": True,
+                "message": "Withdrawal marked as paid.",
+                "withdrawal_id": withdrawal.id,
+                "status": withdrawal.status,
+                "paid_at": withdrawal.paid_at,
+            },
+            status=200,
+        )
+    
+    
 
 
 def refund_failed_withdrawal(withdrawal_id, reason):
@@ -4001,23 +3119,33 @@ class RiderWithdrawView(APIView):
     def post(self, request):
 
         try:
-            amount = Decimal(str(request.data.get("amount")))
+            amount = Decimal(
+                str(request.data.get("amount"))
+            )
 
             if amount <= 0:
                 raise InvalidOperation
 
         except (InvalidOperation, TypeError, ValueError):
+
             return Response(
-                {"error": "Invalid amount"},
+                {
+                    "success": False,
+                    "error": "Invalid withdrawal amount"
+                },
                 status=400
             )
 
         bank_account = request.data.get("bank_account")
         bank_code = request.data.get("bank_code")
+        account_name = request.data.get("account_name")
 
         if not bank_account or not bank_code:
             return Response(
-                {"error": "Bank details required"},
+                {
+                    "success": False,
+                    "error": "Bank account and bank code are required"
+                },
                 status=400
             )
 
@@ -4026,114 +3154,59 @@ class RiderWithdrawView(APIView):
             wallet, _ = (
                 RiderWallet.objects
                 .select_for_update()
-                .get_or_create(rider=request.user)
+                .get_or_create(
+                    rider=request.user
+                )
             )
+
+            # ==========================================
+            # CHECK BALANCE
+            # ==========================================
 
             if amount > wallet.balance:
-                return Response(
-                    {"error": "Insufficient balance"},
-                    status=400
-                )
 
-            headers = {
-                "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
-                "Content-Type": "application/json",
-            }
-
-            verify_url = (
-                "https://api.paystack.co/bank/resolve"
-                f"?account_number={bank_account}"
-                f"&bank_code={bank_code}"
-            )
-
-            try:
-                verify_response = requests.get(
-                    verify_url,
-                    headers=headers,
-                    timeout=15,
-                )
-
-                verify_data = verify_response.json()
-
-            except requests.RequestException:
-                logger.exception("Paystack account verification failed")
-
-                return Response(
-                    {"error": "Bank verification failed"},
-                    status=500
-                )
-
-            if not verify_data.get("status"):
                 return Response(
                     {
-                        "error": "Invalid bank details",
-                        "paystack_message": verify_data.get("message"),
+                        "success": False,
+                        "error": "Insufficient wallet balance"
                     },
                     status=400
                 )
 
-            account_name = verify_data["data"]["account_name"]
+            # ==========================================
+            # PREVENT MULTIPLE PENDING WITHDRAWALS
+            # ==========================================
 
-            # -----------------------------------------
-            # CREATE PAYSTACK RECIPIENT
-            # -----------------------------------------
-
-            recipient_data = {
-                "type": "nuban",
-                "name": account_name,
-                "account_number": bank_account,
-                "bank_code": bank_code,
-                "currency": "NGN",
-            }
-
-            try:
-                recipient_response = requests.post(
-                    "https://api.paystack.co/transferrecipient",
-                    json=recipient_data,
-                    headers=headers,
-                    timeout=15,
+            existing_withdrawal = (
+                Withdrawal.objects
+                .filter(
+                    rider=request.user,
+                    status__in=[
+                        "pending",
+                        "approved",
+                        "processing",
+                    ]
                 )
+                .first()
+            )
 
-                recipient_data_response = recipient_response.json()
+            if existing_withdrawal:
 
-            except requests.RequestException:
-                logger.exception("Paystack recipient creation failed")
-
-                return Response(
-                    {"error": "Could not create Paystack recipient"},
-                    status=500
-                )
-
-            if not recipient_data_response.get("status"):
                 return Response(
                     {
-                        "error": "Recipient creation failed",
-                        "paystack_message": recipient_data_response.get(
-                            "message"
+                        "success": False,
+                        "error": (
+                            "You already have a withdrawal "
+                            "being processed."
                         ),
+                        "withdrawal_id": existing_withdrawal.id,
                     },
                     status=400
                 )
 
-            recipient_code = (
-                recipient_data_response["data"]["recipient_code"]
-            )
-
-            # -----------------------------------------
-            # SAVE RECIPIENT
-            # -----------------------------------------
-
-            profile = request.user.riderprofile
-
-            profile.paystack_recipient_code = recipient_code
-
-            profile.save(
-                update_fields=["paystack_recipient_code"]
-            )
-
-            # -----------------------------------------
+            # ==========================================
             # RESERVE MONEY
-            # -----------------------------------------
+            # ==========================================
 
             wallet.balance -= amount
 
@@ -4141,9 +3214,18 @@ class RiderWithdrawView(APIView):
                 update_fields=["balance"]
             )
 
-            # -----------------------------------------
+            # ==========================================
+            # CREATE OUR OWN REFERENCE
+            # ==========================================
+
+            reference = (
+                f"SENMI-WD-"
+                f"{uuid.uuid4().hex[:16].upper()}"
+            )
+
+            # ==========================================
             # CREATE WITHDRAWAL
-            # -----------------------------------------
+            # ==========================================
 
             withdrawal = Withdrawal.objects.create(
                 rider=request.user,
@@ -4151,22 +3233,27 @@ class RiderWithdrawView(APIView):
                 bank_account=bank_account,
                 bank_code=bank_code,
                 account_name=account_name,
-                recipient_code=recipient_code,
+                reference=reference,
                 status="pending",
             )
 
-            # -----------------------------------------
-            # WALLET DEBIT
-            # -----------------------------------------
+            # ==========================================
+            # WALLET TRANSACTION
+            # ==========================================
 
             WalletTransaction.objects.create(
                 rider=request.user,
                 amount=amount,
                 transaction_type="debit",
                 description=(
-                    f"Withdrawal request #{withdrawal.id}"
+                    f"Withdrawal request "
+                    f"#{withdrawal.id}"
                 ),
             )
+
+        # ==========================================
+        # NOTIFY ADMIN
+        # ==========================================
 
         notify_admin_dashboard()
 
@@ -4174,8 +3261,9 @@ class RiderWithdrawView(APIView):
             request.user,
             "Withdrawal Submitted",
             (
-                f"Your withdrawal of ₦{amount:,.2f} "
-                "is awaiting admin approval."
+                f"Your withdrawal of "
+                f"₦{amount:,.2f} has been submitted "
+                f"and is awaiting payment."
             ),
             {
                 "type": "withdrawal_pending",
@@ -4188,12 +3276,14 @@ class RiderWithdrawView(APIView):
                 "success": True,
                 "message": (
                     "Withdrawal request submitted "
-                    "and awaiting admin approval."
+                    "successfully."
                 ),
                 "withdrawal_id": withdrawal.id,
-                "status": "pending",
+                "reference": withdrawal.reference,
+                "status": withdrawal.status,
+                "amount": float(amount),
             },
-            status=201,
+            status=201
         )
     
 
@@ -4202,11 +3292,17 @@ class AdminWithdrawalsView(APIView):
     permission_classes = [IsAdminOrSupport]
 
     def get(self, request):
-        withdrawals = Withdrawal.objects.select_related(
-            "rider",
-            "rider__riderprofile",
-            "rider__riderwallet",
-        ).all().order_by("-created_at")
+
+        withdrawals = (
+            Withdrawal.objects
+            .select_related(
+                "rider",
+                "rider__riderprofile",
+                "rider__riderwallet",
+            )
+            .all()
+            .order_by("-created_at")
+        )
 
         data = [
             {
@@ -4217,21 +3313,35 @@ class AdminWithdrawalsView(APIView):
                 "amount": float(w.amount),
                 "status": w.status,
 
-                "wallet_balance": float(w.rider.riderwallet.balance),
-                "wallet_total_earned": float(w.rider.riderwallet.total_earned),
+                "wallet_balance": float(
+                    w.rider.riderwallet.balance
+                ),
+
+                "wallet_total_earned": float(
+                    w.rider.riderwallet.total_earned
+                ),
 
                 "reason": w.failure_reason,
+
                 "bank_account": w.bank_account,
                 "bank_code": w.bank_code,
                 "account_name": w.account_name,
+
                 "reference": w.reference,
-                "transfer_code": w.transfer_code,
+
                 "created_at": w.created_at,
+
+                "paid_at": (
+                    w.paid_at
+                    if hasattr(w, "paid_at")
+                    else None
+                ),
             }
             for w in withdrawals
         ]
 
         return Response(data)
+    
     
 
 
@@ -4276,7 +3386,7 @@ class RejectWithdrawalView(APIView):
                 )
 
                 # Only pending withdrawals can be rejected
-                if withdrawal.status != "pending":
+                if withdrawal.status not in ["pending", "approved"]:
                     return Response(
                         {
                             "success": False,
@@ -4403,83 +3513,6 @@ class BankListView(APIView):
         return Response(res.json())
     
 
-class RetryWithdrawalView(APIView):
-    permission_classes = [IsAdmin]
-
-    def post(self, request, withdrawal_id):
-
-        withdrawal = get_object_or_404(
-            Withdrawal,
-            id=withdrawal_id
-        )
-
-        if withdrawal.status != "failed":
-            return Response(
-                {
-                    "error": (
-                        "Only failed withdrawals "
-                        "can be retried"
-                    )
-                },
-                status=400
-            )
-
-        # Do NOT set processing here.
-        # process_withdrawal() does that.
-
-        result = process_withdrawal(
-            withdrawal.id
-        )
-
-        if not result.get("success"):
-            return Response(
-                {
-                    "success": False,
-                    "error": result.get(
-                        "message",
-                        "Retry failed"
-                    )
-                },
-                status=400
-            )
-
-        notify_admin_dashboard()
-
-        send_fcm_notification(
-            withdrawal.rider,
-            "Withdrawal Retry",
-            (
-                "Your withdrawal has been "
-                "sent to Paystack again."
-            ),
-            {
-                "type": "withdrawal_retry",
-                "withdrawal_id": str(
-                    withdrawal.id
-                ),
-            }
-        )
-
-        return Response(
-            {
-                "success": True,
-                "message": (
-                    "Withdrawal retry sent "
-                    "to Paystack."
-                ),
-                "status": result.get("status"),
-                "reference": result.get("reference"),
-                "transfer_code": result.get(
-                    "transfer_code"
-                ),
-                "paystack_status": result.get(
-                    "paystack_status"
-                ),
-            },
-            status=200
-        )
-    
-    
 
 class ResolveAccountView(APIView):
     permission_classes = [IsAuthenticated]

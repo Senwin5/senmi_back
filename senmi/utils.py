@@ -167,6 +167,7 @@ def notify_admin_dashboard():
 
    
 
+#PRICE MUTIPLIER
 from math import atan2, cos, radians, sin, sqrt
 from django.utils import timezone
 from .models import PricingConfig

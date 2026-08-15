@@ -7,8 +7,6 @@ from simple_history.admin import SimpleHistoryAdmin
 from django.utils import timezone
 from django.contrib import admin
 from django.utils.html import format_html
-
-from senmi.views import process_withdrawal
 from .models import WalletTransaction
 from .models import FCMDevice, Notification, User, RiderProfile,Withdrawal, PricingConfig
 from .utils import notify_admin_dashboard, send_email, send_fcm_notification
@@ -476,9 +474,7 @@ class WithdrawalAdmin(admin.ModelAdmin):
         "amount",
         "identity_check",
         "status",
-        "recipient_code",
         "reference",
-        "transfer_code",
         "failure_reason",
         "created_at",
     )
@@ -493,9 +489,7 @@ class WithdrawalAdmin(admin.ModelAdmin):
         "rider__riderprofile__rider_id",
         "bank_account",
         "account_name",
-        "recipient_code",
         "reference",
-        "transfer_code",
     )
 
     readonly_fields = (
@@ -504,11 +498,10 @@ class WithdrawalAdmin(admin.ModelAdmin):
         "bank_account",
         "bank_code",
         "account_name",
-        "recipient_code",
         "reference",
-        "transfer_code",
         "failure_reason",
         "created_at",
+        "paid_at",
     )
 
     list_per_page = 50
@@ -518,25 +511,22 @@ class WithdrawalAdmin(admin.ModelAdmin):
     actions = [
         "approve_withdrawals",
         "reject_withdrawals",
-        "retry_failed_withdrawals",
+        "mark_withdrawals_paid",
     ]
-    
 
-    # -----------------------------------------
+    # =====================================================
     # APPROVE
-    # -----------------------------------------
+    # =====================================================
 
     @admin.action(
-        description="Approve and send to Paystack"
+        description="Approve selected withdrawals"
     )
     def approve_withdrawals(self, request, queryset):
 
         for withdrawal in queryset:
 
-            if withdrawal.status not in [
-                "pending",
-                "approved",
-            ]:
+            if withdrawal.status != "pending":
+
                 self.message_user(
                     request,
                     (
@@ -548,36 +538,55 @@ class WithdrawalAdmin(admin.ModelAdmin):
                 )
                 continue
 
-            result = process_withdrawal(
-                withdrawal.id
+            with transaction.atomic():
+
+                locked = (
+                    Withdrawal.objects
+                    .select_for_update()
+                    .select_related("rider")
+                    .get(id=withdrawal.id)
+                )
+
+                # Re-check after locking
+                if locked.status != "pending":
+                    continue
+
+                locked.status = "approved"
+
+                locked.save(
+                    update_fields=[
+                        "status",
+                    ]
+                )
+
+            send_fcm_notification(
+                locked.rider,
+                "Withdrawal Approved",
+                (
+                    f"Your withdrawal of "
+                    f"₦{locked.amount:,.2f} "
+                    "has been approved and is "
+                    "being processed."
+                ),
+                {
+                    "type": "withdrawal_approved",
+                    "withdrawal_id": locked.id,
+                },
             )
 
-            if result.get("success"):
+            self.message_user(
+                request,
+                (
+                    f"Withdrawal #{locked.id} "
+                    "approved successfully."
+                ),
+            )
 
-                self.message_user(
-                    request,
-                    (
-                        f"Withdrawal #{withdrawal.id} "
-                        f"sent to Paystack. "
-                        f"Reference: "
-                        f"{result.get('reference')}"
-                    ),
-                )
+        notify_admin_dashboard()
 
-            else:
-
-                self.message_user(
-                    request,
-                    (
-                        f"Withdrawal #{withdrawal.id}: "
-                        f"{result.get('message')}"
-                    ),
-                    level="ERROR",
-                )
-
-    # -----------------------------------------
+    # =====================================================
     # REJECT
-    # -----------------------------------------
+    # =====================================================
 
     @admin.action(
         description="Reject selected withdrawals"
@@ -597,7 +606,6 @@ class WithdrawalAdmin(admin.ModelAdmin):
                     ),
                     level="ERROR",
                 )
-
                 continue
 
             with transaction.atomic():
@@ -609,6 +617,10 @@ class WithdrawalAdmin(admin.ModelAdmin):
                     .get(id=withdrawal.id)
                 )
 
+                # Re-check after locking
+                if locked.status != "pending":
+                    continue
+
                 wallet = (
                     RiderWallet.objects
                     .select_for_update()
@@ -617,12 +629,21 @@ class WithdrawalAdmin(admin.ModelAdmin):
                     )[0]
                 )
 
-                # Return reserved money
+                # -----------------------------------------
+                # RETURN RESERVED MONEY
+                # -----------------------------------------
+
                 wallet.balance += locked.amount
 
                 wallet.save(
-                    update_fields=["balance"]
+                    update_fields=[
+                        "balance",
+                    ]
                 )
+
+                # -----------------------------------------
+                # RECORD WALLET REFUND
+                # -----------------------------------------
 
                 WalletTransaction.objects.create(
                     rider=locked.rider,
@@ -633,6 +654,10 @@ class WithdrawalAdmin(admin.ModelAdmin):
                         f"withdrawal #{locked.id}"
                     ),
                 )
+
+                # -----------------------------------------
+                # MARK REJECTED
+                # -----------------------------------------
 
                 locked.status = "rejected"
 
@@ -659,145 +684,93 @@ class WithdrawalAdmin(admin.ModelAdmin):
                 {
                     "type": "withdrawal_rejected",
                     "withdrawal_id": locked.id,
-                }
+                },
+            )
+
+            self.message_user(
+                request,
+                (
+                    f"Withdrawal #{locked.id} "
+                    "rejected and money returned."
+                ),
             )
 
         notify_admin_dashboard()
 
-    # -----------------------------------------
-    # RETRY FAILED
-    # -----------------------------------------
+    # =====================================================
+    # MARK AS PAID
+    # =====================================================
 
     @admin.action(
-        description="Retry failed withdrawals"
+        description="Mark selected withdrawals as paid"
     )
-    def retry_failed_withdrawals(
-        self,
-        request,
-        queryset
-    ):
+    def mark_withdrawals_paid(self, request, queryset):
 
         for withdrawal in queryset:
 
-            if withdrawal.status not in [
-                "failed",
-                "reversed",
-            ]:
+            if withdrawal.status != "approved":
 
                 self.message_user(
                     request,
                     (
                         f"Withdrawal #{withdrawal.id} "
-                        "is not failed/reversed."
+                        f"cannot be marked as paid because "
+                        f"it is {withdrawal.status}."
                     ),
                     level="ERROR",
                 )
-
                 continue
-
-            # IMPORTANT:
-            # A failed/reversed withdrawal has already
-            # returned the money to the wallet.
-            #
-            # Therefore retrying requires deducting
-            # the money again.
 
             with transaction.atomic():
 
                 locked = (
                     Withdrawal.objects
                     .select_for_update()
+                    .select_related("rider")
                     .get(id=withdrawal.id)
                 )
 
-                wallet = (
-                    RiderWallet.objects
-                    .select_for_update()
-                    .get_or_create(
-                        rider=locked.rider
-                    )[0]
-                )
-
-                if wallet.balance < locked.amount:
-
-                    self.message_user(
-                        request,
-                        (
-                            f"Withdrawal #{locked.id}: "
-                            "rider does not have enough "
-                            "wallet balance for retry."
-                        ),
-                        level="ERROR",
-                    )
-
+                # Re-check after locking
+                if locked.status != "approved":
                     continue
 
-                wallet.balance -= locked.amount
-
-                wallet.save(
-                    update_fields=["balance"]
-                )
-
-                WalletTransaction.objects.create(
-                    rider=locked.rider,
-                    amount=locked.amount,
-                    transaction_type="debit",
-                    description=(
-                        f"Retry withdrawal #{locked.id}"
-                    ),
-                )
-
-                locked.status = "pending"
-
-                locked.failure_reason = None
-
-                # IMPORTANT:
-                # Clear old reference because the old
-                # transfer reached a conclusive state.
-                #
-                # process_withdrawal will create a new
-                # reference for this new transfer attempt.
-                locked.reference = None
-                locked.transfer_code = None
+                locked.status = "success"
+                locked.paid_at = timezone.now()
 
                 locked.save(
                     update_fields=[
                         "status",
-                        "failure_reason",
-                        "reference",
-                        "transfer_code",
+                        "paid_at",
                     ]
                 )
 
-            result = process_withdrawal(
-                locked.id
+            send_fcm_notification(
+                locked.rider,
+                "Withdrawal Successful",
+                (
+                    f"Your withdrawal of "
+                    f"₦{locked.amount:,.2f} "
+                    "has been paid successfully."
+                ),
+                {
+                    "type": "withdrawal_success",
+                    "withdrawal_id": locked.id,
+                },
             )
 
-            if result.get("success"):
+            self.message_user(
+                request,
+                (
+                    f"Withdrawal #{locked.id} "
+                    "marked as paid."
+                ),
+            )
 
-                self.message_user(
-                    request,
-                    (
-                        f"Retry for withdrawal "
-                        f"#{locked.id} sent to Paystack."
-                    ),
-                )
+        notify_admin_dashboard()
 
-            else:
-
-                self.message_user(
-                    request,
-                    (
-                        f"Retry failed for "
-                        f"withdrawal #{locked.id}: "
-                        f"{result.get('message')}"
-                    ),
-                    level="ERROR",
-                )
-
-    # -----------------------------------------
+    # =====================================================
     # DISPLAY HELPERS
-    # -----------------------------------------
+    # =====================================================
 
     @admin.display(description="Rider ID")
     def get_rider_id(self, obj):
@@ -850,7 +823,7 @@ class WithdrawalAdmin(admin.ModelAdmin):
                 '<span style="color:red;font-weight:bold;">{}</span>',
                 "NO RIDER PROFILE",
             )
-
+        
         
         
 @admin.register(WalletTransaction)
