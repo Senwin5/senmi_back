@@ -169,12 +169,13 @@ def notify_admin_dashboard():
 
 def notify_admin_withdrawal_request(withdrawal):
     """
-    Notify all active admins that a rider has requested a withdrawal.
+    Notify all active admins AND support users that a rider
+    has requested a withdrawal.
 
-    This:
-    1. Creates an in-app Notification for each admin.
-    2. Sends an FCM push notification to each admin.
-    3. Refreshes the admin dashboard through WebSocket.
+    Sends:
+    1. In-app notification
+    2. FCM push notification
+    3. Admin dashboard refresh
     """
 
     User = get_user_model()
@@ -201,19 +202,23 @@ def notify_admin_withdrawal_request(withdrawal):
             f"Withdrawal #{withdrawal.id} is awaiting approval."
         )
 
-        admins = User.objects.filter(
-            role="admin",
+        # ==========================================
+        # ADMIN + SUPPORT USERS
+        # ==========================================
+
+        users = User.objects.filter(
+            role__in=["admin", "support"],
             is_active=True,
         )
 
-        for admin in admins:
+        for user in users:
 
             # ==========================================
             # DATABASE / IN-APP NOTIFICATION
             # ==========================================
 
             Notification.objects.create(
-                user=admin,
+                user=user,
                 type="withdrawal_pending",
                 message=message,
                 target="single",
@@ -224,7 +229,7 @@ def notify_admin_withdrawal_request(withdrawal):
             # ==========================================
 
             send_fcm_notification(
-                admin,
+                user,
                 "New Withdrawal Request",
                 message,
                 {
@@ -242,35 +247,26 @@ def notify_admin_withdrawal_request(withdrawal):
         return True
 
     except Exception as e:
-
         logger.exception(
-            f"Admin withdrawal notification failed: {e}"
+            f"Admin/support withdrawal notification failed: {e}"
         )
 
         return False
+    
 
 
 def email_admin_withdrawal_request(withdrawal):
     """
-    Email withdrawal requests to:
-    1. Main admin users
-    2. Resend/main Senmi email
-    3. All future support users
+    Email all active admins AND support users
+    when a rider requests a withdrawal.
     """
 
     User = get_user_model()
 
     try:
-        recipients = []
 
         # ==========================================
-        # MAIN SENMI EMAIL
-        # ==========================================
-
-        recipients.append("senmisupport@gmail.com")
-
-        # ==========================================
-        # ADMIN + SUPPORT USERS
+        # ADMIN + SUPPORT EMAILS
         # ==========================================
 
         users = (
@@ -287,14 +283,20 @@ def email_admin_withdrawal_request(withdrawal):
             )
         )
 
-        recipients.extend(
+        recipients = list(
             users.values_list(
                 "email",
                 flat=True,
             )
         )
 
-        # Remove duplicate emails
+        # ==========================================
+        # ALSO SEND TO MAIN SENMI EMAIL
+        # ==========================================
+
+        recipients.append("senmisupport@gmail.com")
+
+        # Remove duplicates
         recipients = list(set(recipients))
 
         if not recipients:
@@ -390,7 +392,7 @@ def email_admin_withdrawal_request(withdrawal):
     except Exception as e:
 
         logger.exception(
-            f"Admin withdrawal email failed: {e}"
+            f"Admin/support withdrawal email failed: {e}"
         )
 
         return False
