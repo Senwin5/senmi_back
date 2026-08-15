@@ -2768,7 +2768,6 @@ class PackageDetailView(APIView):
 
 
 
-python
 class RiderWalletTransactionsView(APIView):
     permission_classes = [IsAuthenticated]
 
