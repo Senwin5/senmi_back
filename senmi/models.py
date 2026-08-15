@@ -362,11 +362,24 @@ class Withdrawal(models.Model):
         ("failed", "Failed"),
     ]
 
-    rider = models.ForeignKey(User, on_delete=models.CASCADE)
-    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    rider = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+    )
 
-    bank_account = models.CharField(max_length=50)
-    bank_code = models.CharField(max_length=10)
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+    )
+
+    bank_account = models.CharField(
+        max_length=50,
+    )
+
+    bank_code = models.CharField(
+        max_length=10,
+    )
+
     account_name = models.CharField(
         max_length=255,
         blank=True,
@@ -402,12 +415,22 @@ class Withdrawal(models.Model):
     )
 
     created_at = models.DateTimeField(
-        auto_now_add=True
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
     )
 
     def __str__(self):
+        rider_id = getattr(
+            getattr(self.rider, "riderprofile", None),
+            "rider_id",
+            self.rider.email,
+        )
+
         return (
-            f"{self.rider.riderprofile.rider_id} - "
+            f"{rider_id} - "
             f"{self.amount} - "
             f"{self.status}"
         )

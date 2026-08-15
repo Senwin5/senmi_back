@@ -90,7 +90,9 @@ from .serializers import (
 )
 
 from .utils import (
+    email_admin_withdrawal_request,
     notify_admin_dashboard,
+    notify_admin_withdrawal_request,
     send_fcm_notification,
 )
 
@@ -3255,7 +3257,17 @@ class RiderWithdrawView(APIView):
         # NOTIFY ADMIN
         # ==========================================
 
-        notify_admin_dashboard()
+        notify_admin_withdrawal_request(
+            withdrawal
+        )
+
+        email_admin_withdrawal_request(
+            withdrawal
+        )
+
+        # ==========================================
+        # NOTIFY RIDER
+        # ==========================================
 
         send_fcm_notification(
             request.user,
@@ -3263,7 +3275,7 @@ class RiderWithdrawView(APIView):
             (
                 f"Your withdrawal of "
                 f"₦{amount:,.2f} has been submitted "
-                f"and is awaiting payment."
+                f"and is awaiting approval."
             ),
             {
                 "type": "withdrawal_pending",

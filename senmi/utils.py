@@ -167,6 +167,211 @@ def notify_admin_dashboard():
 
    
 
+def notify_admin_withdrawal_request(withdrawal):
+    """
+    Notify all active admins that a rider has requested a withdrawal.
+
+    This:
+    1. Creates an in-app Notification for each admin.
+    2. Sends an FCM push notification to each admin.
+    3. Refreshes the admin dashboard through WebSocket.
+    """
+
+    User = get_user_model()
+
+    try:
+        rider_profile = getattr(
+            withdrawal.rider,
+            "riderprofile",
+            None,
+        )
+
+        rider_name = (
+            getattr(
+                rider_profile,
+                "full_name",
+                None,
+            )
+            or withdrawal.rider.email
+        )
+
+        message = (
+            f"{rider_name} requested a withdrawal of "
+            f"₦{withdrawal.amount:,.2f}. "
+            f"Withdrawal #{withdrawal.id} is awaiting approval."
+        )
+
+        admins = User.objects.filter(
+            role="admin",
+            is_active=True,
+        )
+
+        for admin in admins:
+
+            # ==========================================
+            # DATABASE / IN-APP NOTIFICATION
+            # ==========================================
+
+            Notification.objects.create(
+                user=admin,
+                type="withdrawal_pending",
+                message=message,
+                target="single",
+            )
+
+            # ==========================================
+            # FCM PUSH NOTIFICATION
+            # ==========================================
+
+            send_fcm_notification(
+                admin,
+                "New Withdrawal Request",
+                message,
+                {
+                    "type": "withdrawal_pending",
+                    "withdrawal_id": withdrawal.id,
+                },
+            )
+
+        # ==========================================
+        # REFRESH ADMIN DASHBOARD
+        # ==========================================
+
+        notify_admin_dashboard()
+
+        return True
+
+    except Exception as e:
+
+        logger.exception(
+            f"Admin withdrawal notification failed: {e}"
+        )
+
+        return False
+
+
+def email_admin_withdrawal_request(withdrawal):
+    """
+    Email all active admins when a rider requests a withdrawal.
+    """
+
+    User = get_user_model()
+
+    try:
+        admins = (
+            User.objects
+            .filter(
+                role="admin",
+                is_active=True,
+            )
+            .exclude(
+                email__isnull=True
+            )
+            .exclude(
+                email=""
+            )
+        )
+
+        if not admins.exists():
+            logger.warning(
+                "No active admin email addresses found."
+            )
+            return False
+
+        rider_profile = getattr(
+            withdrawal.rider,
+            "riderprofile",
+            None,
+        )
+
+        rider_name = (
+            getattr(
+                rider_profile,
+                "full_name",
+                None,
+            )
+            or withdrawal.rider.email
+        )
+
+        rider_id = (
+            getattr(
+                rider_profile,
+                "rider_id",
+                None,
+            )
+            or "N/A"
+        )
+
+        subject = (
+            f"New Withdrawal Request "
+            f"#{withdrawal.id} - Senmi"
+        )
+
+        message = f"""
+            A new rider withdrawal request has been submitted.
+
+            Withdrawal ID:
+            #{withdrawal.id}
+
+            Rider:
+            {rider_name}
+
+            Rider ID:
+            {rider_id}
+
+            Email:
+            {withdrawal.rider.email}
+
+            Amount:
+            ₦{withdrawal.amount:,.2f}
+
+            Bank Account:
+            {withdrawal.bank_account}
+
+            Bank Code:
+            {withdrawal.bank_code}
+
+            Account Name:
+            {withdrawal.account_name or "N/A"}
+
+            Reference:
+            {withdrawal.reference or "N/A"}
+
+            Status:
+            {withdrawal.status.upper()}
+
+            Created:
+            {withdrawal.created_at.strftime("%d %B %Y, %I:%M %p")}
+
+            This withdrawal is awaiting admin approval.
+
+            Please log in to the Senmi admin dashboard to review this request.
+            """
+
+        recipients = list(
+            admins.values_list(
+                "email",
+                flat=True,
+            )
+        )
+
+        return send_email(
+            subject=subject,
+            message=message,
+            recipients=recipients,
+        )
+
+    except Exception as e:
+
+        logger.exception(
+            f"Admin withdrawal email failed: {e}"
+        )
+
+        return False
+    
+
+
+    
 #PRICE MUTIPLIER
 from math import atan2, cos, radians, sin, sqrt
 from django.utils import timezone
