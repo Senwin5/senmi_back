@@ -2768,6 +2768,7 @@ class PackageDetailView(APIView):
 
 
 
+python
 class RiderWalletTransactionsView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -2783,15 +2784,85 @@ class RiderWalletTransactionsView(APIView):
 
         for t in transactions:
 
+            # =====================================================
+            # DELIVERY / CREDIT
+            # =====================================================
+
             if t.transaction_type == "credit":
                 title = "Delivery Completed"
                 icon_type = "delivery"
                 amount_type = "credit"
 
+                bank_name = None
+                bank_account = None
+                account_name = None
+                bank_code = None
+                withdrawal_status = None
+                withdrawal_reference = None
+
+            # =====================================================
+            # WITHDRAWAL / DEBIT
+            # =====================================================
+
             else:
                 title = "Withdrawal"
                 icon_type = "withdrawal"
                 amount_type = "debit"
+
+                bank_name = None
+                bank_account = None
+                account_name = None
+                bank_code = None
+                withdrawal_status = None
+                withdrawal_reference = None
+
+                # -------------------------------------------------
+                # Find the withdrawal connected to this transaction
+                #
+                # Your description is:
+                # "Withdrawal request #12"
+                # -------------------------------------------------
+
+                withdrawal = None
+
+                if t.description:
+                    try:
+                        description = str(t.description)
+
+                        if "Withdrawal request #" in description:
+                            withdrawal_id = (
+                                description
+                                .split("Withdrawal request #")[1]
+                                .strip()
+                            )
+
+                            withdrawal = (
+                                Withdrawal.objects
+                                .filter(
+                                    id=int(withdrawal_id),
+                                    rider=request.user,
+                                )
+                                .first()
+                            )
+
+                    except (ValueError, IndexError):
+                        withdrawal = None
+
+                # -------------------------------------------------
+                # Get withdrawal bank information
+                # -------------------------------------------------
+
+                if withdrawal:
+                    bank_name = withdrawal.bank_name
+                    bank_account = withdrawal.bank_account
+                    account_name = withdrawal.account_name
+                    bank_code = withdrawal.bank_code
+                    withdrawal_status = withdrawal.status
+                    withdrawal_reference = withdrawal.reference
+
+            # =====================================================
+            # PACKAGE DATA
+            # =====================================================
 
             package_data = None
 
@@ -2806,16 +2877,17 @@ class RiderWalletTransactionsView(APIView):
                     "status": t.package.status,
                 }
 
+            # =====================================================
+            # TRANSACTION RESPONSE
+            # =====================================================
+
             data.append({
                 "id": t.id,
 
-                # What the Flutter app should display
                 "title": title,
 
-                # delivery / withdrawal
                 "icon_type": icon_type,
 
-                # credit / debit
                 "type": amount_type,
 
                 "amount": float(t.amount),
@@ -2831,9 +2903,27 @@ class RiderWalletTransactionsView(APIView):
                 ),
 
                 "date": t.created_at.isoformat(),
+
+                # =================================================
+                # WITHDRAWAL INFORMATION
+                # =================================================
+
+                "bank_name": bank_name,
+
+                "bank_account": bank_account,
+
+                "account_name": account_name,
+
+                "bank_code": bank_code,
+
+                "withdrawal_status": withdrawal_status,
+
+                "withdrawal_reference": withdrawal_reference,
             })
 
         return Response(data)
+
+
     
 
 
