@@ -3059,7 +3059,6 @@ class MarkWithdrawalPaidView(APIView):
                     update_fields=[
                         "status",
                         "paid_at",
-                        "updated_at",
                     ]
                 )
 
