@@ -522,54 +522,255 @@ def admin_customer_detail(request, customer_id):
             status=404
         )
 
-    packages = Package.objects.filter(customer=customer)
+    # =========================================================
+    # ALL CUSTOMER PACKAGES
+    # =========================================================
 
-    delivered = packages.filter(status='delivered').count()
-    pending = packages.filter(status='pending').count()
-    paid = packages.filter(status='paid').count()
-    cancelled = packages.filter(status='cancelled').count()
+    packages = Package.objects.filter(
+        customer=customer
+    )
+
+    # =========================================================
+    # PACKAGE STATISTICS
+    # =========================================================
+
+    delivered = packages.filter(
+        status='delivered'
+    ).count()
+
+    pending = packages.filter(
+        status='pending'
+    ).count()
+
+    paid = packages.filter(
+        status='paid'
+    ).count()
+
+    accepted = packages.filter(
+        status='accepted'
+    ).count()
+
+    picked_up = packages.filter(
+        status='picked_up'
+    ).count()
+
+    cancelled = packages.filter(
+        status='cancelled'
+    ).count()
+
+    failed = packages.filter(
+        status='failed'
+    ).count()
+
+    # =========================================================
+    # TOTAL SPENT
+    # =========================================================
 
     total_spent = packages.aggregate(
         total=Sum('price')
     )['total'] or 0
 
+    # =========================================================
+    # ONLY 5 MOST RECENT PACKAGES
+    # =========================================================
+
     recent_packages = packages.order_by(
         '-created_at'
-    )[:10]
+    )[:5]
 
     package_data = []
 
     for p in recent_packages:
+
+        # -----------------------------------------------------
+        # RIDER INFORMATION
+        # -----------------------------------------------------
+
+        rider_name = None
+        rider_id = None
+        rider_phone = None
+
+        if p.rider:
+            rider_id = p.rider.user_id
+            rider_name = (
+                getattr(p.rider, 'username', None)
+                or getattr(p.rider, 'email', None)
+                or getattr(p.rider, 'user_id', None)
+            )
+            rider_phone = getattr(
+                p.rider,
+                'phone_number',
+                None
+            )
+
+        # -----------------------------------------------------
+        # PACKAGE DATA
+        # -----------------------------------------------------
+
         package_data.append({
+
+            # ==============================
+            # BASIC PACKAGE INFORMATION
+            # ==============================
+
             "package_id": p.package_id,
+
             "status": p.status,
+
+            "description": getattr(
+                p,
+                "description",
+                None
+            ),
+
             "price": p.price,
-            "created_at": p.created_at,
+
+            "commission": getattr(
+                p,
+                "commission",
+                None
+            ),
+
+            "rider_earning": getattr(
+                p,
+                "rider_earning",
+                None
+            ),
+
+            # ==============================
+            # PAYMENT
+            # ==============================
+
+            "payment_type": p.payment_type,
+
+            "is_paid": p.is_paid,
+
+            "payment_reference": p.payment_reference,
+
+            "payment_completed_at": p.payment_completed_at,
+
+            # ==============================
+            # PICKUP
+            # ==============================
+
+            "pickup_address": p.pickup_address,
+
             "pickup_lat": p.pickup_lat,
+
             "pickup_lng": p.pickup_lng,
+
+            # ==============================
+            # DELIVERY
+            # ==============================
+
+            "delivery_address": p.delivery_address,
+
             "delivery_lat": p.delivery_lat,
+
             "delivery_lng": p.delivery_lng,
+
+            # ==============================
+            # RECEIVER
+            # ==============================
+
+            "receiver_name": p.receiver_name,
+
+            "receiver_phone": p.receiver_phone,
+
+            # ==============================
+            # RIDER
+            # ==============================
+
+            "rider": rider_name,
+
+            "rider_id": rider_id,
+
+            "rider_phone": rider_phone,
+
+            # ==============================
+            # DATES
+            # ==============================
+
+            "created_at": p.created_at,
+
+            "updated_at": p.updated_at,
+
+            "delivered_at": p.delivered_at,
+
+            # ==============================
+            # REFUND
+            # ==============================
+
+            "refund_status": p.refund_status,
+
+            "refund_method": p.refund_method,
+
+            "refunded_at": p.refunded_at,
+
+            # ==============================
+            # FAILURE
+            # ==============================
+
+            "failure_reason": p.failure_reason,
         })
 
+    # =========================================================
+    # CUSTOMER RESPONSE
+    # =========================================================
+
     return Response({
+
+        # ==============================
+        # CUSTOMER
+        # ==============================
+
         "id": customer.id,
+
         "user_id": customer.user_id,
+
         "username": customer.username,
+
         "email": customer.email,
+
         "phone_number": customer.phone_number,
+
         "date_joined": customer.date_joined,
+
         "last_login": customer.last_login,
 
+        # ==============================
+        # STATISTICS
+        # ==============================
+
         "total_packages": packages.count(),
+
         "delivered_packages": delivered,
+
         "pending_packages": pending,
+
         "paid_packages": paid,
+
+        "accepted_packages": accepted,
+
+        "picked_up_packages": picked_up,
+
         "cancelled_packages": cancelled,
+
+        "failed_packages": failed,
+
+        # ==============================
+        # MONEY
+        # ==============================
 
         "total_spent": total_spent,
 
+        # ==============================
+        # RECENT PACKAGES
+        # ==============================
+
         "recent_packages": package_data,
     })
+
 
 
 class AvailableRidersView(APIView):

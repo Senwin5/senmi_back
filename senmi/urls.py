@@ -28,6 +28,7 @@ urlpatterns = [
     path('api/admin/analytics/',views.admin_analytics,name='admin_analytics'),
     path('api/admin/dashboard/',views.admin_dashboard,name='admin_dashboard'),
     path('api/admin/available-riders/',AvailableRidersView.as_view(),),
+    path("api/admin/customers/",views.admin_customers,name="admin_customers"),
     path("api/admin/customers/",views.admin_customers,),
     path("api/admin/customers/<int:customer_id>/",views.admin_customer_detail,),
     path('api/packages/', AvailablePackagesView.as_view()),
@@ -66,6 +67,6 @@ urlpatterns = [
     path('api/save-fcm-token/', save_fcm_token),
     path("api/send-notification/",AdminNotificationView.as_view(),name="admin-send-notification"),
     path("api/admin-notifications/",admin_notifications,name="admin-notifications"),
-    path("api/admin/customers/",views.admin_customers,name="admin_customers"),
+    
    
 ]
