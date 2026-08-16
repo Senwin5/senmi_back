@@ -2925,8 +2925,6 @@ class RiderWalletTransactionsView(APIView):
 
     
 
-
-
 # ------------------------------
 # Rider Wallet & Withdrawal
 # ------------------------------
@@ -3033,7 +3031,6 @@ class MarkWithdrawalPaidView(APIView):
     def post(self, request, withdrawal_id):
 
         try:
-
             with transaction.atomic():
 
                 withdrawal = (
@@ -3044,7 +3041,6 @@ class MarkWithdrawalPaidView(APIView):
                 )
 
                 if withdrawal.status != "approved":
-
                     return Response(
                         {
                             "success": False,
@@ -3063,11 +3059,11 @@ class MarkWithdrawalPaidView(APIView):
                     update_fields=[
                         "status",
                         "paid_at",
+                        "updated_at",
                     ]
                 )
 
         except Withdrawal.DoesNotExist:
-
             return Response(
                 {
                     "success": False,
@@ -3121,10 +3117,7 @@ def refund_failed_withdrawal(withdrawal_id, reason):
         )
 
         # Only failed/reversed withdrawals can be refunded
-        if withdrawal.status not in [
-            "failed",
-            "reversed",
-        ]:
+        if withdrawal.status != "failed":
             return False
 
         # ==========================================

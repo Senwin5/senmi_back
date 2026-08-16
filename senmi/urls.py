@@ -50,7 +50,6 @@ urlpatterns = [
     path('api/admin/rider-wallets/', AdminRiderWalletView.as_view()),
     path('api/rider/wallet/withdraw/', RiderWithdrawView.as_view()),
     path('api/banks/', BankListView.as_view()),
-    #path('rider/resolve-account/', ResolveAccountView.as_view()),
     path('api/rider/resolve-account/', ResolveAccountView.as_view()),
     path('api/customer/packages/', CustomerPackagesView.as_view()),
     path('api/packages/<str:package_id>/', PackageDetailView.as_view()),
