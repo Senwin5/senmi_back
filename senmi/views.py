@@ -10,7 +10,7 @@ import re
 import requests
 import uuid
 
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from math import radians, sin, cos, sqrt, atan2
 
 from asgiref.sync import async_to_sync
@@ -2394,6 +2394,7 @@ class InitializeReceiverPaymentView(APIView):
         return Response({"error": "Payment initialization failed"}, status=400)
     
 
+
     
 # Paystack Webhook
 # ------------------------------
@@ -2467,8 +2468,13 @@ class PaystackWebhookView(APIView):
                 # Paystack amount is in kobo
                 # =====================================
                 expected_amount = int(
-                    (Decimal(str(package.price)) * Decimal("100"))
-                    .quantize(Decimal("1"))
+                    (
+                        Decimal(str(package.price)).quantize(
+                            Decimal("0.01"),
+                            rounding=ROUND_HALF_UP
+                        )
+                        * Decimal("100")
+                    )
                 )
 
                 paid_amount = int(data.get("amount", 0))
@@ -2607,8 +2613,13 @@ class PaymentCallbackView(APIView):
                 # Paystack amount is returned in kobo
                 # =====================================
                 expected_amount = int(
-                    (Decimal(str(package.price)) * Decimal("100"))
-                    .quantize(Decimal("1"))
+                    (
+                        Decimal(str(package.price)).quantize(
+                            Decimal("0.01"),
+                            rounding=ROUND_HALF_UP
+                        )
+                        * Decimal("100")
+                    )
                 )
 
                 paid_amount = int(data.get("amount", 0))
