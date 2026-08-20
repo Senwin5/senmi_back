@@ -2301,7 +2301,12 @@ class InitializeReceiverPaymentView(APIView):
 
                 # ====================================================
                 # VERIFY EXACT PAYMENT AMOUNT
-                # Paystack amount is in kobo
+                #
+                # ₦528.11 = 52811 kobo
+                # ₦528.00 = 52800 kobo
+                #
+                # 52800 != 52811
+                # Therefore payment MUST be rejected.
                 # ====================================================
                 try:
                     expected_amount = int(
@@ -2328,25 +2333,24 @@ class InitializeReceiverPaymentView(APIView):
                     payment_data.get("amount", 0)
                 )
 
-                logger.info(
-                    f"PAYMENT VERIFICATION | "
-                    f"Package: {package.package_id} | "
-                    f"Expected: {expected_amount} kobo | "
-                    f"Paid: {paid_amount} kobo | "
-                    f"Reference: {package.payment_reference}"
+                logger.warning(
+                    f"PAYMENT CHECK | "
+                    f"Package={package.package_id} | "
+                    f"Expected={expected_amount} kobo | "
+                    f"Paid={paid_amount} kobo | "
+                    f"Difference={expected_amount - paid_amount} kobo"
                 )
 
                 # ====================================================
-                # REJECT IF EVEN 1 KOBO IS MISSING
+                # REJECT EVEN 1 KOBO SHORT
                 # ====================================================
                 if paid_amount != expected_amount:
+
                     logger.warning(
-                        f"PAYMENT AMOUNT MISMATCH | "
-                        f"Package: {package.package_id} | "
-                        f"Expected: {expected_amount} kobo | "
-                        f"Received: {paid_amount} kobo | "
-                        f"Difference: "
-                        f"{expected_amount - paid_amount} kobo"
+                        f"PAYMENT REJECTED | "
+                        f"Package={package.package_id} | "
+                        f"Expected={expected_amount} kobo | "
+                        f"Received={paid_amount} kobo"
                     )
 
                     return Response({
@@ -2361,12 +2365,6 @@ class InitializeReceiverPaymentView(APIView):
                 # VERIFY CURRENCY
                 # ====================================================
                 if payment_data.get("currency") != "NGN":
-                    logger.warning(
-                        f"INVALID PAYMENT CURRENCY | "
-                        f"Package: {package.package_id} | "
-                        f"Currency: "
-                        f"{payment_data.get('currency')}"
-                    )
 
                     return Response({
                         "already_paid": False,
@@ -2375,7 +2373,7 @@ class InitializeReceiverPaymentView(APIView):
                     }, status=400)
 
                 # ====================================================
-                # ONLY MARK PAID AFTER AMOUNT + CURRENCY PASS
+                # ONLY NOW MARK PAID
                 # ====================================================
                 package.is_paid = True
                 package.status = "paid"
