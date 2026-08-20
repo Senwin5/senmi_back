@@ -2393,6 +2393,7 @@ class InitializeReceiverPaymentView(APIView):
         logger.warning(f"Payment initialization failed for package {package_id}: {res_data}")
         return Response({"error": "Payment initialization failed"}, status=400)
     
+
     
 # Paystack Webhook
 # ------------------------------
@@ -2447,16 +2448,58 @@ class PaystackWebhookView(APIView):
 
         try:
             with transaction.atomic():
-                package = Package.objects.select_for_update().get(payment_reference=reference)
+                package = Package.objects.select_for_update().get(
+                    payment_reference=reference
+                )
 
                 if package.is_paid:
-                    logger.info(f"Package {package.id} already marked as paid. Ignoring webhook.")
+                    logger.info(
+                        f"Package {package.id} already marked as paid. Ignoring webhook."
+                    )
                     #return Response(status=200)
                     return Response({
                         "success": True,
                         "message": "Package already processed"
-                    }, status=200) 
-                
+                    }, status=200)
+
+                # =====================================
+                # VERIFY EXACT PAYMENT AMOUNT
+                # Paystack amount is in kobo
+                # =====================================
+                expected_amount = int(
+                    (Decimal(str(package.price)) * Decimal("100"))
+                    .quantize(Decimal("1"))
+                )
+
+                paid_amount = int(data.get("amount", 0))
+
+                if paid_amount != expected_amount:
+                    logger.warning(
+                        f"PAYMENT AMOUNT MISMATCH FOR PACKAGE "
+                        f"{package.package_id}: "
+                        f"Expected {expected_amount} kobo, "
+                        f"but received {paid_amount} kobo"
+                    )
+
+                    return Response({
+                        "success": False,
+                        "message": "Incorrect payment amount"
+                    }, status=400)
+
+                # =====================================
+                # VERIFY CURRENCY
+                # =====================================
+                if data.get("currency") != "NGN":
+                    logger.warning(
+                        f"INVALID PAYMENT CURRENCY FOR PACKAGE "
+                        f"{package.package_id}: "
+                        f"{data.get('currency')}"
+                    )
+
+                    return Response({
+                        "success": False,
+                        "message": "Invalid payment currency"
+                    }, status=400)
 
                 package.is_paid = True
                 package.status = "paid"
@@ -2468,11 +2511,9 @@ class PaystackWebhookView(APIView):
                     "payment_completed_at"
                 ])
 
-              
                 notify_admin_dashboard()
                 logger.info(f"Package {package.id} marked as paid via webhook.")
 
-            
         except Package.DoesNotExist:
             logger.warning(
                 f"No package found with payment reference {reference}"
@@ -2509,7 +2550,10 @@ class PaymentCallbackView(APIView):
 
         if not reference:
             #return Response({"error": "No reference"}, status=400)
-            return Response({"success": False,"message": "No payment reference provided"}, status=400)
+            return Response({
+                "success": False,
+                "message": "No payment reference provided"
+            }, status=400)
 
         headers = {
             "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"
@@ -2536,7 +2580,6 @@ class PaymentCallbackView(APIView):
                 "success": False,
                 "message": "Could not verify payment"
             }, status=500)
-        
 
         if not verify.get("status"):
             #return Response({"error": "Verification failed"}, status=400)
@@ -2547,14 +2590,11 @@ class PaymentCallbackView(APIView):
 
         data = verify["data"]
 
-        """if data["status"] != "success":
-            return Response({"error": "Payment not successful"}, status=400)"""
         if data["status"] != "success":
             return Response({
                 "success": False,
                 "message": "Payment not successful"
             }, status=400)
-            
 
         try:
             with transaction.atomic():
@@ -2562,13 +2602,51 @@ class PaymentCallbackView(APIView):
                     payment_reference=reference
                 )
 
+                # =====================================
+                # VERIFY EXACT PAYMENT AMOUNT
+                # Paystack amount is returned in kobo
+                # =====================================
+                expected_amount = int(
+                    (Decimal(str(package.price)) * Decimal("100"))
+                    .quantize(Decimal("1"))
+                )
+
+                paid_amount = int(data.get("amount", 0))
+
+                if paid_amount != expected_amount:
+                    logger.warning(
+                        f"PAYMENT AMOUNT MISMATCH FOR PACKAGE "
+                        f"{package.package_id}: "
+                        f"Expected {expected_amount} kobo, "
+                        f"but received {paid_amount} kobo"
+                    )
+
+                    return Response({
+                        "success": False,
+                        "message": "Incorrect payment amount"
+                    }, status=400)
+
+                # =====================================
+                # VERIFY CURRENCY
+                # =====================================
+                if data.get("currency") != "NGN":
+                    logger.warning(
+                        f"INVALID PAYMENT CURRENCY FOR PACKAGE "
+                        f"{package.package_id}: "
+                        f"{data.get('currency')}"
+                    )
+
+                    return Response({
+                        "success": False,
+                        "message": "Invalid payment currency"
+                    }, status=400)
+
                 if package.is_paid:
                     return redirect(
                         f"https://www.senmi.com.ng/api/payment-success/"
                         f"?package_id={package.package_id}"
                         f"&delivery_code={package.delivery_code}"
                     )
-                    
 
                 package.is_paid = True
                 package.status = "paid"
@@ -2599,7 +2677,6 @@ class PaymentCallbackView(APIView):
                 except Exception as e:
                     logger.exception(f"Customer email failed: {e}")
 
-
                 try:
                     send_email(
                         subject="Customer Paid for Package",
@@ -2619,7 +2696,7 @@ class PaymentCallbackView(APIView):
                 except Exception as e:
                     logger.exception(f"Admin email failed: {e}")
 
-             # =====================================
+                # =====================================
                 # PUSH NOTIFICATION TO CUSTOMER
                 # =====================================
                 send_fcm_notification(
@@ -2631,8 +2708,8 @@ class PaymentCallbackView(APIView):
                         "package_id": package.package_id
                     }
                 )
+
                 # PUSH NOTIFICATION TO RIDERS
-               
                 approved_riders = User.objects.filter(
                     role="rider",
                     riderprofile__status="approved"
@@ -2657,18 +2734,20 @@ class PaymentCallbackView(APIView):
                 "success": False,
                 "message": "Package not found"
             }, status=404)
-        
+
         """if package.is_paid:
             return redirect(
                 f"https://www.senmi.com.ng/api/payment-success/"
                 f"?package_id={package.package_id}"
                 f"&delivery_code={package.delivery_code}"
             )"""
+
         return redirect(
             f"https://www.senmi.com.ng/api/payment-success/"
             f"?package_id={package.package_id}"
             f"&delivery_code={package.delivery_code}"
         )
+    
 
 
 
