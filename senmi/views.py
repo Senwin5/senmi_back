@@ -2237,7 +2237,9 @@ class InitializeReceiverPaymentView(APIView):
         try:
             #  LOCK to prevent race condition
             with transaction.atomic():
-                package = Package.objects.select_for_update().get(package_id=package_id)
+                package = Package.objects.select_for_update().get(
+                    package_id=package_id
+                )
         except Package.DoesNotExist:
             return Response({"error": "Package not found"}, status=404)
 
@@ -2250,20 +2252,20 @@ class InitializeReceiverPaymentView(APIView):
         if payer in ["sender", "receiver"]:
             email = request.user.email
         else:
-            return Response({"error": "Invalid payment attempt"}, status=400)
+            return Response({
+                "error": "Invalid payment attempt"
+            }, status=400)
 
         # PACKAGE ALREADY PAID
-       
         if package.is_paid:
             return Response({
                 "already_paid": True,
                 "message": "Payment has already been made for this package."
             }, status=200)
 
-
-        
+        # ============================================================
         # PAYMENT LINK ALREADY EXISTS
-     
+        # ============================================================
         if package.payment_initialized and package.payment_reference:
 
             if package.is_paid:
@@ -2272,11 +2274,15 @@ class InitializeReceiverPaymentView(APIView):
                     "message": "Payment has already been made for this package."
                 }, status=200)
 
-            verify_url = f"https://api.paystack.co/transaction/verify/{package.payment_reference}"
+            verify_url = (
+                f"https://api.paystack.co/transaction/verify/"
+                f"{package.payment_reference}"
+            )
 
             verify_res = requests.get(
                 verify_url,
                 headers={
+                    # PRODUCTION KEY UNCHANGED
                     "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"
                 },
                 timeout=10
@@ -2284,13 +2290,93 @@ class InitializeReceiverPaymentView(APIView):
 
             verify_data = verify_res.json()
 
-            
+            # ========================================================
             # PAYMENT SUCCESSFUL
+            # ========================================================
             if (
                 verify_data.get("status")
-                and verify_data["data"]["status"] == "success"
+                and verify_data.get("data", {}).get("status") == "success"
             ):
+                payment_data = verify_data["data"]
 
+                # ====================================================
+                # VERIFY EXACT PAYMENT AMOUNT
+                # Paystack amount is in kobo
+                # ====================================================
+                try:
+                    expected_amount = int(
+                        (
+                            Decimal(str(package.price)).quantize(
+                                Decimal("0.01"),
+                                rounding=ROUND_HALF_UP
+                            )
+                            * Decimal("100")
+                        )
+                    )
+                except Exception:
+                    logger.exception(
+                        f"Invalid package price for package "
+                        f"{package.package_id}"
+                    )
+
+                    return Response({
+                        "success": False,
+                        "message": "Invalid package price"
+                    }, status=400)
+
+                paid_amount = int(
+                    payment_data.get("amount", 0)
+                )
+
+                logger.info(
+                    f"PAYMENT VERIFICATION | "
+                    f"Package: {package.package_id} | "
+                    f"Expected: {expected_amount} kobo | "
+                    f"Paid: {paid_amount} kobo | "
+                    f"Reference: {package.payment_reference}"
+                )
+
+                # ====================================================
+                # REJECT IF EVEN 1 KOBO IS MISSING
+                # ====================================================
+                if paid_amount != expected_amount:
+                    logger.warning(
+                        f"PAYMENT AMOUNT MISMATCH | "
+                        f"Package: {package.package_id} | "
+                        f"Expected: {expected_amount} kobo | "
+                        f"Received: {paid_amount} kobo | "
+                        f"Difference: "
+                        f"{expected_amount - paid_amount} kobo"
+                    )
+
+                    return Response({
+                        "already_paid": False,
+                        "success": False,
+                        "message": "Incorrect payment amount",
+                        "expected_amount": expected_amount,
+                        "paid_amount": paid_amount
+                    }, status=400)
+
+                # ====================================================
+                # VERIFY CURRENCY
+                # ====================================================
+                if payment_data.get("currency") != "NGN":
+                    logger.warning(
+                        f"INVALID PAYMENT CURRENCY | "
+                        f"Package: {package.package_id} | "
+                        f"Currency: "
+                        f"{payment_data.get('currency')}"
+                    )
+
+                    return Response({
+                        "already_paid": False,
+                        "success": False,
+                        "message": "Invalid payment currency"
+                    }, status=400)
+
+                # ====================================================
+                # ONLY MARK PAID AFTER AMOUNT + CURRENCY PASS
+                # ====================================================
                 package.is_paid = True
                 package.status = "paid"
                 package.payment_completed_at = timezone.now()
@@ -2306,30 +2392,56 @@ class InitializeReceiverPaymentView(APIView):
                     "message": "Payment has already been made for this package."
                 })
 
-       
+            # ========================================================
             # PAYMENT STILL PENDING
+            # ========================================================
             return Response({
                 "payment_url": package.payment_url,
                 "message": "Existing payment link reused."
             })
-        
+
+        # ============================================================
+        # INITIALIZE NEW PAYSTACK PAYMENT
+        # ============================================================
         url = "https://api.paystack.co/transaction/initialize"
+
         headers = {
+            # PRODUCTION KEY UNCHANGED
             "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
             "Content-Type": "application/json"
         }
 
-        #  SAFE PRICE
+        # ============================================================
+        # SAFE PRICE
+        # Convert ₦400.11 -> 40011 kobo
+        # ============================================================
         try:
-            amount = int(Decimal(str(package.price)) * 100)
+            amount = int(
+                (
+                    Decimal(str(package.price)).quantize(
+                        Decimal("0.01"),
+                        rounding=ROUND_HALF_UP
+                    )
+                    * Decimal("100")
+                )
+            )
         except Exception:
-            logger.exception(f"Invalid price for package {package_id}")
-            return Response({"error": "Invalid package price"}, status=400)
+            logger.exception(
+                f"Invalid price for package {package_id}"
+            )
 
-        # =========================
-        #  FIXED: ALWAYS UNIQUE REFERENCE
-        # =========================
-        reference = f"PKG-{package.package_id}-{uuid.uuid4().hex[:12]}-{uuid.uuid4().hex[:4]}"
+            return Response({
+                "error": "Invalid package price"
+            }, status=400)
+
+        # ============================================================
+        # ALWAYS UNIQUE REFERENCE
+        # ============================================================
+        reference = (
+            f"PKG-{package.package_id}-"
+            f"{uuid.uuid4().hex[:12]}-"
+            f"{uuid.uuid4().hex[:4]}"
+        )
 
         data = {
             "email": email,
@@ -2342,33 +2454,50 @@ class InitializeReceiverPaymentView(APIView):
         }
 
         try:
-            res = requests.post(url, json=data, headers=headers, timeout=10)
+            res = requests.post(
+                url,
+                json=data,
+                headers=headers,
+                timeout=10
+            )
 
-            #  HANDLE HTTP ERRORS
+            # HANDLE HTTP ERRORS
             if res.status_code != 200:
-                logger.error(f"Paystack HTTP Error: {res.status_code} - {res.text}")
+                logger.error(
+                    f"Paystack HTTP Error: "
+                    f"{res.status_code} - {res.text}"
+                )
+
                 return Response({
                     "error": "Payment gateway error",
                     "body": res.text
                 }, status=500)
 
-            #  SAFE JSON PARSE
+            # SAFE JSON PARSE
             try:
                 res_data = res.json()
             except Exception:
-                logger.error(f"Invalid JSON from Paystack: {res.text}")
-                return Response({"error": "Invalid response from payment gateway"}, status=500)
+                logger.error(
+                    f"Invalid JSON from Paystack: {res.text}"
+                )
+
+                return Response({
+                    "error": "Invalid response from payment gateway"
+                }, status=500)
 
         except requests.exceptions.RequestException:
             logger.exception("Paystack request failed")
-            return Response({"error": "Payment request failed"}, status=500)
 
-        # =========================
+            return Response({
+                "error": "Payment request failed"
+            }, status=500)
+
+        # ============================================================
         # SUCCESS
-        # =========================
+        # ============================================================
         if res_data.get("status"):
 
-            # FIXED: always overwrite old reference safely
+            # ALWAYS OVERWRITE OLD REFERENCE SAFELY
             package.payment_reference = res_data["data"]["reference"]
 
             package.payment_url = res_data["data"]["authorization_url"]
@@ -2376,24 +2505,32 @@ class InitializeReceiverPaymentView(APIView):
             package.payment_initialized = True
 
             package.save(update_fields=[
-                'payment_reference',
-                'payment_url',
-                'payment_initialized'
+                "payment_reference",
+                "payment_url",
+                "payment_initialized"
             ])
 
-            #  EMAIL (UNCHANGED)
-           
+            # EMAIL (UNCHANGED)
 
             return Response({
                 "payment_url": res_data["data"]["authorization_url"],
-                "qr_code": f"https://api.qrserver.com/v1/create-qr-code/?data={res_data['data']['authorization_url']}&size=200x200"
+                "qr_code": (
+                    "https://api.qrserver.com/v1/create-qr-code/"
+                    f"?data={res_data['data']['authorization_url']}"
+                    "&size=200x200"
+                )
             })
 
-        # ❌ FAILURE
-        logger.warning(f"Payment initialization failed for package {package_id}: {res_data}")
-        return Response({"error": "Payment initialization failed"}, status=400)
-    
+        # FAILURE
+        logger.warning(
+            f"Payment initialization failed for package "
+            f"{package_id}: {res_data}"
+        )
 
+        return Response({
+            "error": "Payment initialization failed"
+        }, status=400)
+    
 
     
 # Paystack Webhook
