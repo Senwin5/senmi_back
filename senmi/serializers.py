@@ -168,8 +168,10 @@ class PackageSerializer(serializers.ModelSerializer):
              # extra info
             'rider_profile_picture',
             'vehicle_number',
-             #ADD THIS
             'eta_minutes',
+            # ADD THESE
+            'created_at',
+            'delivered_at',
         ]
 
         read_only_fields = [
@@ -177,7 +179,9 @@ class PackageSerializer(serializers.ModelSerializer):
             'service_fee',
             'rider_earning',
             'package_id',
-            'is_paid'
+            'is_paid',
+            'created_at',
+            'delivered_at',
         ]
 
     #  ADD THIS METHOD (core fix)

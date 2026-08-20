@@ -799,6 +799,10 @@ def admin_analytics(request):
 
     packages = Package.objects.all()
 
+    # =====================================================
+    # BASIC DELIVERY COUNTS
+    # =====================================================
+
     total_deliveries = packages.count()
 
     completed_deliveries = packages.filter(
@@ -809,37 +813,37 @@ def admin_analytics(request):
         status='cancelled'
     ).count()
 
-    total_revenue = packages.aggregate(
-        total=Sum('price')
-    )['total'] or 0
+    pending_deliveries = packages.filter(
+        status__in=['pending', 'paid']
+    ).count()
 
-    total_rider_payout = packages.aggregate(
-        total=Sum('rider_earning')
-    )['total'] or 0
+    active_deliveries = packages.filter(
+        status__in=['accepted', 'picked_up']
+    ).count()
 
-    # =========================
-    # AVERAGE DELIVERY TIME
-    # =========================
+    # =====================================================
+    # REVENUE
+    # =====================================================
 
     delivered_packages = packages.filter(
-        status='delivered',
-        delivered_at__isnull=False
+        status='delivered'
     )
 
-    avg_duration = delivered_packages.annotate(
-        duration=ExpressionWrapper(
-            F('delivered_at') - F('created_at'),
-            output_field=DurationField()
-        )
-    ).aggregate(
-        avg=Avg('duration')
-    )['avg']
+    total_revenue = delivered_packages.aggregate(
+        total=Sum('price')
+    )['total'] or Decimal('0')
 
-    average_delivery_time = str(avg_duration) if avg_duration else "0"
+    total_service_fee = delivered_packages.aggregate(
+        total=Sum('service_fee')
+    )['total'] or Decimal('0')
 
-    # =========================
+    total_rider_payout = delivered_packages.aggregate(
+        total=Sum('rider_earning')
+    )['total'] or Decimal('0')
+
+    # =====================================================
     # DELIVERY SUCCESS RATE
-    # =========================
+    # =====================================================
 
     delivery_success_rate = 0
 
@@ -849,109 +853,233 @@ def admin_analytics(request):
             2
         )
 
-    # =========================
+    # =====================================================
+    # AVERAGE DELIVERY TIME
+    # =====================================================
+
+    delivered_with_time = delivered_packages.filter(
+        delivered_at__isnull=False
+    )
+
+    avg_duration = delivered_with_time.annotate(
+        duration=ExpressionWrapper(
+            F('delivered_at') - F('created_at'),
+            output_field=DurationField()
+        )
+    ).aggregate(
+        avg=Avg('duration')
+    )['avg']
+
+    if avg_duration:
+        total_seconds = int(avg_duration.total_seconds())
+
+        days = total_seconds // 86400
+        hours = (total_seconds % 86400) // 3600
+        minutes = (total_seconds % 3600) // 60
+
+        if days > 0:
+            average_delivery_time = (
+                f"{days}d {hours}h {minutes}m"
+            )
+        elif hours > 0:
+            average_delivery_time = (
+                f"{hours}h {minutes}m"
+            )
+        else:
+            average_delivery_time = (
+                f"{minutes}m"
+            )
+    else:
+        average_delivery_time = "0m"
+
+    # =====================================================
     # ACTIVE RIDERS
-    # =========================
+    # =====================================================
 
     active_riders = RiderProfile.objects.filter(
         status='approved'
     ).count()
 
-    # =========================
-    # CUSTOMERS
-    # =========================
+    # =====================================================
+    # TOTAL CUSTOMERS
+    # =====================================================
 
     total_customers = User.objects.filter(
         role='customer'
     ).count()
 
-    # =========================
-    # FREQUENT CUSTOMERS
-    # =========================
+    # =====================================================
+    # TOP CUSTOMERS
+    # =====================================================
 
     top_customers = (
-        User.objects.filter(role='customer')
-        .annotate(total_orders=Count('orders'))
+        User.objects
+        .filter(role='customer')
+        .annotate(
+            total_orders=Count('orders')
+        )
         .order_by('-total_orders')[:5]
-        .values('username', 'total_orders')
+        .values(
+            'username',
+            'total_orders'
+        )
     )
 
-    # =========================
+    # =====================================================
     # TOP RIDERS
-    # =========================
+    # =====================================================
 
     top_riders = (
-        User.objects.filter(role='rider')
-        .annotate(total_deliveries=Count('deliveries'))
+        User.objects
+        .filter(role='rider')
+        .annotate(
+            total_deliveries=Count('deliveries')
+        )
         .order_by('-total_deliveries')[:5]
-        .values('username', 'total_deliveries')
+        .values(
+            'username',
+            'total_deliveries'
+        )
     )
 
+    # =====================================================
+    # DAILY REVENUE
+    # =====================================================
+
     daily_revenue = (
-        Package.objects.filter(status='delivered')
-        .annotate(day=TruncDate('created_at'))
+        delivered_packages
+        .annotate(
+            day=TruncDate('created_at')
+        )
         .values('day')
-        .annotate(total=Sum('price'))
+        .annotate(
+            total=Sum('price')
+        )
         .order_by('day')
     )
 
+    # =====================================================
+    # MONTHLY DELIVERIES
+    # =====================================================
+
     monthly_deliveries = (
-        Package.objects.filter(status='delivered')
-        .annotate(month=TruncMonth('created_at'))
+        delivered_packages
+        .annotate(
+            month=TruncMonth('created_at')
+        )
         .values('month')
-        .annotate(total=Count('id'))
+        .annotate(
+            total=Count('id')
+        )
         .order_by('month')
     )
 
+    # =====================================================
+    # PEAK HOURS
+    # =====================================================
+
     peak_hours = (
-        Package.objects
-        .annotate(hour=ExtractHour('created_at'))
+        packages
+        .annotate(
+            hour=ExtractHour('created_at')
+        )
         .values('hour')
-        .annotate(total=Count('id'))
+        .annotate(
+            total=Count('id')
+        )
         .order_by('-total')[:5]
     )
 
-    heatmap_data = Package.objects.filter(
-        delivery_lat__isnull=False,
-        delivery_lng__isnull=False,
-    ).values(
-        'delivery_lat',
-        'delivery_lng'
+    # =====================================================
+    # DELIVERY HEATMAP
+    # =====================================================
+
+    heatmap_data = (
+        packages
+        .filter(
+            delivery_lat__isnull=False,
+            delivery_lng__isnull=False,
+        )
+        .values(
+            'delivery_lat',
+            'delivery_lng'
+        )
     )
 
-    pending_withdrawals = Withdrawal.objects.filter(
-        status='pending'
-    ).aggregate(
-        total=Sum('amount')
-    )['total'] or 0
+    # =====================================================
+    # PENDING WITHDRAWALS
+    # =====================================================
+
+    pending_withdrawals = (
+        Withdrawal.objects
+        .filter(status='pending')
+        .aggregate(
+            total=Sum('amount')
+        )['total'] or Decimal('0')
+    )
+
+    # =====================================================
+    # FAILURE STATISTICS
+    # =====================================================
 
     failure_stats = (
-        Package.objects
-        .exclude(failure_reason='')
-        .values('failure_reason')
-        .annotate(total=Count('id'))
+        packages
+        .filter(
+            status='cancelled'
+        )
+        .exclude(
+            failure_reason=''
+        )
+        .values(
+            'failure_reason'
+        )
+        .annotate(
+            total=Count('id')
+        )
+        .order_by('-total')
     )
 
+    # =====================================================
+    # RESPONSE
+    # =====================================================
 
     data = {
+        # Basic
         "total_deliveries": total_deliveries,
         "completed_deliveries": completed_deliveries,
         "failed_deliveries": failed_deliveries,
-        "total_revenue": total_revenue,
-        "total_rider_payout": total_rider_payout,
-        "average_delivery_time": average_delivery_time,
+        "pending_deliveries": pending_deliveries,
+        "active_deliveries": active_deliveries,
 
-        # NEW
+        # Money
+        "total_revenue": total_revenue,
+        "total_service_fee": total_service_fee,
+        "total_rider_payout": total_rider_payout,
+
+        # Performance
+        "average_delivery_time": average_delivery_time,
         "delivery_success_rate": delivery_success_rate,
+
+        # Users
         "active_riders": active_riders,
         "total_customers": total_customers,
+
+        # Rankings
         "top_customers": list(top_customers),
         "top_riders": list(top_riders),
+
+        # Charts
         "daily_revenue": list(daily_revenue),
         "monthly_deliveries": list(monthly_deliveries),
         "peak_hours": list(peak_hours),
+
+        # Map
         "heatmap_data": list(heatmap_data),
+
+        # Withdrawals
         "pending_withdrawals": pending_withdrawals,
+
+        # Failures
         "failure_stats": list(failure_stats),
     }
 

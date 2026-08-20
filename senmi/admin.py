@@ -388,9 +388,14 @@ class PackageAdmin(SimpleHistoryAdmin):
 
     release_packages.short_description = "Release packages back to pool"
 
+
     def force_delivered(self, request, queryset):
         for package in queryset:
             package.status = "delivered"
+
+            if not package.delivered_at:
+                package.delivered_at = timezone.now()
+
             package.save()
 
     force_delivered.short_description = "Force mark as delivered"
