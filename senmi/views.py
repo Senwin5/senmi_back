@@ -2290,9 +2290,9 @@ class InitializeReceiverPaymentView(APIView):
 
             verify_data = verify_res.json()
 
-            # ========================================================
+            # ===================================================
             # PAYMENT SUCCESSFUL
-            # ========================================================
+            # ===================================================
             if (
                 verify_data.get("status")
                 and verify_data.get("data", {}).get("status") == "success"
