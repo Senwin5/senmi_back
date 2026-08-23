@@ -216,7 +216,7 @@ class PackageSerializer(serializers.ModelSerializer):
     def get_vehicle_number(self, obj):
         if obj.rider and hasattr(obj.rider, 'riderprofile'):
             return obj.rider.riderprofile.vehicle_number
-
+        
         return None
     
     def get_eta_minutes(self, obj):
