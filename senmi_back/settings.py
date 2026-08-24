@@ -188,8 +188,20 @@ NOTIFY_EMAIL = os.getenv("NOTIFY_EMAIL")
 PAYSTACK_PUBLIC_KEY = os.getenv("PAYSTACK_PUBLIC_KEY")
 PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY")
 PAYSTACK_WEBHOOK_SECRET = os.getenv("PAYSTACK_WEBHOOK_SECRET")
+#PAYMENT_CALLBACK_URL = "https://www.senmi.com.ng/api/payment/callback/"
 
-PAYMENT_CALLBACK_URL = "https://www.senmi.com.ng/api/payment/callback/"
+# User/browser returns here after Paystack payment
+PAYMENT_CALLBACK_URL = os.getenv(
+    "PAYMENT_CALLBACK_URL",
+    "https://www.senmi.com.ng/api/payment/callback/"
+)
+
+# Paystack servers send payment events here
+PAYSTACK_WEBHOOK_URL = os.getenv(
+    "PAYSTACK_WEBHOOK_URL",
+    "https://www.senmi.com.ng/api/paystack/webhook/"
+)
+
 
 CSRF_TRUSTED_ORIGINS = [
     "https://www.senmi.com.ng",
