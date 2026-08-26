@@ -199,9 +199,9 @@ class Package(models.Model):
     delivery_lng = models.FloatField(null=True, blank=True)
     receiver_phone = models.CharField(max_length=20, blank=True)
     receiver_name = models.CharField(max_length=255,blank=True,default="")
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-    service_fee  = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    rider_earning = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    price = models.DecimalField(max_digits=10, decimal_places=0)
+    service_fee  = models.DecimalField(max_digits=10, decimal_places=0, default=0)
+    rider_earning = models.DecimalField(max_digits=10, decimal_places=0, default=0)
     payment_reference = models.CharField(max_length=100, blank=True, null=True)
     payment_url = models.URLField( null=True,blank=True)
     payment_initialized = models.BooleanField(default=False)
@@ -237,6 +237,11 @@ class Package(models.Model):
 
         if self.price is None:
             raise ValueError("Price is required before saving package")
+
+        if self.price != self.price.to_integral_value():
+            raise ValueError("Package price must be a whole naira amount")
+
+        self.price = self.price.quantize(Decimal("1"))
 
         price = self.price
 

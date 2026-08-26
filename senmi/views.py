@@ -2437,15 +2437,7 @@ class InitializeReceiverPaymentView(APIView):
                 # Therefore payment MUST be rejected.
                 # ====================================================
                 try:
-                    expected_amount = int(
-                        (
-                            Decimal(str(package.price)).quantize(
-                                Decimal("0.01"),
-                                rounding=ROUND_HALF_UP
-                            )
-                            * Decimal("100")
-                        )
-                    )
+                    expected_amount = int(package.price) * 100
                 except Exception:
                     logger.exception(
                         f"Invalid package price for package "
@@ -2539,18 +2531,9 @@ class InitializeReceiverPaymentView(APIView):
 
         # ============================================================
         # SAFE PRICE
-        # Convert ₦400.11 -> 40011 kobo
         # ============================================================
         try:
-            amount = int(
-                (
-                    Decimal(str(package.price)).quantize(
-                        Decimal("0.01"),
-                        rounding=ROUND_HALF_UP
-                    )
-                    * Decimal("100")
-                )
-            )
+            amount = int(package.price) * 100
         except Exception:
             logger.exception(
                 f"Invalid price for package {package_id}"
@@ -2730,15 +2713,7 @@ class PaystackWebhookView(APIView):
                 # VERIFY EXACT PAYMENT AMOUNT
                 # Paystack amount is in kobo
                 # =====================================
-                expected_amount = int(
-                    (
-                        Decimal(str(package.price)).quantize(
-                            Decimal("0.01"),
-                            rounding=ROUND_HALF_UP
-                        )
-                        * Decimal("100")
-                    )
-                )
+                expected_amount = int(package.price) * 100
 
                 paid_amount = int(data.get("amount", 0))
 
@@ -2875,15 +2850,7 @@ class PaymentCallbackView(APIView):
                 # VERIFY EXACT PAYMENT AMOUNT
                 # Paystack amount is returned in kobo
                 # =====================================
-                expected_amount = int(
-                    (
-                        Decimal(str(package.price)).quantize(
-                            Decimal("0.01"),
-                            rounding=ROUND_HALF_UP
-                        )
-                        * Decimal("100")
-                    )
-                )
+                expected_amount = int(package.price) * 100
 
                 paid_amount = int(data.get("amount", 0))
 
