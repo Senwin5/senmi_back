@@ -1894,7 +1894,7 @@ class CreatePackageView(APIView):
         try:
             distance = calculate_distance(pickup_lat, pickup_lng, delivery_lat, delivery_lng)
             dynamic_price = calculate_price(distance)
-            data['price'] = str(Decimal(dynamic_price).quantize(Decimal("0.01")))
+            data['price'] = str(Decimal(dynamic_price).quantize(Decimal("1")))
         except Exception as e:
             return Response({"error": f"Price calculation failed: {str(e)}"}, status=400)
 
@@ -2047,10 +2047,8 @@ class EditPackageView(APIView):
         new_price = calculate_price(distance)
 
         package.price = Decimal(str(new_price)).quantize(
-            Decimal("0.01")
+            Decimal("1")
         )
-
-        # save() automatically recalculates
         # service_fee and rider_earning
         package.save()
 
