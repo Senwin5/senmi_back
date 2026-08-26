@@ -3024,7 +3024,6 @@ class PaymentCallbackView(APIView):
     
 
 
-
 def payment_success(request):
     package_id = request.GET.get("package_id", "")
     delivery_code = request.GET.get("delivery_code", "")
