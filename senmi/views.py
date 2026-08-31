@@ -1668,20 +1668,57 @@ class RiderProfileUpdateView(APIView):
             )
 
             try:
-                # Send to rider + your notify email ONLY
-                recipients = [request.user.email, settings.NOTIFY_EMAIL]
+                # Send to rider 
+                recipients = [request.user.email]
                 recipients = [r for r in recipients if r]
 
                 send_email(
                     subject="🚴 Rider Profile Submitted",
-                    message=(
+                    message=( 
                         f"Hello {request.user.username},\n\n"
                         f"Your rider profile (ID: {profile.rider_id}) has been submitted successfully.\n\n"
-                        f"Our team will review your application and notify you shortly.\n\n"
-                        f"Thank you for joining Senmi."
-                    ),
+                        "Thank you for submitting your rider profile for Senmi.\n\n"
+                        "Your application has been received and is now under review.\n\n"
+                        "What happens next:\n"
+                        "• Our team will review your details and documents\n"
+                        "• We will verify your information for safety and quality\n"
+                        "• You will receive an update once review is complete\n\n"
+                        "Please note:\n"
+                        "Review time may vary depending on application volume.\n\n"
+                        "Thank you for joining Senmi.\n"
+                        "We look forward to having you as a rider.\n\n"
+                        "Best regards,\n"
+                        "Senmi Rider Team"
+                    ), 
                     recipients=recipients
                 )
+                                # Notify ADMIN about the new rider
+                UserModel = get_user_model()
+
+                admin_emails = list(
+                    UserModel.objects.filter(
+                        is_superuser=True,
+                        email__isnull=False
+                    ).exclude(
+                        email=""
+                    ).values_list("email", flat=True)
+                )
+
+                if admin_emails:
+                    send_email(
+                        subject="New Rider Profile Awaiting Review",
+                        message=(
+                            "Hello Admin Team,\n\n"
+                            "A new rider profile has been submitted for review.\n\n"
+                            f"Username: {request.user.username}\n"
+                            f"Profile ID: {profile.rider_id}\n\n"
+                            "Please review from admin dashboard.\n\n"
+                            "Regards,\n"
+                            "Senmi System"
+                        ),
+                        from_email=settings.EMAIL_HOST_USER,
+                        recipients=admin_emails,
+                    )
 
             except Exception as e:
                 logger.exception("Failed to send profile submission emails")
