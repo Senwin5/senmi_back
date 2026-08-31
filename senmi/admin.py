@@ -67,16 +67,8 @@ class PackageTrackingInline(admin.TabularInline):
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
 
-    list_display = (
-        'user_id',
-        'email',
-        'username',
-        'role',
-        'is_staff',
-        'is_active',
-    )
-
-    list_filter = ('role', 'is_staff', 'is_active')
+    list_display = ('user_id','email','username','role','is_staff','is_active','is_deleted','deleted_at')
+    list_filter = ('role', 'is_staff', 'is_active','is_deleted')
     search_fields = ('username', 'email', 'user_id')
     ordering = ('-is_superuser', '-is_staff', 'id')
     readonly_fields = ('id', 'user_id')
