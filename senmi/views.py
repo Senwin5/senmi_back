@@ -4255,44 +4255,126 @@ class RiderStatusView(APIView):
 
         return Response({"status": profile.status, "rejection_reason": profile.rejection_reason})
     
+
+
+
+
     
 
 class HardDeleteUserView(APIView):
     permission_classes = [IsAuthenticated]
 
     def delete(self, request):
-        print(" HARD DELETE HIT")
-
         user = request.user
 
         try:
             with transaction.atomic():
 
+                # ==========================================
+                # RIDER ACCOUNT DELETION
+                # ==========================================
                 if user.role == "rider":
-                    Package.objects.filter(rider=user).update(rider=None)
-                    PackageTracking.objects.filter(rider=user).delete()
-                    RiderRating.objects.filter(rider=user).delete()
-                    RiderWallet.objects.filter(rider=user).delete()
-                    RiderProfile.objects.filter(user=user).delete()
 
+                    # A rider cannot delete their account
+                    # while carrying a customer's package.
+                    active_packages = Package.objects.filter(
+                        rider=user,
+                        status__in=["accepted", "picked_up"]
+                    )
+
+                    if active_packages.exists():
+                        return Response({
+                            "success": False,
+                            "message": (
+                                "You cannot delete your account while "
+                                "you have an active delivery. Please "
+                                "complete or return the package first."
+                            )
+                        }, status=400)
+
+                    # ------------------------------------------
+                    # SOFT DELETE
+                    # ------------------------------------------
+                    user.is_active = False
+                    user.is_deleted = True
+                    user.deleted_at = timezone.now()
+                    user.save(
+                        update_fields=[
+                            "is_active",
+                            "is_deleted",
+                            "deleted_at",
+                        ]
+                    )
+
+                    # Make sure rider is offline
+                    RiderProfile.objects.filter(
+                        user=user
+                    ).update(
+                        is_online=False
+                    )
+
+                    print(
+                        " RIDER ACCOUNT DEACTIVATED:",
+                        user.email
+                    )
+
+                    return Response({
+                        "success": True,
+                        "message": (
+                            "Your account has been deleted "
+                            "and deactivated."
+                        )
+                    }, status=200)
+
+                # ==========================================
+                # CUSTOMER ACCOUNT
+                # ==========================================
                 elif user.role == "customer":
-                    RiderRating.objects.filter(customer=user).delete()
-                    Package.objects.filter(customer=user).delete()
 
-                email = user.email
+                    # For now, also soft-delete customers.
+                    user.is_active = False
+                    user.is_deleted = True
+                    user.deleted_at = timezone.now()
 
-                user.delete()
+                    user.save(
+                        update_fields=[
+                            "is_active",
+                            "is_deleted",
+                            "deleted_at",
+                        ]
+                    )
 
-            print(" USER DELETED:", email)
+                    print(
+                        " CUSTOMER ACCOUNT DEACTIVATED:",
+                        user.email
+                    )
 
-            return Response({
-                "success": True,
-                "message": "Account deleted"
-            }, status=200)
+                    return Response({
+                        "success": True,
+                        "message": "Account deleted"
+                    }, status=200)
+
+                # ==============================
+                # OTHER ROLES
+                # ==============================
+                else:
+
+                    return Response({
+                        "success": False,
+                        "message": "This account cannot be deleted."
+                    }, status=403)
 
         except Exception as e:
-            logger.exception("Hard delete failed")
-            return Response({"error": str(e)}, status=500)
+            logger.exception("Account deletion failed")
+
+            return Response({
+                "success": False,
+                "error": str(e)
+            }, status=500)
+
+
+
+
 
 
 class LogoutView(APIView):

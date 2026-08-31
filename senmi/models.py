@@ -56,6 +56,9 @@ class User(AbstractUser):
     username = models.CharField(max_length=150, unique=False)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
     phone_number = models.CharField(max_length=20, blank=True) 
+        # ADD THESE
+    is_deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
@@ -67,6 +70,8 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.email
+
+
 
 
 class PasswordResetOTP(models.Model):
