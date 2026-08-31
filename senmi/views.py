@@ -1729,6 +1729,7 @@ class RiderProfileUpdateView(APIView):
     
 
 
+
 # ------------------------------
 # Rider Permissions
 # ------------------------------
@@ -4292,10 +4293,6 @@ class RiderStatusView(APIView):
 
         return Response({"status": profile.status, "rejection_reason": profile.rejection_reason})
     
-
-
-
-
     
 
 class HardDeleteUserView(APIView):
@@ -4334,11 +4331,6 @@ class HardDeleteUserView(APIView):
         except Exception as e:
             logger.exception("Hard delete failed")
             return Response({"error": str(e)}, status=500)
-
-
-
-
-
 
 
 class LogoutView(APIView):
