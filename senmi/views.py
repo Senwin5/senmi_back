@@ -1801,19 +1801,19 @@ class AcceptPackageView(APIView):
                 #  VALIDATION MUST BE FIRST
                 # =========================
 
-                # 🚫 only riders allowed
+                # only riders allowed
                 if request.user.role != 'rider':
                     return Response({"error": "Only riders can accept"}, status=403)
 
-                # 💰 MUST be paid BEFORE acceptance
+                # MUST be paid BEFORE acceptance
                 if not package.is_paid:
                     return Response({"error": "This package has not been paid for"}, status=400)
 
-                # 🚫 already taken
+                # already taken
                 if package.rider is not None:
                     return Response({"error": "Package already taken"}, status=400)
                 
-                # 🚫 Rider must not have active package
+                # Rider must not have active package
                 active_package_exists = Package.objects.filter(
                     rider=request.user,
                     status__in=['accepted', 'picked_up']
@@ -2444,35 +2444,65 @@ class InitializeReceiverPaymentView(APIView):
                 f"{package.payment_reference}"
             )
 
-            verify_res = requests.get(
-                verify_url,
-                headers={
-                    # PRODUCTION KEY UNCHANGED
-                    "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"
-                },
-                timeout=10
-            )
+            try:
+                verify_res = requests.get(
+                    verify_url,
+                    headers={
+                        "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"
+                    },
+                    timeout=10
+                )
 
-            verify_data = verify_res.json()
+                if verify_res.status_code != 200:
+                    logger.error(
+                        f"Paystack verification HTTP error | "
+                        f"Reference={package.payment_reference} | "
+                        f"Status={verify_res.status_code} | "
+                        f"Response={verify_res.text}"
+                    )
 
-            # ===================================================
+                    return Response({
+                        "success": False,
+                        "message": "Could not verify payment"
+                    }, status=502)
+
+                try:
+                    verify_data = verify_res.json()
+                except ValueError:
+                    logger.error(
+                        f"Invalid JSON from Paystack | "
+                        f"Reference={package.payment_reference}"
+                    )
+
+                    return Response({
+                        "success": False,
+                        "message": "Invalid response from payment gateway"
+                    }, status=502)
+
+            except requests.RequestException:
+                logger.exception(
+                    f"Paystack verification request failed | "
+                    f"Reference={package.payment_reference}"
+                )
+
+                return Response({
+                    "success": False,
+                    "message": "Could not verify payment"
+                }, status=502)
+
+
+            # ================================
             # PAYMENT SUCCESSFUL
-            # ===================================================
+            # ================================
             if (
                 verify_data.get("status")
                 and verify_data.get("data", {}).get("status") == "success"
             ):
                 payment_data = verify_data["data"]
 
-                # ====================================================
+                # ==================================
                 # VERIFY EXACT PAYMENT AMOUNT
-                #
-                # ₦528.11 = 52811 kobo
-                # ₦528.00 = 52800 kobo
-                #
-                # 52800 != 52811
-                # Therefore payment MUST be rejected.
-                # ====================================================
+                # ==================================
                 try:
                     expected_amount = int(package.price) * 100
                 except Exception:
@@ -2832,11 +2862,9 @@ class PaystackWebhookView(APIView):
             "success": True,
             "message": "Webhook processed"
         }, status=200)
+
+
     
-
-
-
-
 
 class PaymentCallbackView(APIView):
     def get(self, request):
@@ -3011,13 +3039,6 @@ class PaymentCallbackView(APIView):
                 "success": False,
                 "message": "Package not found"
             }, status=404)
-
-        """if package.is_paid:
-            return redirect(
-                f"https://www.senmi.com.ng/api/payment-success/"
-                f"?package_id={package.package_id}"
-                f"&delivery_code={package.delivery_code}"
-            )"""
 
         return redirect(
             f"https://www.senmi.com.ng/api/payment-success/"
