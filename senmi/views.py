@@ -4295,11 +4295,12 @@ class RiderStatusView(APIView):
     
     
 
+
 class HardDeleteUserView(APIView):
     permission_classes = [IsAuthenticated]
 
     def delete(self, request):
-        print("🔥 HARD DELETE HIT")
+        print("🔥 ACCOUNT DELETE REQUEST")
         print("USER:", request.user)
         print("USER ID:", request.user.id)
         print("USER EMAIL:", request.user.email)
@@ -4310,71 +4311,157 @@ class HardDeleteUserView(APIView):
         try:
             with transaction.atomic():
 
+                # ============================================================
+                # RIDER
+                # ============================================================
                 if user.role == "rider":
-                    print("Deleting rider-related data...")
+                    print("🚴 RIDER ACCOUNT DEACTIVATION")
 
-                    print("Packages:", Package.objects.filter(rider=user).count())
-                    Package.objects.filter(rider=user).update(rider=None)
+                    # --------------------------------------------------------
+                    # Check if rider currently has an active delivery
+                    # --------------------------------------------------------
+                    active_statuses = [
+                        "accepted",
+                        "picked_up",
+                    ]
+
+                    active_package = Package.objects.filter(
+                        rider=user,
+                        status__in=active_statuses,
+                    ).first()
+
+                    if active_package:
+                        print(
+                            "❌ RIDER CANNOT DELETE - ACTIVE PACKAGE:",
+                            active_package.package_id,
+                            active_package.status,
+                        )
+
+                        return Response(
+                            {
+                                "success": False,
+                                "can_delete": False,
+                                "message": (
+                                    "You cannot delete your account while "
+                                    "you have an active delivery. "
+                                    "Please complete the delivery first."
+                                ),
+                                "package_id": active_package.package_id,
+                                "package_status": active_package.status,
+                            },
+                            status=400,
+                        )
+
+                    # --------------------------------------------------------
+                    # No active delivery.
+                    #
+                    # DO NOT DELETE:
+                    # - User
+                    # - RiderProfile
+                    # - Packages
+                    # - Ratings
+                    # - Wallet
+                    # - Wallet transactions
+                    # - Withdrawals
+                    # - Tracking history
+                    #
+                    # We keep everything for admin/history.
+                    # --------------------------------------------------------
+
+                    profile = RiderProfile.objects.filter(
+                        user=user
+                    ).first()
+
+                    if profile:
+                        # Rider is no longer online.
+                        profile.is_online = False
+                        profile.save(update_fields=["is_online"])
+
+                        print(
+                            "✅ RIDER PROFILE KEPT:",
+                            profile.rider_id,
+                        )
+
+                    # Prevent future login/use of the account.
+                    user.is_active = False
+                    user.save(update_fields=["is_active"])
 
                     print(
-                        "Tracking:",
-                        PackageTracking.objects.filter(rider=user).count()
+                        "✅ RIDER ACCOUNT DEACTIVATED:",
+                        user.email,
                     )
-                    PackageTracking.objects.filter(rider=user).delete()
 
-                    print(
-                        "Ratings:",
-                        RiderRating.objects.filter(rider=user).count()
+                    return Response(
+                        {
+                            "success": True,
+                            "deactivated": True,
+                            "message": (
+                                "Your rider account has been deactivated. "
+                                "Your account history remains available to "
+                                "the administrator."
+                            ),
+                        },
+                        status=200,
                     )
-                    RiderRating.objects.filter(rider=user).delete()
 
-                    print(
-                        "Wallet:",
-                        RiderWallet.objects.filter(rider=user).count()
-                    )
-                    RiderWallet.objects.filter(rider=user).delete()
-
-                    print(
-                        "Profile:",
-                        RiderProfile.objects.filter(user=user).count()
-                    )
-                    RiderProfile.objects.filter(user=user).delete()
-
+                # ============================================================
+                # CUSTOMER
+                # ============================================================
                 elif user.role == "customer":
-                    print("Deleting customer-related data...")
+                    print("🧑 CUSTOMER HARD DELETE")
 
-                    RiderRating.objects.filter(customer=user).delete()
-                    Package.objects.filter(customer=user).delete()
+                    # Delete customer ratings.
+                    RiderRating.objects.filter(
+                        customer=user
+                    ).delete()
 
-                email = user.email
+                    # Delete customer packages.
+                    Package.objects.filter(
+                        customer=user
+                    ).delete()
 
-                print("🔥 ABOUT TO DELETE USER:", email)
+                    email = user.email
 
-                user.delete()
+                    print("🔥 ABOUT TO DELETE CUSTOMER:", email)
 
-                print("🔥 USER.DELETE() COMPLETED")
+                    user.delete()
 
-            print("🔥 USER DELETED:", email)
+                    print("🔥 CUSTOMER USER.DELETE() COMPLETED")
 
-            return Response(
-                {
-                    "success": True,
-                    "message": "Account deleted"
-                },
-                status=200
-            )
+                    return Response(
+                        {
+                            "success": True,
+                            "deleted": True,
+                            "message": "Account deleted",
+                        },
+                        status=200,
+                    )
+
+                # ============================================================
+                # OTHER ROLES
+                # ============================================================
+                else:
+                    return Response(
+                        {
+                            "success": False,
+                            "message": "Account deletion is not available for this account type.",
+                        },
+                        status=400,
+                    )
 
         except Exception as e:
-            print("❌ HARD DELETE ERROR:", repr(e))
-            logger.exception("Hard delete failed")
+            print("❌ ACCOUNT DELETE ERROR:", repr(e))
+            logger.exception("Account delete failed")
 
             return Response(
                 {
                     "success": False,
                     "error": str(e),
                 },
-                status=500
+                status=500,
             )
+
+
 
         
 

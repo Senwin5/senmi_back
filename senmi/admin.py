@@ -63,7 +63,6 @@ class PackageTrackingInline(admin.TabularInline):
 
 
 # Customize User admin
-
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
 
@@ -72,12 +71,22 @@ class UserAdmin(BaseUserAdmin):
         'email',
         'username',
         'role',
+        'account_status',
+        'is_staff',
+    )
+
+    list_filter = (
+        'role',
         'is_staff',
         'is_active',
     )
 
-    list_filter = ('role', 'is_staff', 'is_active')
-    search_fields = ('username', 'email', 'user_id')
+    search_fields = (
+        'username',
+        'email',
+        'user_id',
+    )
+
     ordering = ('-is_superuser', '-is_staff', 'id')
     readonly_fields = ('id', 'user_id')
 
@@ -85,6 +94,14 @@ class UserAdmin(BaseUserAdmin):
     date_hierarchy = "date_joined"
 
     actions = [deactivate_users, activate_users]
+
+    def account_status(self, obj):
+        if obj.is_active:
+            return "Active"
+
+        return "Deactivated"
+
+    account_status.short_description = "Account Status"
 
     fieldsets = BaseUserAdmin.fieldsets + (
         (
@@ -119,6 +136,7 @@ class UserAdmin(BaseUserAdmin):
         PackageAsRiderInline,
         PackageTrackingInline,
     ]
+
 
 @admin.register(PasswordResetOTP)
 class PasswordResetOTPAdmin(admin.ModelAdmin):
