@@ -4299,7 +4299,11 @@ class HardDeleteUserView(APIView):
     permission_classes = [IsAuthenticated]
 
     def delete(self, request):
-        print(" HARD DELETE HIT")
+        print("🔥 HARD DELETE HIT")
+        print("USER:", request.user)
+        print("USER ID:", request.user.id)
+        print("USER EMAIL:", request.user.email)
+        print("USER ROLE:", request.user.role)
 
         user = request.user
 
@@ -4307,31 +4311,72 @@ class HardDeleteUserView(APIView):
             with transaction.atomic():
 
                 if user.role == "rider":
+                    print("Deleting rider-related data...")
+
+                    print("Packages:", Package.objects.filter(rider=user).count())
                     Package.objects.filter(rider=user).update(rider=None)
+
+                    print(
+                        "Tracking:",
+                        PackageTracking.objects.filter(rider=user).count()
+                    )
                     PackageTracking.objects.filter(rider=user).delete()
+
+                    print(
+                        "Ratings:",
+                        RiderRating.objects.filter(rider=user).count()
+                    )
                     RiderRating.objects.filter(rider=user).delete()
+
+                    print(
+                        "Wallet:",
+                        RiderWallet.objects.filter(rider=user).count()
+                    )
                     RiderWallet.objects.filter(rider=user).delete()
+
+                    print(
+                        "Profile:",
+                        RiderProfile.objects.filter(user=user).count()
+                    )
                     RiderProfile.objects.filter(user=user).delete()
 
                 elif user.role == "customer":
+                    print("Deleting customer-related data...")
+
                     RiderRating.objects.filter(customer=user).delete()
                     Package.objects.filter(customer=user).delete()
 
                 email = user.email
 
+                print("🔥 ABOUT TO DELETE USER:", email)
+
                 user.delete()
 
-            print(" USER DELETED:", email)
+                print("🔥 USER.DELETE() COMPLETED")
 
-            return Response({
-                "success": True,
-                "message": "Account deleted"
-            }, status=200)
+            print("🔥 USER DELETED:", email)
+
+            return Response(
+                {
+                    "success": True,
+                    "message": "Account deleted"
+                },
+                status=200
+            )
 
         except Exception as e:
+            print("❌ HARD DELETE ERROR:", repr(e))
             logger.exception("Hard delete failed")
-            return Response({"error": str(e)}, status=500)
 
+            return Response(
+                {
+                    "success": False,
+                    "error": str(e),
+                },
+                status=500
+            )
+
+        
 
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
