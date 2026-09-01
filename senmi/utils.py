@@ -252,8 +252,122 @@ def notify_admin_withdrawal_request(withdrawal):
         )
 
         return False
+
     
 
+def email_admin_payment_received(package, payment_data=None):
+    """
+    Notify all active admin/support users when a package payment
+    has been successfully confirmed.
+    """
+    User = get_user_model()
+
+    try:
+        users = (
+            User.objects
+            .filter(
+                role__in=["admin", "support"],
+                is_active=True,
+            )
+            .exclude(email__isnull=True)
+            .exclude(email="")
+        )
+
+        recipients = list(
+            users.values_list("email", flat=True)
+        )
+
+        # Main Senmi support email
+        recipients.append("senmisupport@gmail.com")
+
+        # Remove duplicates
+        recipients = list(set(recipients))
+
+        if not recipients:
+            logger.warning(
+                "No admin/support payment email recipients found."
+            )
+            return False
+
+        payment_data = payment_data or {}
+
+        reference = (
+            payment_data.get("reference")
+            or package.payment_reference
+            or "N/A"
+        )
+
+        paid_amount = payment_data.get("amount")
+
+        if paid_amount is not None:
+            amount_display = f"₦{int(paid_amount) / 100:,.2f}"
+        else:
+            amount_display = f"₦{package.price:,.2f}"
+
+        completed_at = package.payment_completed_at
+
+        completed_display = (
+            completed_at.strftime("%d %B %Y, %I:%M %p")
+            if completed_at
+            else "N/A"
+        )
+
+        subject = (
+            f"Customer Payment Received - "
+            f"Package {package.package_id}"
+        )
+
+        message = f"""
+            A customer has successfully paid for a package.
+
+            Package ID:
+            {package.package_id}
+
+            Customer:
+            {package.customer.username}
+
+            Customer Email:
+            {package.customer.email}
+
+            Amount Paid:
+            {amount_display}
+
+            Payment Reference:
+            {reference}
+
+            Payment Status:
+            PAID
+
+            Pickup:
+            {package.pickup_address}
+
+            Delivery:
+            {package.delivery_address}
+
+            Delivery Code:
+            {package.delivery_code}
+
+            Payment Completed:
+            {completed_display}
+
+            Please record this payment in the Senmi system.
+
+            Senmi System
+            """
+
+        return send_email(
+            subject=subject,
+            message=message,
+            recipients=recipients,
+        )
+
+    except Exception as e:
+        logger.exception(
+            f"Admin/support payment email failed: {e}"
+        )
+        return False
+
+    
 
 def email_admin_withdrawal_request(withdrawal):
     """

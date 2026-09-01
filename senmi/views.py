@@ -90,6 +90,7 @@ from .serializers import (
 )
 
 from .utils import (
+    email_admin_payment_received,
     email_admin_withdrawal_request,
     notify_admin_dashboard,
     notify_admin_withdrawal_request,
@@ -2541,6 +2542,11 @@ class InitializeReceiverPaymentView(APIView):
                     "payment_completed_at"
                 ])
 
+                email_admin_payment_received(
+                    package,
+                    payment_data,
+                )
+
                 return Response({
                     "already_paid": True,
                     "message": "Payment has already been made for this package."
@@ -2791,8 +2797,16 @@ class PaystackWebhookView(APIView):
                     "payment_completed_at"
                 ])
 
+                email_admin_payment_received(
+                    package,
+                    data,
+                )
+
                 notify_admin_dashboard()
-                logger.info(f"Package {package.id} marked as paid via webhook.")
+
+                logger.info(
+                    f"Package {package.id} marked as paid via webhook."
+                )
 
         except Package.DoesNotExist:
             logger.warning(
@@ -2936,6 +2950,10 @@ class PaymentCallbackView(APIView):
                 ])
 
                 notify_admin_dashboard()
+                email_admin_payment_received(
+                    package,
+                    data,
+                )
 
                 # CUSTOMER EMAIL
                 try:
@@ -2954,25 +2972,7 @@ class PaymentCallbackView(APIView):
                 except Exception as e:
                     logger.exception(f"Customer email failed: {e}")
 
-                try:
-                    send_email(
-                        subject="Customer Paid for Package",
-                        message=(
-                            f"A customer has successfully paid.\n\n"
-                            f"Package ID: {package.package_id}\n"
-                            f"Customer: {package.customer.username}\n"
-                            f"Customer Email: {package.customer.email}\n"
-                            f"Pickup: {package.pickup_address}\n"
-                            f"Delivery: {package.delivery_address}\n"
-                            f"Amount: ₦{package.price}\n"
-                            f"Status: {package.status}\n"
-                            f"Delivery Code: {package.delivery_code}\n"
-                        ),
-                        recipients=[settings.NOTIFY_EMAIL]
-                    )
-                except Exception as e:
-                    logger.exception(f"Admin email failed: {e}")
-
+                
                 # =====================================
                 # PUSH NOTIFICATION TO CUSTOMER
                 # =====================================
