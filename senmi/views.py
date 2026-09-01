@@ -4352,21 +4352,6 @@ class HardDeleteUserView(APIView):
                             status=400,
                         )
 
-                    # --------------------------------------------------------
-                    # No active delivery.
-                    #
-                    # DO NOT DELETE:
-                    # - User
-                    # - RiderProfile
-                    # - Packages
-                    # - Ratings
-                    # - Wallet
-                    # - Wallet transactions
-                    # - Withdrawals
-                    # - Tracking history
-                    #
-                    # We keep everything for admin/history.
-                    # --------------------------------------------------------
 
                     profile = RiderProfile.objects.filter(
                         user=user
