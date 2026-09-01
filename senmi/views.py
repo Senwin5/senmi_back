@@ -2391,46 +2391,6 @@ class RiderEarningsView(APIView):
         })
 
 
-
-# ------------------------------
-# Paystack Refund Helper
-# ------------------------------
-
-def refund_paystack_transaction(reference):
-    url = "https://api.paystack.co/refund"
-
-    headers = {
-        "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
-        "Content-Type": "application/json",
-    }
-
-    try:
-        response = requests.post(
-            url,
-            json={
-                "transaction": reference,
-            },
-            headers=headers,
-            timeout=15,
-        )
-
-        data = response.json()
-
-        logger.info(
-            f"PAYSTACK REFUND | Reference={reference} | "
-            f"Status={response.status_code} | Response={data}"
-        )
-
-        return (
-            response.status_code == 200
-            and data.get("status") is True
-        )
-
-    except requests.RequestException:
-        logger.exception(
-            f"PAYSTACK REFUND REQUEST FAILED | Reference={reference}"
-        )
-        return False
 # ------------------------------
 # Receiver Payment Views
 # ------------------------------
@@ -2506,6 +2466,12 @@ class InitializeReceiverPaymentView(APIView):
 
                 # ====================================================
                 # VERIFY EXACT PAYMENT AMOUNT
+                #
+                # ₦528.11 = 52811 kobo
+                # ₦528.00 = 52800 kobo
+                #
+                # 52800 != 52811
+                # Therefore payment MUST be rejected.
                 # ====================================================
                 try:
                     expected_amount = int(package.price) * 100
@@ -2793,82 +2759,19 @@ class PaystackWebhookView(APIView):
 
                 paid_amount = int(data.get("amount", 0))
 
-                # =====================================
-                # PAYMENT AMOUNT MISMATCH
-                # =====================================
                 if paid_amount != expected_amount:
-
                     logger.warning(
-                        f"PAYMENT AMOUNT MISMATCH | "
-                        f"Package={package.package_id} | "
-                        f"Expected={expected_amount} kobo | "
-                        f"Received={paid_amount} kobo"
+                        f"PAYMENT AMOUNT MISMATCH FOR PACKAGE "
+                        f"{package.package_id}: "
+                        f"Expected {expected_amount} kobo, "
+                        f"but received {paid_amount} kobo"
                     )
 
-                    # ============================================================
-                    # OVERPAYMENT
-                    # Example:
-                    # Package = ₦410
-                    # Customer pays = ₦500
-                    #
-                    # REFUND THE FULL ₦500
-                    # ============================================================
-                    if paid_amount > expected_amount:
-
-                        refund_success = refund_paystack_transaction(reference)
-
-                        if refund_success:
-
-                            logger.info(
-                                f"OVERPAYMENT REFUNDED | "
-                                f"Package={package.package_id} | "
-                                f"Amount={paid_amount} kobo"
-                            )
-
-                            return Response({
-                                "success": True,
-                                "refunded": True,
-                                "message": (
-                                    f"You paid ₦{paid_amount / 100:.2f}, "
-                                    f"but the package costs "
-                                    f"₦{expected_amount / 100:.2f}. "
-                                    f"Your full payment has been refunded."
-                                ),
-                            }, status=200)
-
-                        logger.error(
-                            f"REFUND FAILED | "
-                            f"Package={package.package_id} | "
-                            f"Reference={reference}"
-                        )
-
-                        return Response({
-                            "success": False,
-                            "refunded": False,
-                            "message": (
-                                "Your payment amount was incorrect, "
-                                "but we could not process the automatic refund. "
-                                "Please contact support."
-                            ),
-                        }, status=500)
-
-                    # ============================================================
-                    # UNDERPAYMENT
-                    # Example:
-                    # Package = ₦410
-                    # Customer pays = ₦408
-                    #
-                    # DO NOT accept it.
-                    # ============================================================
                     return Response({
                         "success": False,
-                        "refunded": False,
-                        "message": (
-                            f"Incorrect payment amount. "
-                            f"The package costs ₦{expected_amount / 100:.2f}, "
-                            f"but ₦{paid_amount / 100:.2f} was received."
-                        ),
+                        "message": "Incorrect payment amount"
                     }, status=400)
+
                 # =====================================
                 # VERIFY CURRENCY
                 # =====================================
@@ -3002,67 +2905,16 @@ class PaymentCallbackView(APIView):
                 paid_amount = int(data.get("amount", 0))
 
                 if paid_amount != expected_amount:
-
                     logger.warning(
-                        f"PAYMENT AMOUNT MISMATCH | "
-                        f"Package={package.package_id} | "
-                        f"Expected={expected_amount} kobo | "
-                        f"Received={paid_amount} kobo"
+                        f"PAYMENT AMOUNT MISMATCH FOR PACKAGE "
+                        f"{package.package_id}: "
+                        f"Expected {expected_amount} kobo, "
+                        f"but received {paid_amount} kobo"
                     )
 
-                    # ============================================================
-                    # OVERPAYMENT
-                    # ============================================================
-                    if paid_amount > expected_amount:
-
-                        refund_success = refund_paystack_transaction(reference)
-
-                        if refund_success:
-
-                            logger.info(
-                                f"OVERPAYMENT REFUNDED FROM CALLBACK | "
-                                f"Package={package.package_id} | "
-                                f"Amount={paid_amount} kobo"
-                            )
-
-                            return Response({
-                                "success": True,
-                                "refunded": True,
-                                "message": (
-                                    f"You paid ₦{paid_amount / 100:.2f}, "
-                                    f"but the package costs "
-                                    f"₦{expected_amount / 100:.2f}. "
-                                    f"Your full payment has been refunded."
-                                ),
-                            }, status=200)
-
-                        logger.error(
-                            f"CALLBACK REFUND FAILED | "
-                            f"Package={package.package_id} | "
-                            f"Reference={reference}"
-                        )
-
-                        return Response({
-                            "success": False,
-                            "refunded": False,
-                            "message": (
-                                "The payment amount was incorrect and "
-                                "the automatic refund could not be completed. "
-                                "Please contact support."
-                            ),
-                        }, status=500)
-
-                    # ============================================================
-                    # UNDERPAYMENT
-                    # ============================================================
                     return Response({
                         "success": False,
-                        "refunded": False,
-                        "message": (
-                            f"Incorrect payment amount. "
-                            f"The package costs ₦{expected_amount / 100:.2f}, "
-                            f"but ₦{paid_amount / 100:.2f} was received."
-                        ),
+                        "message": "Incorrect payment amount"
                     }, status=400)
 
                 # =====================================
