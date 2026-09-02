@@ -4467,8 +4467,6 @@ class HardDeleteUserView(APIView):
                 status=500,
             )
 
-
-
         
 
 class LogoutView(APIView):
@@ -4482,29 +4480,68 @@ class LogoutView(APIView):
             return Response({"detail": "Logged out successfully."}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        
 
-@api_view(['POST'])
+
+
+
+python
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def calculate_price_view(request):
     try:
-        pickup_lat = float(request.data.get('pickup_lat'))
-        pickup_lng = float(request.data.get('pickup_lng'))
-        delivery_lat = float(request.data.get('delivery_lat'))
-        delivery_lng = float(request.data.get('delivery_lng'))
+        pickup_lat = float(request.data["pickup_lat"])
+        pickup_lng = float(request.data["pickup_lng"])
+        delivery_lat = float(request.data["delivery_lat"])
+        delivery_lng = float(request.data["delivery_lng"])
 
-        distance = calculate_distance(pickup_lat, pickup_lng, delivery_lat, delivery_lng)
+        for value in (
+            pickup_lat,
+            pickup_lng,
+            delivery_lat,
+            delivery_lng,
+        ):
+            if not (-180 <= value <= 180):
+                raise ValueError(
+                    "Invalid coordinate value."
+                )
+
+        if not (-90 <= pickup_lat <= 90):
+            raise ValueError("Invalid pickup latitude.")
+
+        if not (-90 <= delivery_lat <= 90):
+            raise ValueError("Invalid delivery latitude.")
+
+        distance = calculate_distance(
+            pickup_lat,
+            pickup_lng,
+            delivery_lat,
+            delivery_lng,
+        )
+
         price = calculate_price(distance)
 
         return Response({
             "distance_km": round(distance, 2),
-            "price": float(price)
+            "price": str(price),
+            "currency": "NGN",
         })
 
-    except Exception as e:
-        return Response({"error": str(e)}, status=400)
-    
+    except KeyError as e:
+        return Response(
+            {"error": f"Missing field: {str(e)}"},
+            status=400,
+        )
 
+    except (TypeError, ValueError) as e:
+        return Response(
+            {"error": str(e)},
+            status=400,
+        )
+
+
+
+
+    
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

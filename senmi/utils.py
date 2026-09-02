@@ -517,22 +517,39 @@ def email_admin_withdrawal_request(withdrawal):
 
 
     
-#PRICE MUTIPLIER
+from decimal import Decimal, ROUND_HALF_UP
 from math import atan2, cos, radians, sin, sqrt
+
+from django.conf import settings
 from django.utils import timezone
+
 from .models import PricingConfig
+
+
 def calculate_distance(lat1, lng1, lat2, lng2):
     R = 6371.0
+
     dlat = radians(lat2 - lat1)
     dlng = radians(lng2 - lng1)
 
-    a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlng/2)**2
+    a = (
+        sin(dlat / 2) ** 2
+        + cos(radians(lat1))
+        * cos(radians(lat2))
+        * sin(dlng / 2) ** 2
+    )
+
     c = 2 * atan2(sqrt(a), sqrt(1 - a))
+
     return R * c
 
 
 def get_active_pricing():
-    return PricingConfig.objects.filter(is_active=True).first()
+    return (
+        PricingConfig.objects
+        .filter(is_active=True)
+        .first()
+    )
 
 
 def get_time_multiplier(config):
@@ -540,47 +557,53 @@ def get_time_multiplier(config):
 
     if 6 <= hour < 11:
         return config.morning_multiplier
-    elif 11 <= hour < 15:
+
+    if 11 <= hour < 15:
         return config.afternoon_multiplier
-    elif 15 <= hour < 22:
+
+    if 15 <= hour < 22:
         return config.evening_multiplier
-    else:
-        return config.night_multiplier
+
+    return config.night_multiplier
 
 
 def calculate_price(distance_km):
+    distance_km = Decimal(str(distance_km))
+
+    if distance_km < 0:
+        raise ValueError("Distance cannot be negative.")
+
     config = get_active_pricing()
 
-    # fallback if admin config is missing
-    base_fee = config.base_fee if config else settings.BASE_FEE
-    per_km_rate = config.per_km_rate if config else settings.PER_KM_RATE
-    fuel_multiplier = config.fuel_multiplier if config else settings.FUEL_MULTIPLIER
+    if config:
+        base_fee = config.base_fee
+        per_km_rate = config.per_km_rate
+        fuel_multiplier = config.fuel_multiplier
+        time_multiplier = get_time_multiplier(config)
 
-    if not config:
-        return (base_fee + (distance_km * per_km_rate)) * fuel_multiplier
+    else:
+        base_fee = Decimal(str(settings.BASE_FEE))
+        per_km_rate = Decimal(str(settings.PER_KM_RATE))
+        fuel_multiplier = Decimal(
+            str(settings.FUEL_MULTIPLIER)
+        )
+        time_multiplier = Decimal("1.00")
 
-    time_multiplier = get_time_multiplier(config)
+    distance_cost = distance_km * per_km_rate
 
-    return (
-        (base_fee + (distance_km * per_km_rate))
-        * fuel_multiplier
-        * time_multiplier
-    )
+    fare = (
+        base_fee + distance_cost
+    ) * fuel_multiplier
 
-# Distance & price helpers
-"""def calculate_distance(lat1, lng1, lat2, lng2):
-    R = 6371.0  # Earth radius in km
-    dlat = radians(lat2 - lat1)
-    dlng = radians(lng2 - lng1)
-    a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlng/2)**2
-    c = 2 * atan2(sqrt(a), sqrt(1 - a))
-    return R * c  # distance in km
+    fare *= time_multiplier
 
+    # Round to nearest ₦50
+    fare = (
+        fare / Decimal("50")
+    ).quantize(
+        Decimal("1"),
+        rounding=ROUND_HALF_UP
+    ) * Decimal("50")
 
-def calculate_price(distance_km):
-    base_fee = settings.BASE_FEE
-    per_km_rate = settings.PER_KM_RATE
-    multiplier = settings.FUEL_MULTIPLIER
-    return (base_fee + (distance_km * per_km_rate)) * multiplier"""
-
+    return fare
 
