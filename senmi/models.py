@@ -473,8 +473,8 @@ class PricingConfig(models.Model):
     fuel_multiplier = models.DecimalField(max_digits=5,decimal_places=2,default=1.30)
     morning_multiplier = models.DecimalField(max_digits=5,decimal_places=2,default=1.00)
     afternoon_multiplier = models.DecimalField(max_digits=5,decimal_places=2,default=1.00)
-    evening_multiplier = models.DecimalField(max_digits=5,decimal_places=2,default=1.00)
-    night_multiplier = models.DecimalField(max_digits=5,decimal_places=2,default=1.00)
+    evening_multiplier = models.DecimalField(max_digits=5,decimal_places=2,default=1.10)
+    night_multiplier = models.DecimalField(max_digits=5,decimal_places=2,default=1.10)
     is_active = models.BooleanField(default=True)
     updated_at = models.DateTimeField(auto_now=True)
 
