@@ -470,7 +470,7 @@ class PricingConfig(models.Model):
     name = models.CharField(max_length=50,default="Default Pricing")
     base_fee = models.DecimalField(max_digits=10,decimal_places=2,default=950)
     per_km_rate = models.DecimalField(max_digits=10,decimal_places=2,default=220)
-    fuel_multiplier = models.DecimalField(max_digits=5,decimal_places=2,default=1.20)
+    fuel_multiplier = models.DecimalField(max_digits=5,decimal_places=2,default=1.30)
     morning_multiplier = models.DecimalField(max_digits=5,decimal_places=2,default=1.00)
     afternoon_multiplier = models.DecimalField(max_digits=5,decimal_places=2,default=1.00)
     evening_multiplier = models.DecimalField(max_digits=5,decimal_places=2,default=1.10)
