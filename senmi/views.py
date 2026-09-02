@@ -4484,7 +4484,7 @@ class LogoutView(APIView):
 
 
 
-python
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def calculate_price_view(request):
@@ -4522,7 +4522,7 @@ def calculate_price_view(request):
 
         return Response({
             "distance_km": round(distance, 2),
-            "price": str(price),
+            "price": float(price),
             "currency": "NGN",
         })
 
