@@ -810,6 +810,14 @@ class WithdrawalAdmin(admin.ModelAdmin):
         except RiderProfile.DoesNotExist:
             return "—"
 
+    @admin.display(description="Full Name")
+    def rider_full_name(self, obj):
+        try:
+            return obj.rider.riderprofile.full_name or "—"
+
+        except RiderProfile.DoesNotExist:
+            return "—"
+
     @admin.display(description="Rider Email")
     def rider_email(self, obj):
         return obj.rider.email
