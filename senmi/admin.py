@@ -149,8 +149,8 @@ class PasswordResetOTPAdmin(admin.ModelAdmin):
 # Customize RiderProfile admin
 @admin.register(RiderProfile)
 class RiderProfileAdmin(admin.ModelAdmin):
-    list_display = ('rider_id','user','full_name','phone_number','status','account_status','rejection_reason')
-    list_filter = ('status',)
+    list_display = ('rider_id','user','full_name','phone_number','status','account_status')
+    list_filter = ('status','user__is_active')
     search_fields = ('user__email', 'full_name', 'phone_number')
     readonly_fields = ('id', 'rider_id')
     ordering = ('-created_at',)
