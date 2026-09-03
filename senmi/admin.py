@@ -496,6 +496,7 @@ class WithdrawalAdmin(admin.ModelAdmin):
 
     list_display = (
         "get_rider_id",
+        "rider_full_name",
         "rider_email",
         "account_name",
         "bank_account",
@@ -504,7 +505,6 @@ class WithdrawalAdmin(admin.ModelAdmin):
         "identity_check",
         "status",
         "reference",
-        "failure_reason",
         "created_at",
     )
 
