@@ -149,7 +149,7 @@ class PasswordResetOTPAdmin(admin.ModelAdmin):
 # Customize RiderProfile admin
 @admin.register(RiderProfile)
 class RiderProfileAdmin(admin.ModelAdmin):
-    list_display = ('rider_id', 'user', 'full_name', 'phone_number', 'status', 'rejection_reason')
+    list_display = ('rider_id','user','full_name','phone_number','status','account_status','rejection_reason')
     list_filter = ('status',)
     search_fields = ('user__email', 'full_name', 'phone_number')
     readonly_fields = ('id', 'rider_id')
@@ -157,6 +157,12 @@ class RiderProfileAdmin(admin.ModelAdmin):
 
     list_per_page = 50
     date_hierarchy = "created_at"
+    @admin.display(description="Account Status")
+    def account_status(self, obj):
+        if obj.user.is_active:
+            return "Active"
+
+        return "Deactivated"
 
     def save_model(self, request, obj, form, change):
         # 0️⃣ Ensure rider_id exists
