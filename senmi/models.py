@@ -48,6 +48,7 @@ class User(AbstractUser):
         ('support', 'Support'),
         ('customer', 'Customer'),
         ('rider', 'Rider'),
+        ('ride_driver', 'Ride Driver'),
     )
 
     user_id = models.CharField(max_length=20, unique=True, editable=False, blank=True)
