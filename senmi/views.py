@@ -182,6 +182,12 @@ class RegisterView(APIView):
                         f"Your account has been created successfully as a Rider. "
                         f"Kindly complete your rider profile for approval by the admin."
                     )
+                elif user.role.lower() == "ride_driver":
+                    user_message = (
+                        f"Hello {user.username}, "
+                        f"Your account has been created successfully as a Ride Driver. "
+                        f"Kindly complete your ride driver profile for approval by the admin."
+                    )
                 else:
                     user_message = (
                         f"Hello {user.username}, "
@@ -204,6 +210,14 @@ class RegisterView(APIView):
                         "The rider needs approval."
                     )
                     admin_subject = "New Rider Registration"
+                elif user.role.lower() == "ride_driver":
+                    admin_message = (
+                        "A new ride driver has created an account.\n\n"
+                        f"Name: {user.username}\n"
+                        f"Email: {user.email}\n"
+                        "The ride driver needs to complete their profile and be approved."
+                    )
+                    admin_subject = "New Ride Driver Registration"
                 elif user.role.lower() == "customer":
                     admin_message = (
                         "A new customer has created an account.\n\n"

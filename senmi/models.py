@@ -55,7 +55,7 @@ class User(AbstractUser):
 
     email = models.EmailField(unique=True)
     username = models.CharField(max_length=150, unique=False)
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES)
+    role = models.CharField(max_length=50, choices=ROLE_CHOICES)
     phone_number = models.CharField(max_length=20, blank=True) 
 
     USERNAME_FIELD = 'email'
