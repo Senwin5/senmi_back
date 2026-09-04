@@ -40,69 +40,27 @@ class SenmiRideDriverProfile(models.Model):
         ('rejected', 'Rejected'),
     ]
 
-    user = models.OneToOneField(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE
-    )
-
-    driver_id = models.CharField(
-        max_length=20,
-        unique=True,
-        blank=True,
-        editable=False
-    )
-
+    user = models.OneToOneField(settings.AUTH_USER_MODEL,on_delete=models.CASCADE)
+    driver_id = models.CharField(max_length=20,unique=True,blank=True,editable=False)
     full_name = models.CharField(max_length=255)
     phone_number = models.CharField(max_length=20)
-
     # Driver Images
-    profile_photo = CloudinaryField(
-        folder='ride_driver_profile/',
-        blank=True,
-        null=True
-    )
-
-    driver_license_photo = CloudinaryField(
-        folder='driver_license/',
-        blank=True,
-        null=True
-    )
-
-    vehicle_photo = CloudinaryField(
-        folder='vehicle_photo/',
-        blank=True,
-        null=True
-    )
-
+    profile_photo = CloudinaryField(folder='ride_driver_profile/',blank=True,null=True)
+    driver_license_photo = CloudinaryField(folder='driver_license/',blank=True,null=True)
+    vehicle_photo = CloudinaryField(folder='vehicle_photo/',blank=True,null=True)
     # Vehicle Details
     vehicle_brand = models.CharField(max_length=100)
     vehicle_model = models.CharField(max_length=100)
     vehicle_color = models.CharField(max_length=50, blank=True)
     vehicle_year = models.CharField(max_length=10, blank=True)
-
-    plate_number = models.CharField(
-        max_length=50,
-        unique=True
-    )
-
+    plate_number = models.CharField(max_length=50,unique=True)
     # Driver Status
     is_online = models.BooleanField(default=False)
-
-    status = models.CharField(
-        max_length=20,
-        choices=STATUS_CHOICES,
-        default='pending'
-    )
-
-    rejection_reason = models.TextField(
-        blank=True,
-        null=True
-    )
-
+    status = models.CharField(max_length=20,choices=STATUS_CHOICES,default='pending')
+    rejection_reason = models.TextField(blank=True,null=True)
     # Ratings
     rating = models.FloatField(default=0)
     rating_count = models.IntegerField(default=0)
-
     created_at = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):

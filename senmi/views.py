@@ -4540,9 +4540,6 @@ def calculate_price_view(request):
 
 
 
-
-    
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def my_orders(request):
