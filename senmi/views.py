@@ -1,5 +1,8 @@
 from django.core.serializers import python
 
+from senmi_ride.models import RideCommissionPayment
+from senmi_ride.views import complete_ride_commission_payment
+
 python
 import hashlib
 import hmac
@@ -2732,80 +2735,394 @@ class InitializeReceiverPaymentView(APIView):
     
 # Paystack Webhook
 # ------------------------------
-@method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(csrf_exempt, name="dispatch")
 class PaystackWebhookView(APIView):
-    @method_decorator(csrf_exempt)
-    def post(self, request):
-        secret = settings.PAYSTACK_SECRET_KEY
-        signature = request.headers.get('x-paystack-signature')
 
-        # =========================
-        # FIX 1: safer signature check (correct Paystack standard)
-        # =========================
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request):
+
+        secret = settings.PAYSTACK_SECRET_KEY
+
+        if not secret:
+            logger.error("PAYSTACK_SECRET_KEY is not configured")
+
+            return Response(
+                {
+                    "success": False,
+                    "message": "Paystack secret key is not configured"
+                },
+                status=500
+            )
+
+        signature = request.headers.get(
+            "x-paystack-signature"
+        )
+
+        # ============================================================
+        # VERIFY PAYSTACK SIGNATURE
+        # ============================================================
+
         expected_hash = hmac.new(
-            secret.encode('utf-8'),
+            secret.encode("utf-8"),
             request.body,
             hashlib.sha512
         ).hexdigest()
 
-        if not signature or not hmac.compare_digest(signature, expected_hash):
-            logger.warning("Paystack webhook signature mismatch")
-            #return Response(status=400)
-            return Response({
-                "success": False,
-                "message": "Invalid webhook signature"
-            }, status=400)
+        if (
+            not signature
+            or not hmac.compare_digest(
+                signature,
+                expected_hash
+            )
+        ):
+
+            logger.warning(
+                "Paystack webhook signature mismatch"
+            )
+
+            return Response(
+                {
+                    "success": False,
+                    "message": "Invalid webhook signature"
+                },
+                status=400
+            )
+
+        # ============================================================
+        # DECODE JSON
+        # ============================================================
 
         try:
-            # =========================
-            # FIX 2: safe JSON decode
-            # =========================
-            payload = json.loads(request.body.decode('utf-8'))
-        except json.JSONDecodeError:
-            logger.error("Invalid JSON received in Paystack webhook")
-            #return Response(status=400)
-            return Response({
-                "success": False,
-                "message": "Invalid JSON payload"
-            }, status=400)
+
+            payload = json.loads(
+                request.body.decode("utf-8")
+            )
+
+        except (
+            json.JSONDecodeError,
+            UnicodeDecodeError
+        ):
+
+            logger.error(
+                "Invalid JSON received in Paystack webhook"
+            )
+
+            return Response(
+                {
+                    "success": False,
+                    "message": "Invalid JSON payload"
+                },
+                status=400
+            )
 
         event = payload.get("event")
-        data = payload.get("data", {})
-        reference = data.get("reference")
 
-        if event != 'charge.success' or not reference:
-            logger.info(f"Ignored Paystack webhook event: {event}")
-            #return Response(status=200)
-            return Response({
-                "success": True,
-                "message": "Event ignored"
-            }, status=200)
+        data = payload.get(
+            "data",
+            {}
+        )
 
-        try:
-            with transaction.atomic():
-                package = Package.objects.select_for_update().get(
-                    payment_reference=reference
+        reference = data.get(
+            "reference"
+        )
+
+        # ============================================================
+        # IGNORE NON-SUCCESS EVENTS
+        # ============================================================
+
+        if event != "charge.success":
+
+            logger.info(
+                f"Ignored Paystack webhook event: {event}"
+            )
+
+            return Response(
+                {
+                    "success": True,
+                    "message": "Event ignored"
+                },
+                status=200
+            )
+
+        if not reference:
+
+            logger.warning(
+                "Paystack charge.success received without reference"
+            )
+
+            return Response(
+                {
+                    "success": True,
+                    "message": "No payment reference"
+                },
+                status=200
+            )
+
+        # ============================================================
+        # ============================================================
+        # RIDE COMMISSION PAYMENT
+        # ============================================================
+        # ============================================================
+
+        ride_payment = (
+            RideCommissionPayment.objects
+            .filter(
+                reference=reference
+            )
+            .first()
+        )
+
+        if ride_payment:
+
+            logger.info(
+                f"Ride commission payment detected: "
+                f"{reference}"
+            )
+
+            try:
+
+                with transaction.atomic():
+
+                    # Lock payment so duplicate webhooks
+                    # cannot process it twice.
+                    ride_payment = (
+                        RideCommissionPayment.objects
+                        .select_for_update()
+                        .get(
+                            id=ride_payment.id
+                        )
+                    )
+
+                    # ------------------------------------------------
+                    # ALREADY PAID
+                    # ------------------------------------------------
+
+                    if ride_payment.status == "paid":
+
+                        logger.info(
+                            f"Ride commission payment already "
+                            f"processed: {reference}"
+                        )
+
+                        return Response(
+                            {
+                                "success": True,
+                                "message":
+                                    "Ride commission already processed"
+                            },
+                            status=200
+                        )
+
+                    # ------------------------------------------------
+                    # VERIFY PAYSTACK REFERENCE
+                    # ------------------------------------------------
+
+                    if data.get("reference") != ride_payment.reference:
+
+                        logger.warning(
+                            f"Ride commission reference mismatch: "
+                            f"{reference}"
+                        )
+
+                        return Response(
+                            {
+                                "success": False,
+                                "message":
+                                    "Payment reference mismatch"
+                            },
+                            status=400
+                        )
+
+                    # ------------------------------------------------
+                    # VERIFY AMOUNT
+                    # ------------------------------------------------
+
+                    expected_amount = int(
+                        ride_payment.amount * Decimal("100")
+                    )
+
+                    paid_amount = int(
+                        data.get(
+                            "amount",
+                            0
+                        )
+                    )
+
+                    if paid_amount != expected_amount:
+
+                        logger.warning(
+                            f"RIDE COMMISSION AMOUNT MISMATCH | "
+                            f"Reference={reference} | "
+                            f"Expected={expected_amount} kobo | "
+                            f"Received={paid_amount} kobo"
+                        )
+
+                        ride_payment.status = "failed"
+
+                        ride_payment.save(
+                            update_fields=[
+                                "status",
+                                "updated_at",
+                            ]
+                        )
+
+                        return Response(
+                            {
+                                "success": False,
+                                "message":
+                                    "Incorrect commission payment amount"
+                            },
+                            status=400
+                        )
+
+                    # ------------------------------------------------
+                    # VERIFY CURRENCY
+                    # ------------------------------------------------
+
+                    if data.get("currency") != "NGN":
+
+                        logger.warning(
+                            f"INVALID RIDE COMMISSION CURRENCY | "
+                            f"Reference={reference} | "
+                            f"Currency={data.get('currency')}"
+                        )
+
+                        ride_payment.status = "failed"
+
+                        ride_payment.save(
+                            update_fields=[
+                                "status",
+                                "updated_at",
+                            ]
+                        )
+
+                        return Response(
+                            {
+                                "success": False,
+                                "message":
+                                    "Invalid payment currency"
+                            },
+                            status=400
+                        )
+
+                    # ------------------------------------------------
+                    # COMPLETE RIDE COMMISSION
+                    # ------------------------------------------------
+
+                    complete_ride_commission_payment(
+                        ride_payment,
+                        data
+                    )
+
+                    logger.info(
+                        f"Ride commission payment completed: "
+                        f"{reference}"
+                    )
+
+                return Response(
+                    {
+                        "success": True,
+                        "message":
+                            "Ride commission payment processed"
+                    },
+                    status=200
                 )
 
-                if package.is_paid:
-                    logger.info(
-                        f"Package {package.id} already marked as paid. Ignoring webhook."
+            except ValueError as exc:
+
+                logger.warning(
+                    f"Ride commission payment validation failed | "
+                    f"Reference={reference} | "
+                    f"Error={exc}"
+                )
+
+                return Response(
+                    {
+                        "success": False,
+                        "message": str(exc)
+                    },
+                    status=400
+                )
+
+            except Exception:
+
+                logger.exception(
+                    f"Error processing ride commission payment "
+                    f"{reference}"
+                )
+
+                return Response(
+                    {
+                        "success": False,
+                        "message":
+                            "Internal server error"
+                    },
+                    status=500
+                )
+
+        # ============================================================
+        # ============================================================
+        # PACKAGE PAYMENT
+        # ============================================================
+        # ============================================================
+        #
+        # IMPORTANT:
+        # Everything below this point is your EXISTING package
+        # payment logic.
+        #
+        # ============================================================
+
+        try:
+
+            with transaction.atomic():
+
+                package = (
+                    Package.objects
+                    .select_for_update()
+                    .get(
+                        payment_reference=reference
                     )
-                    #return Response(status=200)
-                    return Response({
-                        "success": True,
-                        "message": "Package already processed"
-                    }, status=200)
+                )
 
-                # =====================================
+                # ====================================================
+                # ALREADY PAID
+                # ====================================================
+
+                if package.is_paid:
+
+                    logger.info(
+                        f"Package {package.id} already marked "
+                        f"as paid. Ignoring webhook."
+                    )
+
+                    return Response(
+                        {
+                            "success": True,
+                            "message":
+                                "Package already processed"
+                        },
+                        status=200
+                    )
+
+                # ====================================================
                 # VERIFY EXACT PAYMENT AMOUNT
-                # Paystack amount is in kobo
-                # =====================================
-                expected_amount = int(package.price) * 100
+                # ====================================================
 
-                paid_amount = int(data.get("amount", 0))
+                expected_amount = int(
+                    package.price
+                ) * 100
+
+                paid_amount = int(
+                    data.get(
+                        "amount",
+                        0
+                    )
+                )
 
                 if paid_amount != expected_amount:
+
                     logger.warning(
                         f"PAYMENT AMOUNT MISMATCH FOR PACKAGE "
                         f"{package.package_id}: "
@@ -2813,71 +3130,110 @@ class PaystackWebhookView(APIView):
                         f"but received {paid_amount} kobo"
                     )
 
-                    return Response({
-                        "success": False,
-                        "message": "Incorrect payment amount"
-                    }, status=400)
+                    return Response(
+                        {
+                            "success": False,
+                            "message":
+                                "Incorrect payment amount"
+                        },
+                        status=400
+                    )
 
-                # =====================================
+                # ====================================================
                 # VERIFY CURRENCY
-                # =====================================
+                # ====================================================
+
                 if data.get("currency") != "NGN":
+
                     logger.warning(
                         f"INVALID PAYMENT CURRENCY FOR PACKAGE "
                         f"{package.package_id}: "
                         f"{data.get('currency')}"
                     )
 
-                    return Response({
-                        "success": False,
-                        "message": "Invalid payment currency"
-                    }, status=400)
+                    return Response(
+                        {
+                            "success": False,
+                            "message":
+                                "Invalid payment currency"
+                        },
+                        status=400
+                    )
+
+                # ====================================================
+                # MARK PACKAGE PAID
+                # ====================================================
 
                 package.is_paid = True
                 package.status = "paid"
                 package.payment_completed_at = timezone.now()
 
-                package.save(update_fields=[
-                    "is_paid",
-                    "status",
-                    "payment_completed_at"
-                ])
+                package.save(
+                    update_fields=[
+                        "is_paid",
+                        "status",
+                        "payment_completed_at"
+                    ]
+                )
+
+                # ====================================================
+                # EXISTING PACKAGE EMAIL
+                # ====================================================
 
                 email_admin_payment_received(
                     package,
                     data,
                 )
 
+                # ====================================================
+                # EXISTING ADMIN NOTIFICATION
+                # ====================================================
+
                 notify_admin_dashboard()
 
                 logger.info(
-                    f"Package {package.id} marked as paid via webhook."
+                    f"Package {package.id} marked as paid "
+                    f"via webhook."
                 )
 
         except Package.DoesNotExist:
+
             logger.warning(
-                f"No package found with payment reference {reference}"
+                f"No package found with payment reference "
+                f"{reference}"
             )
 
-            return Response({
-                "success": True,
-                "message": "Package not found"
-            }, status=200)
+            return Response(
+                {
+                    "success": True,
+                    "message": "Payment not found"
+                },
+                status=200
+            )
 
         except Exception:
+
             logger.exception(
-                f"Error processing Paystack webhook for reference {reference}"
+                f"Error processing package Paystack webhook "
+                f"for reference {reference}"
             )
 
-            return Response({
-                "success": False,
-                "message": "Internal server error"
-            }, status=500)
+            return Response(
+                {
+                    "success": False,
+                    "message":
+                        "Internal server error"
+                },
+                status=500
+            )
 
-        return Response({
-            "success": True,
-            "message": "Webhook processed"
-        }, status=200)
+        return Response(
+            {
+                "success": True,
+                "message": "Package webhook processed"
+            },
+            status=200
+        )
 
 
     

@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from decimal import Decimal
 import uuid
 from io import BytesIO
 from PIL import Image
@@ -7,6 +8,10 @@ from cloudinary.models import CloudinaryField
 from django.core.files.uploadedfile import InMemoryUploadedFile
 import sys
 
+
+# ============================================================
+# IMAGE COMPRESSION
+# ============================================================
 
 def compress_image(image, max_size=(1024, 1024), quality=70):
     try:
@@ -18,7 +23,13 @@ def compress_image(image, max_size=(1024, 1024), quality=70):
         img.thumbnail(max_size)
 
         buffer = BytesIO()
-        img.save(buffer, format="JPEG", quality=quality)
+
+        img.save(
+            buffer,
+            format="JPEG",
+            quality=quality
+        )
+
         buffer.seek(0)
 
         return InMemoryUploadedFile(
@@ -58,11 +69,18 @@ class RideDriverProfile(models.Model):
         editable=False,
     )
 
-    full_name = models.CharField(max_length=255)
+    full_name = models.CharField(
+        max_length=255
+    )
 
-    phone_number = models.CharField(max_length=20)
+    phone_number = models.CharField(
+        max_length=20
+    )
 
-    # Driver Images
+    # --------------------------------------------------------
+    # DRIVER IMAGES
+    # KEEPING CLOUDINARY
+    # --------------------------------------------------------
 
     profile_photo = CloudinaryField(
         folder="ride_driver_profile/",
@@ -82,11 +100,17 @@ class RideDriverProfile(models.Model):
         null=True,
     )
 
-    # Vehicle Details
+    # --------------------------------------------------------
+    # VEHICLE DETAILS
+    # --------------------------------------------------------
 
-    vehicle_brand = models.CharField(max_length=100)
+    vehicle_brand = models.CharField(
+        max_length=100
+    )
 
-    vehicle_model = models.CharField(max_length=100)
+    vehicle_model = models.CharField(
+        max_length=100
+    )
 
     vehicle_color = models.CharField(
         max_length=50,
@@ -103,9 +127,13 @@ class RideDriverProfile(models.Model):
         unique=True,
     )
 
-    # Driver Status
+    # --------------------------------------------------------
+    # DRIVER STATUS
+    # --------------------------------------------------------
 
-    is_online = models.BooleanField(default=False)
+    is_online = models.BooleanField(
+        default=False
+    )
 
     status = models.CharField(
         max_length=20,
@@ -118,14 +146,20 @@ class RideDriverProfile(models.Model):
         null=True,
     )
 
-    # Ratings
+    # --------------------------------------------------------
+    # RATINGS
+    # --------------------------------------------------------
 
-    rating = models.FloatField(default=0)
+    rating = models.FloatField(
+        default=0
+    )
 
-    rating_count = models.IntegerField(default=0)
+    rating_count = models.IntegerField(
+        default=0
+    )
 
     created_at = models.DateTimeField(
-        auto_now_add=True,
+        auto_now_add=True
     )
 
     def save(self, *args, **kwargs):
@@ -153,24 +187,23 @@ class RideDriverWallet(models.Model):
         related_name="ride_wallet",
     )
 
-    # Money available to the driver
-
-    balance = models.DecimalField(
+    commission_balance = models.DecimalField(
         max_digits=12,
         decimal_places=2,
-        default=0,
+        default=Decimal("0.00"),
     )
-
-    # Total commission paid to Senmi
 
     total_commission_paid = models.DecimalField(
         max_digits=12,
         decimal_places=2,
-        default=0,
+        default=Decimal("0.00"),
     )
 
     def __str__(self):
-        return f"{self.driver.username} - ₦{self.balance}"
+        return (
+            f"{self.driver.username} - "
+            f"Commission ₦{self.commission_balance}"
+        )
 
 
 # ============================================================
@@ -188,11 +221,31 @@ class RideRequest(models.Model):
         ("cancelled", "Cancelled"),
     ]
 
+    PAYMENT_METHOD_CHOICES = [
+        ("cash", "Cash"),
+        ("card", "Card"),
+        ("bank_transfer", "Bank Transfer"),
+    ]
+
+    PAYMENT_STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("paid", "Paid"),
+        ("failed", "Failed"),
+    ]
+
+    # ========================================================
+    # CUSTOMER
+    # ========================================================
+
     passenger = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="ride_requests",
     )
+
+    # ========================================================
+    # DRIVER
+    # ========================================================
 
     driver = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -209,6 +262,10 @@ class RideRequest(models.Model):
         editable=False,
     )
 
+    # ========================================================
+    # LOCATIONS
+    # ========================================================
+
     pickup_address = models.TextField()
 
     destination_address = models.TextField()
@@ -221,6 +278,10 @@ class RideRequest(models.Model):
 
     destination_lng = models.FloatField()
 
+    # ========================================================
+    # ESTIMATION
+    # ========================================================
+
     estimated_distance_km = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -228,49 +289,87 @@ class RideRequest(models.Model):
 
     estimated_duration_minutes = models.IntegerField()
 
-    # Total amount passenger pays
+    # ========================================================
+    # MONEY
+    # ========================================================
 
+    # Total amount customer pays directly to driver.
     fare = models.DecimalField(
         max_digits=10,
         decimal_places=2,
     )
 
-    # Amount driver owes Senmi
-
+    # Commission/service fee driver owes Senmi.
     service_fee = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        default=0,
+        default=Decimal("0.00"),
     )
 
-    # Amount driver keeps
-
+    # Fare minus Senmi commission.
     driver_earning = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        default=0,
+        default=Decimal("0.00"),
     )
 
-    # Cash ride
+    # ========================================================
+    # CUSTOMER → DRIVER PAYMENT
+    #
+    # IMPORTANT:
+    # This is NOT a Senmi Paystack payment.
+    #
+    # Customer pays driver directly.
+    # ========================================================
 
     payment_method = models.CharField(
         max_length=20,
-        choices=[
-            ("cash", "Cash"),
-        ],
+        choices=PAYMENT_METHOD_CHOICES,
         default="cash",
     )
 
-    # Whether the driver has paid Senmi's commission
+    # --------------------------------------------------------
+    # OPTIONAL PAYMENT RECORD
+    #
+    # These fields only record the external customer→driver
+    # payment status/reference.
+    #
+    # They are NOT Paystack commission fields.
+    # --------------------------------------------------------
+
+    payment_status = models.CharField(
+        max_length=20,
+        choices=PAYMENT_STATUS_CHOICES,
+        default="pending",
+    )
+
+    payment_reference = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+    )
+
+    payment_paid_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    # ========================================================
+    # DRIVER → SENMI COMMISSION
+    # ========================================================
 
     commission_paid = models.BooleanField(
-        default=False,
+        default=False
     )
 
     commission_paid_at = models.DateTimeField(
         null=True,
         blank=True,
     )
+
+    # ========================================================
+    # RIDE STATUS
+    # ========================================================
 
     status = models.CharField(
         max_length=20,
@@ -279,11 +378,11 @@ class RideRequest(models.Model):
     )
 
     created_at = models.DateTimeField(
-        auto_now_add=True,
+        auto_now_add=True
     )
 
     updated_at = models.DateTimeField(
-        auto_now=True,
+        auto_now=True
     )
 
     completed_at = models.DateTimeField(
@@ -331,14 +430,17 @@ class RideTracking(models.Model):
     longitude = models.FloatField()
 
     timestamp = models.DateTimeField(
-        auto_now_add=True,
+        auto_now_add=True
     )
 
     class Meta:
         ordering = ["-timestamp"]
 
     def __str__(self):
-        return f"{self.ride.ride_id} - {self.timestamp}"
+        return (
+            f"{self.ride.ride_id} - "
+            f"{self.timestamp}"
+        )
 
 
 # ============================================================
@@ -367,19 +469,22 @@ class RideRating(models.Model):
     rating = models.IntegerField()
 
     comment = models.TextField(
-        blank=True,
+        blank=True
     )
 
     created_at = models.DateTimeField(
-        auto_now_add=True,
+        auto_now_add=True
     )
 
     def __str__(self):
-        return f"{self.ride.ride_id} - {self.rating}/5"
+        return (
+            f"{self.ride.ride_id} - "
+            f"{self.rating}/5"
+        )
 
 
 # ============================================================
-# RIDE COMMISSION PAYMENT
+# DRIVER → SENMI COMMISSION PAYMENT
 # ============================================================
 
 class RideCommissionPayment(models.Model):
@@ -389,6 +494,13 @@ class RideCommissionPayment(models.Model):
         ("paid", "Paid"),
         ("failed", "Failed"),
         ("cancelled", "Cancelled"),
+    ]
+
+    PAYMENT_METHOD_CHOICES = [
+        ("card", "Card"),
+        ("bank", "Bank"),
+        ("bank_transfer", "Bank Transfer"),
+        ("ussd", "USSD"),
     ]
 
     driver = models.ForeignKey(
@@ -405,19 +517,34 @@ class RideCommissionPayment(models.Model):
         related_name="commission_payments",
     )
 
+    # Amount driver owes Senmi.
     amount = models.DecimalField(
         max_digits=12,
         decimal_places=2,
     )
 
-    # Paystack transaction/reference
+    # Driver → Senmi payment method through Paystack.
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PAYMENT_METHOD_CHOICES,
+        default="card",
+    )
 
+    # Paystack transaction reference.
     reference = models.CharField(
         max_length=100,
         unique=True,
     )
 
+    # Paystack checkout URL.
     payment_url = models.URLField(
+        blank=True,
+        null=True,
+    )
+
+    # Paystack access code.
+    access_code = models.CharField(
+        max_length=100,
         blank=True,
         null=True,
     )
@@ -434,11 +561,11 @@ class RideCommissionPayment(models.Model):
     )
 
     created_at = models.DateTimeField(
-        auto_now_add=True,
+        auto_now_add=True
     )
 
     updated_at = models.DateTimeField(
-        auto_now=True,
+        auto_now=True
     )
 
     def __str__(self):
@@ -450,7 +577,7 @@ class RideCommissionPayment(models.Model):
 
 
 # ============================================================
-# RIDE COMMISSION TRANSACTION
+# COMMISSION TRANSACTION
 # ============================================================
 
 class RideCommissionTransaction(models.Model):
@@ -472,13 +599,14 @@ class RideCommissionTransaction(models.Model):
         decimal_places=2,
     )
 
+    # Internal transaction reference.
     reference = models.CharField(
         max_length=100,
         unique=True,
     )
 
     created_at = models.DateTimeField(
-        auto_now_add=True,
+        auto_now_add=True
     )
 
     def __str__(self):
@@ -487,109 +615,6 @@ class RideCommissionTransaction(models.Model):
             f"₦{self.amount}"
         )
 
-
-# ============================================================
-# RIDE DRIVER WITHDRAWAL
-# ============================================================
-
-class RideWithdrawal(models.Model):
-
-    STATUS_CHOICES = [
-        ("pending", "Pending"),
-        ("approved", "Approved"),
-        ("rejected", "Rejected"),
-        ("success", "Success"),
-        ("failed", "Failed"),
-    ]
-
-    driver = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="ride_withdrawals",
-    )
-
-    amount = models.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-    )
-
-    status = models.CharField(
-        max_length=20,
-        choices=STATUS_CHOICES,
-        default="pending",
-    )
-
-    reference = models.CharField(
-        max_length=100,
-        unique=True,
-        null=True,
-        blank=True,
-    )
-
-    failure_reason = models.TextField(
-        blank=True,
-        null=True,
-    )
-
-    paid_at = models.DateTimeField(
-        null=True,
-        blank=True,
-    )
-
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-    )
-
-    updated_at = models.DateTimeField(
-        auto_now=True,
-    )
-
-    def __str__(self):
-        return (
-            f"{self.driver.username} - "
-            f"₦{self.amount} - "
-            f"{self.status}"
-        )
-
-
-# ============================================================
-# RIDE DRIVER BANK
-# ============================================================
-
-class RideBank(models.Model):
-
-    driver = models.OneToOneField(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="ride_bank",
-    )
-
-    account_name = models.CharField(
-        max_length=255,
-    )
-
-    account_number = models.CharField(
-        max_length=20,
-    )
-
-    bank_name = models.CharField(
-        max_length=100,
-    )
-
-    bank_code = models.CharField(
-        max_length=20,
-    )
-
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-    )
-
-    updated_at = models.DateTimeField(
-        auto_now=True,
-    )
-
-    def __str__(self):
-        return self.account_name
 
 
 # ============================================================
@@ -606,33 +631,34 @@ class RidePricingConfig(models.Model):
     base_fare = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        default=0,
+        default=Decimal("0.00"),
     )
 
     per_km_rate = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        default=0,
+        default=Decimal("0.00"),
     )
 
     per_minute_rate = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        default=0,
+        default=Decimal("0.00"),
     )
 
+    # This is the driver's commission/service fee percentage.
     service_fee_percentage = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        default=0,
+        default=Decimal("0.00"),
     )
 
     is_active = models.BooleanField(
-        default=True,
+        default=True
     )
 
     updated_at = models.DateTimeField(
-        auto_now=True,
+        auto_now=True
     )
 
     def __str__(self):
