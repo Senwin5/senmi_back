@@ -4889,6 +4889,9 @@ def calculate_price_view(request):
 
         price = calculate_price(distance)
 
+        print("DISTANCE:", distance)
+        print("PRICE:", price)
+
         return Response({
             "distance_km": round(distance, 2),
             "price": float(price),
