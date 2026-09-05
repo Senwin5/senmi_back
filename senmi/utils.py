@@ -516,12 +516,10 @@ def email_admin_withdrawal_request(withdrawal):
     
 
 
-    
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal
 from math import atan2, cos, radians, sin, sqrt
 
 from django.conf import settings
-from django.utils import timezone
 
 from .models import PricingConfig
 
@@ -552,21 +550,6 @@ def get_active_pricing():
     )
 
 
-def get_time_multiplier(config):
-    hour = timezone.localtime().hour
-
-    if 6 <= hour < 11:
-        return config.morning_multiplier
-
-    if 11 <= hour < 15:
-        return config.afternoon_multiplier
-
-    if 15 <= hour < 22:
-        return config.evening_multiplier
-
-    return config.night_multiplier
-
-
 def calculate_price(distance_km):
     distance_km = Decimal(str(distance_km))
 
@@ -579,15 +562,12 @@ def calculate_price(distance_km):
         base_fee = config.base_fee
         per_km_rate = config.per_km_rate
         fuel_multiplier = config.fuel_multiplier
-        time_multiplier = get_time_multiplier(config)
-
     else:
         base_fee = Decimal(str(settings.BASE_FEE))
         per_km_rate = Decimal(str(settings.PER_KM_RATE))
         fuel_multiplier = Decimal(
             str(settings.FUEL_MULTIPLIER)
         )
-        time_multiplier = Decimal("1.00")
 
     distance_cost = distance_km * per_km_rate
 
@@ -595,15 +575,4 @@ def calculate_price(distance_km):
         base_fee + distance_cost
     ) * fuel_multiplier
 
-    fare *= time_multiplier
-
-    # Round to nearest ₦50
-    fare = (
-        fare / Decimal("50")
-    ).quantize(
-        Decimal("1"),
-        rounding=ROUND_HALF_UP
-    ) * Decimal("50")
-
     return fare
-
