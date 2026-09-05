@@ -4856,7 +4856,6 @@ class LogoutView(APIView):
 
 
 
-
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def calculate_price_view(request):
@@ -4873,9 +4872,7 @@ def calculate_price_view(request):
             delivery_lng,
         ):
             if not (-180 <= value <= 180):
-                raise ValueError(
-                    "Invalid coordinate value."
-                )
+                raise ValueError("Invalid coordinate value.")
 
         if not (-90 <= pickup_lat <= 90):
             raise ValueError("Invalid pickup latitude.")
