@@ -661,26 +661,26 @@ class RidePricingConfig(models.Model):
     base_fare = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        default=Decimal("0.00"),
+        default=Decimal("1500.00"),
     )
 
     per_km_rate = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        default=Decimal("0.00"),
+        default=Decimal("350.00"),
     )
 
     per_minute_rate = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        default=Decimal("0.00"),
+        default=Decimal("30.00"),
     )
 
-    # This is the driver's commission/service fee percentage.
+    # Senmi takes 15%, driver keeps 85%.
     service_fee_percentage = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        default=Decimal("0.00"),
+        default=Decimal("15.00"),
     )
 
     is_active = models.BooleanField(

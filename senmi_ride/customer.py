@@ -87,8 +87,14 @@ class CreateRideView(APIView):
         # FIND AND NOTIFY NEAREST DRIVERS
         # ========================================================
 
-        notify_nearest_drivers(ride)
-
+        transaction.on_commit(
+            lambda ride_id=ride.ride_id:
+                notify_nearest_drivers(
+                    RideRequest.objects.get(
+                        ride_id=ride_id
+                    )
+                )
+        )
 
         return Response(
             RideRequestSerializer(ride).data,

@@ -221,6 +221,30 @@ RIDE_MAX_DRIVERS_TO_NOTIFY = 20
 RIDE_DRIVER_LOCATION_MAX_AGE_MINUTES = 15
 
 
+# ============================================================
+# RIDE DRIVER PRICING FALL BACK
+# ============================================================
+
+RIDE_BASE_FARE = Decimal(
+    os.getenv("RIDE_BASE_FARE", "1500")
+)
+
+RIDE_PER_KM_RATE = Decimal(
+    os.getenv("RIDE_PER_KM_RATE", "350")
+)
+
+RIDE_PER_MINUTE_RATE = Decimal(
+    os.getenv("RIDE_PER_MINUTE_RATE", "30")
+)
+
+RIDE_SERVICE_FEE_PERCENTAGE = Decimal(
+    os.getenv(
+        "RIDE_SERVICE_FEE_PERCENTAGE",
+        "15",
+    )
+)
+
+
 # service_fee  rate applied to all packages (e.g., 5%)
 COMMISSION_RATE = float(os.getenv("COMMISSION_RATE", 0.05))  
 
