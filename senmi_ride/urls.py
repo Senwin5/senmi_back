@@ -1,9 +1,11 @@
 from django.urls import path
 
+# ============================================================
+# CORE RIDE VIEWS
+# ============================================================
+
 from .views import (
     RideDriverProfileView,
-    CreateRideView,
-    PassengerActiveRidesView,
     AvailableRidesView,
     AcceptRideView,
     DriverActiveRidesView,
@@ -13,7 +15,29 @@ from .views import (
     RideDriverWalletView,
     RideCommissionPaymentView,
     VerifyRideCommissionPaymentView,
+)
 
+
+# ============================================================
+# CUSTOMER RIDE VIEWS
+# ============================================================
+
+from .customer import (
+    CreateRideView,
+    PassengerActiveRidesView,
+    PassengerRideDetailView,
+    PassengerCancelRideView,
+)
+
+
+# ============================================================
+# DRIVER VIEWS
+# ============================================================
+
+from .driver import (
+    DriverOnlineStatusView,
+    DriverAvailabilityLocationView,
+    DriverCancelRideView,
 )
 
 
@@ -26,45 +50,83 @@ urlpatterns = [
     path(
         "driver/profile/",
         RideDriverProfileView.as_view(),
-        name="ride-driver-profile"
+        name="ride-driver-profile",
     ),
 
     # ========================================================
-    # PASSENGER RIDES
+    # DRIVER ONLINE / OFFLINE
+    # ========================================================
+
+    path(
+        "driver/online/",
+        DriverOnlineStatusView.as_view(),
+        name="ride-driver-online",
+    ),
+
+    # ========================================================
+    # DRIVER GPS AVAILABILITY
+    # ========================================================
+
+    path(
+        "driver/location/",
+        DriverAvailabilityLocationView.as_view(),
+        name="ride-driver-location",
+    ),
+
+    # ========================================================
+    # PASSENGER
     # ========================================================
 
     path(
         "rides/create/",
         CreateRideView.as_view(),
-        name="create-ride"
+        name="create-ride",
     ),
 
     path(
         "rides/passenger/active/",
         PassengerActiveRidesView.as_view(),
-        name="passenger-active-rides"
+        name="passenger-active-rides",
+    ),
+
+    path(
+        "rides/<str:ride_id>/",
+        PassengerRideDetailView.as_view(),
+        name="passenger-ride-detail",
+    ),
+
+    path(
+        "rides/<str:ride_id>/cancel/",
+        PassengerCancelRideView.as_view(),
+        name="passenger-cancel-ride",
     ),
 
     # ========================================================
-    # DRIVER RIDES
+    # DRIVER
     # ========================================================
 
     path(
         "rides/available/",
         AvailableRidesView.as_view(),
-        name="available-rides"
+        name="available-rides",
     ),
 
     path(
         "rides/<str:ride_id>/accept/",
         AcceptRideView.as_view(),
-        name="accept-ride"
+        name="accept-ride",
     ),
 
     path(
         "rides/driver/active/",
         DriverActiveRidesView.as_view(),
-        name="driver-active-rides"
+        name="driver-active-rides",
+    ),
+
+    path(
+        "rides/<str:ride_id>/driver-cancel/",
+        DriverCancelRideView.as_view(),
+        name="driver-cancel-ride",
     ),
 
     # ========================================================
@@ -74,17 +136,17 @@ urlpatterns = [
     path(
         "rides/<str:ride_id>/status/",
         UpdateRideStatusView.as_view(),
-        name="update-ride-status"
+        name="update-ride-status",
     ),
 
     # ========================================================
-    # RIDE TRACKING
+    # TRACKING
     # ========================================================
 
     path(
         "rides/<str:ride_id>/tracking/",
         RideTrackingView.as_view(),
-        name="ride-tracking"
+        name="ride-tracking",
     ),
 
     # ========================================================
@@ -94,17 +156,17 @@ urlpatterns = [
     path(
         "rides/<str:ride_id>/rating/",
         RideRatingView.as_view(),
-        name="ride-rating"
+        name="ride-rating",
     ),
 
     # ========================================================
-    # DRIVER WALLET
+    # WALLET
     # ========================================================
 
     path(
         "driver/wallet/",
         RideDriverWalletView.as_view(),
-        name="ride-driver-wallet"
+        name="ride-driver-wallet",
     ),
 
     # ========================================================
@@ -114,17 +176,12 @@ urlpatterns = [
     path(
         "commission/pay/",
         RideCommissionPaymentView.as_view(),
-        name="ride-commission-pay"
+        name="ride-commission-pay",
     ),
-
-    # ========================================================
-    # VERIFY PAYSTACK COMMISSION
-    # ========================================================
 
     path(
         "commission/verify/<str:reference>/",
         VerifyRideCommissionPaymentView.as_view(),
-        name="verify-ride-commission"
+        name="verify-ride-commission",
     ),
-
 ]

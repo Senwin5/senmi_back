@@ -175,6 +175,36 @@ class RideDriverProfile(models.Model):
         return f"{self.driver_id} - {self.full_name}"
 
 
+
+# ============================================================
+# DRIVER AVAILABILITY LOCATION
+# ============================================================
+
+class RideDriverAvailability(models.Model):
+
+    driver = models.OneToOneField(
+        RideDriverProfile,
+        on_delete=models.CASCADE,
+        related_name="availability",
+    )
+
+    latitude = models.FloatField()
+
+    longitude = models.FloatField()
+
+    updated_at = models.DateTimeField(
+        auto_now=True
+    )
+
+    def __str__(self):
+        return (
+            f"{self.driver.driver_id} - "
+            f"{self.latitude}, "
+            f"{self.longitude}"
+        )
+
+
+    
 # ============================================================
 # RIDE DRIVER WALLET
 # ============================================================

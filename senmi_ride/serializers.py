@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from .models import (
+    RideDriverAvailability,
     RideDriverProfile,
     RideRequest,
     RideTracking,
@@ -236,7 +237,7 @@ class RideDriverWalletSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "driver",
-            "balance",
+            "commission_balance",
             "total_commission_paid",
         ]
 
@@ -312,4 +313,37 @@ class RideCommissionTransactionSerializer(
             "amount",
             "reference",
             "created_at",
+        ]
+
+
+# ============================================================
+# DRIVER AVAILABILITY
+# ============================================================
+
+class RideDriverAvailabilitySerializer(
+    serializers.ModelSerializer
+):
+
+    driver_id = serializers.CharField(
+        source="driver.driver_id",
+        read_only=True
+    )
+
+    class Meta:
+        model = RideDriverAvailability
+
+        fields = [
+            "id",
+            "driver",
+            "driver_id",
+            "latitude",
+            "longitude",
+            "updated_at",
+        ]
+
+        read_only_fields = [
+            "id",
+            "driver",
+            "driver_id",
+            "updated_at",
         ]

@@ -209,6 +209,18 @@ CSRF_COOKIE_SECURE = True
 TIME_ZONE = 'Africa/Lagos'
 USE_TZ = True
 
+
+# ============================================================
+# RIDE DRIVER MATCHING
+# ============================================================
+
+RIDE_MATCHING_RADIUS_KM = 15
+
+RIDE_MAX_DRIVERS_TO_NOTIFY = 20
+
+RIDE_DRIVER_LOCATION_MAX_AGE_MINUTES = 15
+
+
 # service_fee  rate applied to all packages (e.g., 5%)
 COMMISSION_RATE = float(os.getenv("COMMISSION_RATE", 0.05))  
 

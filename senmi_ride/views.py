@@ -1,16 +1,10 @@
-import hashlib
-import hmac
-import json
 import uuid
 
 from decimal import Decimal
 
-from django.conf import settings
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -18,6 +12,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 
 from .models import (
+    RideDriverAvailability,
     RideDriverProfile,
     RideRequest,
     RideTracking,
@@ -28,6 +23,7 @@ from .models import (
 )
 
 from .serializers import (
+    RideDriverAvailabilitySerializer,
     RideDriverProfileSerializer,
     RideRequestSerializer,
     RideTrackingSerializer,
@@ -36,9 +32,13 @@ from .serializers import (
 )
 
 from .utils import (
-    calculate_ride_fare,
     initialize_ride_commission_payment,
     verify_ride_commission_payment,
+)
+
+from .matching import (
+    calculate_distance_km,
+    MATCHING_RADIUS_KM,
 )
 
 
@@ -54,27 +54,30 @@ class RideDriverProfileView(APIView):
 
         profile = get_object_or_404(
             RideDriverProfile,
-            user=request.user
+            user=request.user,
         )
 
         serializer = RideDriverProfileSerializer(
             profile,
-            context={"request": request}
+            context={"request": request},
         )
 
-        return Response(serializer.data)
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK,
+        )
 
     def put(self, request):
 
         profile = get_object_or_404(
             RideDriverProfile,
-            user=request.user
+            user=request.user,
         )
 
         serializer = RideDriverProfileSerializer(
             profile,
             data=request.data,
-            context={"request": request}
+            context={"request": request},
         )
 
         if serializer.is_valid():
@@ -83,127 +86,30 @@ class RideDriverProfileView(APIView):
 
             return Response(
                 serializer.data,
-                status=status.HTTP_200_OK
+                status=status.HTTP_200_OK,
             )
 
         return Response(
             serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-
-# ============================================================
-# CREATE RIDE
-#
-# CUSTOMER → DRIVER
-#
-# Customer chooses:
-# cash
-# card
-# bank_transfer
-#
-# No Paystack payment happens here.
-# ============================================================
-
-class CreateRideView(APIView):
-
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-
-        serializer = RideRequestSerializer(
-            data=request.data
-        )
-
-        if not serializer.is_valid():
-
-            return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        validated_data = serializer.validated_data
-
-        distance = validated_data.get(
-            "estimated_distance_km"
-        )
-
-        duration = validated_data.get(
-            "estimated_duration_minutes"
-        )
-
-        try:
-
-            (
-                fare,
-                service_fee,
-                driver_earning,
-            ) = calculate_ride_fare(
-                distance,
-                duration,
-            )
-
-        except ValueError as exc:
-
-            return Response(
-                {
-                    "detail": str(exc)
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        ride = serializer.save(
-            passenger=request.user,
-            fare=fare,
-            service_fee=service_fee,
-            driver_earning=driver_earning,
-            payment_status="pending",
-        )
-
-        return Response(
-            RideRequestSerializer(
-                ride
-            ).data,
-            status=status.HTTP_201_CREATED
-        )
-
-
-# ============================================================
-# PASSENGER ACTIVE RIDES
-# ============================================================
-
-class PassengerActiveRidesView(APIView):
-
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-
-        rides = (
-            RideRequest.objects
-            .filter(
-                passenger=request.user,
-                status__in=[
-                    "pending",
-                    "accepted",
-                    "arrived",
-                    "started",
-                ]
-            )
-            .order_by("-created_at")
-        )
-
-        serializer = RideRequestSerializer(
-            rides,
-            many=True
-        )
-
-        return Response(
-            serializer.data
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
 
 # ============================================================
 # AVAILABLE RIDES
+#
+# This is the driver's fallback HTTP list.
+#
+# Primary matching:
+#
+# customer creates ride
+#        ↓
+# matching.py
+#        ↓
+# nearest drivers notified
+#
+# This endpoint lets an online driver manually refresh
+# nearby pending rides.
 # ============================================================
 
 class AvailableRidesView(APIView):
@@ -214,8 +120,12 @@ class AvailableRidesView(APIView):
 
         profile = get_object_or_404(
             RideDriverProfile,
-            user=request.user
+            user=request.user,
         )
+
+        # ----------------------------------------------------
+        # DRIVER MUST BE APPROVED
+        # ----------------------------------------------------
 
         if profile.status != "approved":
 
@@ -225,8 +135,12 @@ class AvailableRidesView(APIView):
                         "Your ride driver account "
                         "is not approved."
                 },
-                status=status.HTTP_403_FORBIDDEN
+                status=status.HTTP_403_FORBIDDEN,
             )
+
+        # ----------------------------------------------------
+        # DRIVER MUST BE ONLINE
+        # ----------------------------------------------------
 
         if not profile.is_online:
 
@@ -236,8 +150,21 @@ class AvailableRidesView(APIView):
                         "You must be online to "
                         "view available rides."
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
+
+        # ----------------------------------------------------
+        # DRIVER LOCATION REQUIRED
+        # ----------------------------------------------------
+
+        availability = get_object_or_404(
+            RideDriverAvailability,
+            driver=profile,
+        )
+
+        # ----------------------------------------------------
+        # GET PENDING RIDES
+        # ----------------------------------------------------
 
         rides = (
             RideRequest.objects
@@ -248,28 +175,75 @@ class AvailableRidesView(APIView):
             .order_by("-created_at")
         )
 
-        serializer = RideRequestSerializer(
-            rides,
-            many=True
+        results = []
+
+        # ----------------------------------------------------
+        # CALCULATE DISTANCE FOR THIS DRIVER
+        # ----------------------------------------------------
+
+        for ride in rides:
+
+            try:
+
+                distance = calculate_distance_km(
+
+                    availability.latitude,
+                    availability.longitude,
+
+                    ride.pickup_lat,
+                    ride.pickup_lng,
+
+                )
+
+            except (
+                TypeError,
+                ValueError,
+            ):
+
+                continue
+
+            # ------------------------------------------------
+            # USE SAME MATCHING RADIUS AS matching.py
+            # ------------------------------------------------
+
+            if distance <= MATCHING_RADIUS_KM:
+
+                data = RideRequestSerializer(
+                    ride
+                ).data
+
+                data["driver_distance_km"] = round(
+                    distance,
+                    2,
+                )
+
+                results.append(data)
+
+        # ----------------------------------------------------
+        # NEAREST FIRST
+        # ----------------------------------------------------
+
+        results.sort(
+            key=lambda item:
+                item["driver_distance_km"]
         )
 
         return Response(
-            serializer.data
+            results,
+            status=status.HTTP_200_OK,
         )
 
 
 # ============================================================
 # ACCEPT RIDE
 #
-# IMPORTANT:
+# Customer has created the ride.
 #
-# We do NOT check the customer's payment method.
+# Multiple drivers may receive the request.
 #
-# Cash is allowed.
-# Card is allowed.
-# Bank transfer is allowed.
+# ONLY ONE DRIVER CAN WIN.
 #
-# Driver commission is paid separately after the ride.
+# select_for_update() locks the RideRequest row.
 # ============================================================
 
 class AcceptRideView(APIView):
@@ -279,9 +253,13 @@ class AcceptRideView(APIView):
     @transaction.atomic
     def post(self, request, ride_id):
 
+        # ----------------------------------------------------
+        # VERIFY DRIVER
+        # ----------------------------------------------------
+
         profile = get_object_or_404(
             RideDriverProfile,
-            user=request.user
+            user=request.user,
         )
 
         if profile.status != "approved":
@@ -292,7 +270,7 @@ class AcceptRideView(APIView):
                         "Your ride driver account "
                         "is not approved."
                 },
-                status=status.HTTP_403_FORBIDDEN
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         if not profile.is_online:
@@ -303,13 +281,21 @@ class AcceptRideView(APIView):
                         "You must be online to "
                         "accept a ride."
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
+
+        # ----------------------------------------------------
+        # LOCK RIDE
+        # ----------------------------------------------------
 
         ride = get_object_or_404(
             RideRequest.objects.select_for_update(),
-            ride_id=ride_id
+            ride_id=ride_id,
         )
+
+        # ----------------------------------------------------
+        # RIDE MUST STILL BE PENDING
+        # ----------------------------------------------------
 
         if ride.status != "pending":
 
@@ -318,20 +304,29 @@ class AcceptRideView(APIView):
                     "detail":
                         "This ride is no longer available."
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if ride.driver is not None:
+        # ----------------------------------------------------
+        # RIDE MUST NOT ALREADY HAVE DRIVER
+        # ----------------------------------------------------
+
+        if ride.driver_id is not None:
 
             return Response(
                 {
                     "detail":
                         "This ride has already been accepted."
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # ----------------------------------------------------
+        # ASSIGN DRIVER
+        # ----------------------------------------------------
+
         ride.driver = request.user
+
         ride.status = "accepted"
 
         ride.save(
@@ -346,7 +341,7 @@ class AcceptRideView(APIView):
             RideRequestSerializer(
                 ride
             ).data,
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
 
 
@@ -368,18 +363,21 @@ class DriverActiveRidesView(APIView):
                     "accepted",
                     "arrived",
                     "started",
-                ]
+                ],
+            )
+            .select_related(
+                "passenger",
+                "driver",
             )
             .order_by("-created_at")
         )
 
-        serializer = RideRequestSerializer(
-            rides,
-            many=True
-        )
-
         return Response(
-            serializer.data
+            RideRequestSerializer(
+                rides,
+                many=True,
+            ).data,
+            status=status.HTTP_200_OK,
         )
 
 
@@ -391,7 +389,20 @@ class UpdateRideStatusView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    ALLOWED_TRANSITIONS = {
+    # --------------------------------------------------------
+    # DRIVER
+    #
+    # accepted → arrived
+    # accepted → cancelled
+    #
+    # arrived → started
+    # arrived → cancelled
+    #
+    # started → completed
+    # started → cancelled
+    # --------------------------------------------------------
+
+    DRIVER_TRANSITIONS = {
 
         "accepted": [
             "arrived",
@@ -405,26 +416,47 @@ class UpdateRideStatusView(APIView):
 
         "started": [
             "completed",
+            "cancelled",
         ],
     }
 
+    # --------------------------------------------------------
+    # CUSTOMER
+    #
+    # pending → cancelled
+    # accepted → cancelled
+    # arrived → cancelled
+    #
+    # STARTED:
+    # customer CANNOT cancel.
+    # --------------------------------------------------------
+
+    CUSTOMER_TRANSITIONS = {
+
+        "pending": [
+            "cancelled",
+        ],
+
+        "accepted": [
+            "cancelled",
+        ],
+
+        "arrived": [
+            "cancelled",
+        ],
+    }
+
+    @transaction.atomic
     def post(self, request, ride_id):
 
+        # ----------------------------------------------------
+        # LOCK RIDE
+        # ----------------------------------------------------
+
         ride = get_object_or_404(
-            RideRequest,
-            ride_id=ride_id
+            RideRequest.objects.select_for_update(),
+            ride_id=ride_id,
         )
-
-        if ride.driver_id != request.user.id:
-
-            return Response(
-                {
-                    "detail":
-                        "You are not the driver "
-                        "for this ride."
-                },
-                status=status.HTTP_403_FORBIDDEN
-            )
 
         new_status = request.data.get(
             "status"
@@ -437,57 +469,176 @@ class UpdateRideStatusView(APIView):
                     "detail":
                         "Status is required."
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        allowed = self.ALLOWED_TRANSITIONS.get(
-            ride.status,
-            []
-        )
+        # ====================================================
+        # CUSTOMER
+        # ====================================================
 
-        if new_status not in allowed:
+        if ride.passenger_id == request.user.id:
+
+            allowed = self.CUSTOMER_TRANSITIONS.get(
+                ride.status,
+                [],
+            )
+
+            if new_status not in allowed:
+
+                return Response(
+                    {
+                        "detail":
+                            f"Customer cannot change "
+                            f"ride from {ride.status} "
+                            f"to {new_status}."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            ride.status = new_status
+
+            if new_status == "cancelled":
+
+                ride.cancelled_at = timezone.now()
+
+                ride.save(
+                    update_fields=[
+                        "status",
+                        "cancelled_at",
+                        "updated_at",
+                    ]
+                )
+
+            else:
+
+                ride.save(
+                    update_fields=[
+                        "status",
+                        "updated_at",
+                    ]
+                )
 
             return Response(
-                {
-                    "detail":
-                        f"Cannot change ride from "
-                        f"{ride.status} to "
-                        f"{new_status}."
-                },
-                status=status.HTTP_400_BAD_REQUEST
+                RideRequestSerializer(
+                    ride
+                ).data,
+                status=status.HTTP_200_OK,
             )
 
-        ride.status = new_status
+        # ====================================================
+        # DRIVER
+        # ====================================================
 
-        if new_status == "completed":
+        if ride.driver_id == request.user.id:
 
-            ride.completed_at = timezone.now()
-
-            wallet, created = RideDriverWallet.objects.get_or_create(
-                driver=ride.driver
+            allowed = self.DRIVER_TRANSITIONS.get(
+                ride.status,
+                [],
             )
 
-            wallet.commission_balance += (
-                ride.service_fee or Decimal("0.00")
+            if new_status not in allowed:
+
+                return Response(
+                    {
+                        "detail":
+                            f"Driver cannot change "
+                            f"ride from {ride.status} "
+                            f"to {new_status}."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # ------------------------------------------------
+            # COMPLETE
+            # ------------------------------------------------
+
+            if new_status == "completed":
+
+                ride.status = "completed"
+
+                ride.completed_at = timezone.now()
+
+                ride.save(
+                    update_fields=[
+                        "status",
+                        "completed_at",
+                        "updated_at",
+                    ]
+                )
+
+                # --------------------------------------------
+                # ADD COMMISSION OWED TO DRIVER WALLET
+                # --------------------------------------------
+
+                wallet, created = (
+                    RideDriverWallet.objects
+                    .select_for_update()
+                    .get_or_create(
+                        driver=ride.driver
+                    )
+                )
+
+                wallet.commission_balance += (
+                    ride.service_fee
+                    or Decimal("0.00")
+                )
+
+                wallet.save(
+                    update_fields=[
+                        "commission_balance",
+                    ]
+                )
+
+            # ------------------------------------------------
+            # CANCEL
+            # ------------------------------------------------
+
+            elif new_status == "cancelled":
+
+                ride.status = "cancelled"
+
+                ride.cancelled_at = timezone.now()
+
+                ride.save(
+                    update_fields=[
+                        "status",
+                        "cancelled_at",
+                        "updated_at",
+                    ]
+                )
+
+            # ------------------------------------------------
+            # ARRIVED / STARTED
+            # ------------------------------------------------
+
+            else:
+
+                ride.status = new_status
+
+                ride.save(
+                    update_fields=[
+                        "status",
+                        "updated_at",
+                    ]
+                )
+
+            return Response(
+                RideRequestSerializer(
+                    ride
+                ).data,
+                status=status.HTTP_200_OK,
             )
 
-            wallet.save(
-                update_fields=[
-                    "commission_balance",
-                ]
-            )
-
-        elif new_status == "cancelled":
-
-            ride.cancelled_at = timezone.now()
-
-        ride.save()
+        # ====================================================
+        # NOT PART OF RIDE
+        # ====================================================
 
         return Response(
-            RideRequestSerializer(
-                ride
-            ).data,
-            status=status.HTTP_200_OK
+            {
+                "detail":
+                    "You are not part of this ride."
+            },
+            status=status.HTTP_403_FORBIDDEN,
         )
 
 
@@ -499,12 +650,20 @@ class RideTrackingView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    # --------------------------------------------------------
+    # DRIVER POSTS LOCATION
+    # --------------------------------------------------------
+
     def post(self, request, ride_id):
 
         ride = get_object_or_404(
             RideRequest,
-            ride_id=ride_id
+            ride_id=ride_id,
         )
+
+        # ----------------------------------------------------
+        # ONLY ASSIGNED DRIVER
+        # ----------------------------------------------------
 
         if ride.driver_id != request.user.id:
 
@@ -514,16 +673,18 @@ class RideTrackingView(APIView):
                         "You are not the driver "
                         "for this ride."
                 },
-                status=status.HTTP_403_FORBIDDEN
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         serializer = RideTrackingSerializer(
             data={
                 "ride": ride.id,
+
                 "latitude":
                     request.data.get(
                         "latitude"
                     ),
+
                 "longitude":
                     request.data.get(
                         "longitude"
@@ -541,25 +702,29 @@ class RideTrackingView(APIView):
                 RideTrackingSerializer(
                     tracking
                 ).data,
-                status=status.HTTP_201_CREATED
+                status=status.HTTP_201_CREATED,
             )
 
         return Response(
             serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
+
+    # --------------------------------------------------------
+    # CUSTOMER / DRIVER GET TRACKING HISTORY
+    # --------------------------------------------------------
 
     def get(self, request, ride_id):
 
         ride = get_object_or_404(
             RideRequest,
-            ride_id=ride_id
+            ride_id=ride_id,
         )
 
-        # Only passenger or assigned driver can see tracking.
         if (
             ride.passenger_id != request.user.id
-            and ride.driver_id != request.user.id
+            and
+            ride.driver_id != request.user.id
         ):
 
             return Response(
@@ -567,22 +732,25 @@ class RideTrackingView(APIView):
                     "detail":
                         "You are not part of this ride."
                 },
-                status=status.HTTP_403_FORBIDDEN
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         tracking = (
             RideTracking.objects
-            .filter(ride=ride)
+            .filter(
+                ride=ride
+            )
             .order_by("-timestamp")
         )
 
         serializer = RideTrackingSerializer(
             tracking,
-            many=True
+            many=True,
         )
 
         return Response(
-            serializer.data
+            serializer.data,
+            status=status.HTTP_200_OK,
         )
 
 
@@ -598,7 +766,7 @@ class RideRatingView(APIView):
 
         ride = get_object_or_404(
             RideRequest,
-            ride_id=ride_id
+            ride_id=ride_id,
         )
 
         if ride.passenger_id != request.user.id:
@@ -609,7 +777,7 @@ class RideRatingView(APIView):
                         "Only the passenger can "
                         "rate this ride."
                 },
-                status=status.HTTP_403_FORBIDDEN
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         if ride.status != "completed":
@@ -620,7 +788,7 @@ class RideRatingView(APIView):
                         "You can only rate a "
                         "completed ride."
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         if not ride.driver:
@@ -630,7 +798,7 @@ class RideRatingView(APIView):
                     "detail":
                         "This ride has no driver."
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         if RideRating.objects.filter(
@@ -643,7 +811,7 @@ class RideRatingView(APIView):
                         "This ride has already "
                         "been rated."
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         rating_value = request.data.get(
@@ -661,7 +829,10 @@ class RideRatingView(APIView):
                 rating_value
             )
 
-        except (TypeError, ValueError):
+        except (
+            TypeError,
+            ValueError,
+        ):
 
             return Response(
                 {
@@ -669,7 +840,7 @@ class RideRatingView(APIView):
                         "Rating must be a number "
                         "from 1 to 5."
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         if rating_value < 1 or rating_value > 5:
@@ -680,7 +851,7 @@ class RideRatingView(APIView):
                         "Rating must be between "
                         "1 and 5."
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         rating = RideRating.objects.create(
@@ -695,7 +866,7 @@ class RideRatingView(APIView):
             RideRatingSerializer(
                 rating
             ).data,
-            status=status.HTTP_201_CREATED
+            status=status.HTTP_201_CREATED,
         )
 
 
@@ -716,15 +887,12 @@ class RideDriverWalletView(APIView):
             )
         )
 
-        serializer = RideDriverWalletSerializer(
-            wallet
-        )
-
         return Response(
-            serializer.data
+            RideDriverWalletSerializer(
+                wallet
+            ).data,
+            status=status.HTTP_200_OK,
         )
-
-
 
 
 # ============================================================
@@ -744,7 +912,7 @@ class RideCommissionPaymentView(APIView):
 
         payment_method = request.data.get(
             "payment_method",
-            "card"
+            "card",
         )
 
         if not ride_id:
@@ -754,7 +922,7 @@ class RideCommissionPaymentView(APIView):
                     "detail":
                         "ride_id is required."
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         allowed_methods = {
@@ -771,16 +939,16 @@ class RideCommissionPaymentView(APIView):
                     "detail":
                         "Invalid commission payment method."
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         ride = get_object_or_404(
             RideRequest.objects.select_for_update(),
-            ride_id=ride_id
+            ride_id=ride_id,
         )
 
         # ----------------------------------------------------
-        # ONLY DRIVER CAN PAY COMMISSION
+        # ONLY DRIVER
         # ----------------------------------------------------
 
         if ride.driver_id != request.user.id:
@@ -791,11 +959,11 @@ class RideCommissionPaymentView(APIView):
                         "You are not the driver "
                         "for this ride."
                 },
-                status=status.HTTP_403_FORBIDDEN
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         # ----------------------------------------------------
-        # RIDE MUST BE COMPLETED
+        # MUST BE COMPLETED
         # ----------------------------------------------------
 
         if ride.status != "completed":
@@ -806,7 +974,7 @@ class RideCommissionPaymentView(APIView):
                         "Commission can only be paid "
                         "after the ride is completed."
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         # ----------------------------------------------------
@@ -821,7 +989,7 @@ class RideCommissionPaymentView(APIView):
                         "Commission for this ride "
                         "has already been paid."
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         # ----------------------------------------------------
@@ -841,7 +1009,7 @@ class RideCommissionPaymentView(APIView):
                         "There is no commission "
                         "to pay for this ride."
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         # ----------------------------------------------------
@@ -861,8 +1029,6 @@ class RideCommissionPaymentView(APIView):
 
         if existing_payment:
 
-            # If user requests another method, update it
-            # before returning the existing payment.
             if (
                 existing_payment.payment_method
                 != payment_method
@@ -888,7 +1054,9 @@ class RideCommissionPaymentView(APIView):
                         ride.ride_id,
 
                     "amount":
-                        str(existing_payment.amount),
+                        str(
+                            existing_payment.amount
+                        ),
 
                     "payment_method":
                         existing_payment.payment_method,
@@ -905,11 +1073,11 @@ class RideCommissionPaymentView(APIView):
                     "status":
                         existing_payment.status,
                 },
-                status=status.HTTP_200_OK
+                status=status.HTTP_200_OK,
             )
 
         # ----------------------------------------------------
-        # GENERATE PAYSTACK REFERENCE
+        # CREATE REFERENCE
         # ----------------------------------------------------
 
         reference = (
@@ -918,7 +1086,7 @@ class RideCommissionPaymentView(APIView):
         )
 
         # ----------------------------------------------------
-        # CREATE PAYMENT RECORD
+        # CREATE PAYMENT
         # ----------------------------------------------------
 
         payment = RideCommissionPayment.objects.create(
@@ -952,7 +1120,7 @@ class RideCommissionPaymentView(APIView):
                     "detail":
                         str(exc)
                 },
-                status=status.HTTP_502_BAD_GATEWAY
+                status=status.HTTP_502_BAD_GATEWAY,
             )
 
         # ----------------------------------------------------
@@ -971,7 +1139,6 @@ class RideCommissionPaymentView(APIView):
             )
         )
 
-        # Paystack should return the same reference.
         returned_reference = (
             paystack_data.get(
                 "reference"
@@ -979,6 +1146,7 @@ class RideCommissionPaymentView(APIView):
         )
 
         if returned_reference:
+
             payment.reference = (
                 returned_reference
             )
@@ -1019,11 +1187,10 @@ class RideCommissionPaymentView(APIView):
                     payment.status,
 
                 "message":
-                    "Paystack commission payment initialized."
+                    "Paystack commission payment initialized.",
             },
-            status=status.HTTP_201_CREATED
+            status=status.HTTP_201_CREATED,
         )
-
 
 
 # ============================================================
@@ -1036,10 +1203,11 @@ def complete_ride_commission_payment(
 ):
 
     if payment.status == "paid":
+
         return payment
 
     # --------------------------------------------------------
-    # CHECK PAYSTACK AMOUNT
+    # EXPECTED PAYSTACK AMOUNT
     # --------------------------------------------------------
 
     expected_amount = int(
@@ -1066,27 +1234,26 @@ def complete_ride_commission_payment(
             )
 
     # --------------------------------------------------------
-    # GET DRIVER COMMISSION WALLET
-    #
-    # commission_balance =
-    # amount currently owed by driver to Senmi
-    #
-    # total_commission_paid =
-    # cumulative commission paid by driver
+    # LOCK DRIVER WALLET
     # --------------------------------------------------------
 
-    wallet, created = RideDriverWallet.objects.get_or_create(
-        driver=payment.driver
+    wallet, created = (
+        RideDriverWallet.objects
+        .select_for_update()
+        .get_or_create(
+            driver=payment.driver
+        )
     )
 
     # --------------------------------------------------------
-    # CHECK COMMISSION BALANCE
+    # DRIVER CANNOT PAY MORE THAN OWED
     # --------------------------------------------------------
 
     if wallet.commission_balance < payment.amount:
 
         raise ValueError(
-            "Commission balance is lower than the payment amount."
+            "Commission balance is lower than "
+            "the payment amount."
         )
 
     # --------------------------------------------------------
@@ -1096,6 +1263,7 @@ def complete_ride_commission_payment(
     now = timezone.now()
 
     payment.status = "paid"
+
     payment.paid_at = now
 
     payment.save(
@@ -1115,6 +1283,7 @@ def complete_ride_commission_payment(
     if ride:
 
         ride.commission_paid = True
+
         ride.commission_paid_at = now
 
         ride.save(
@@ -1126,39 +1295,40 @@ def complete_ride_commission_payment(
         )
 
     # --------------------------------------------------------
-    # CREATE TRANSACTION RECORD ONCE
+    # CREATE TRANSACTION ONCE
     # --------------------------------------------------------
 
     RideCommissionTransaction.objects.get_or_create(
+
         payment=payment,
+
         defaults={
-            "driver": payment.driver,
-            "amount": payment.amount,
-            "reference": (
-                "SENMI-RIDE-TXN-"
-                f"{uuid.uuid4().hex[:20].upper()}"
-            ),
-        }
+
+            "driver":
+                payment.driver,
+
+            "amount":
+                payment.amount,
+
+            "reference":
+                (
+                    "SENMI-RIDE-TXN-"
+                    f"{uuid.uuid4().hex[:20].upper()}"
+                ),
+        },
     )
 
     # --------------------------------------------------------
-    # UPDATE COMMISSION WALLET
-    #
-    # Example:
-    #
-    # Before payment:
-    # commission_balance = ₦3,000
-    #
-    # Driver pays ₦3,000
-    #
-    # After payment:
-    # commission_balance = ₦0
-    # total_commission_paid += ₦3,000
+    # REDUCE COMMISSION BALANCE
     # --------------------------------------------------------
 
-    wallet.commission_balance -= payment.amount
+    wallet.commission_balance -= (
+        payment.amount
+    )
 
-    wallet.total_commission_paid += payment.amount
+    wallet.total_commission_paid += (
+        payment.amount
+    )
 
     wallet.save(
         update_fields=[
@@ -1170,13 +1340,8 @@ def complete_ride_commission_payment(
     return payment
 
 
-
-
 # ============================================================
 # VERIFY DRIVER COMMISSION PAYMENT
-#
-# POST
-# /api/ride/commission/verify/<reference>/
 # ============================================================
 
 class VerifyRideCommissionPaymentView(APIView):
@@ -1188,7 +1353,7 @@ class VerifyRideCommissionPaymentView(APIView):
 
         payment = get_object_or_404(
             RideCommissionPayment.objects.select_for_update(),
-            reference=reference
+            reference=reference,
         )
 
         # ----------------------------------------------------
@@ -1202,7 +1367,7 @@ class VerifyRideCommissionPaymentView(APIView):
                     "detail":
                         "You cannot verify this payment."
                 },
-                status=status.HTTP_403_FORBIDDEN
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         # ----------------------------------------------------
@@ -1223,11 +1388,11 @@ class VerifyRideCommissionPaymentView(APIView):
                     "commission_paid":
                         True,
                 },
-                status=status.HTTP_200_OK
+                status=status.HTTP_200_OK,
             )
 
         # ----------------------------------------------------
-        # PAYSTACK VERIFICATION
+        # VERIFY PAYSTACK
         # ----------------------------------------------------
 
         try:
@@ -1245,11 +1410,11 @@ class VerifyRideCommissionPaymentView(APIView):
                     "detail":
                         str(exc)
                 },
-                status=status.HTTP_502_BAD_GATEWAY
+                status=status.HTTP_502_BAD_GATEWAY,
             )
 
         # ----------------------------------------------------
-        # PAYMENT FAILED / NOT COMPLETE
+        # NOT SUCCESSFUL
         # ----------------------------------------------------
 
         if not result["success"]:
@@ -1286,7 +1451,7 @@ class VerifyRideCommissionPaymentView(APIView):
                     "paystack_status":
                         paystack_status,
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         # ----------------------------------------------------
@@ -1309,11 +1474,11 @@ class VerifyRideCommissionPaymentView(APIView):
                         "Paystack reference does not "
                         "match this payment."
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         # ----------------------------------------------------
-        # COMPLETE
+        # COMPLETE PAYMENT
         # ----------------------------------------------------
 
         try:
@@ -1321,7 +1486,7 @@ class VerifyRideCommissionPaymentView(APIView):
             payment = (
                 complete_ride_commission_payment(
                     payment,
-                    paystack_data
+                    paystack_data,
                 )
             )
 
@@ -1332,7 +1497,7 @@ class VerifyRideCommissionPaymentView(APIView):
                     "detail":
                         str(exc)
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         transaction_record = (
@@ -1371,6 +1536,5 @@ class VerifyRideCommissionPaymentView(APIView):
                 "commission_paid":
                     True,
             },
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
-
