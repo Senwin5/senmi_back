@@ -17,7 +17,7 @@ from .utils import calculate_ride_fare
 
 
 # ============================================================
-#customer.py CREATE RIDE
+# customer.py CREATE RIDE
 # ============================================================
 
 class CreateRideView(APIView):
@@ -39,6 +39,19 @@ class CreateRideView(APIView):
 
         validated_data = serializer.validated_data
 
+        # ----------------------------------------------------
+        # BASIC IS THE DEFAULT
+        #
+        # Customer can choose:
+        # "basic"
+        # "premium"
+        # ----------------------------------------------------
+
+        service_type = validated_data.get(
+            "service_type",
+            "basic",
+        )
+
         distance = validated_data.get(
             "estimated_distance_km"
         )
@@ -56,6 +69,7 @@ class CreateRideView(APIView):
             ) = calculate_ride_fare(
                 distance,
                 duration,
+                service_type=service_type,
             )
 
         except ValueError as exc:
@@ -71,6 +85,9 @@ class CreateRideView(APIView):
 
             passenger=request.user,
 
+            # Save customer's Basic/Premium choice.
+            service_type=service_type,
+
             fare=fare,
 
             service_fee=service_fee,
@@ -81,7 +98,6 @@ class CreateRideView(APIView):
 
             status="pending",
         )
-
 
         # ========================================================
         # FIND AND NOTIFY NEAREST DRIVERS
@@ -311,3 +327,5 @@ class PassengerCancelRideView(APIView):
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+    

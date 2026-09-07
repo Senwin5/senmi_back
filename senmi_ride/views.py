@@ -100,16 +100,12 @@ class RideDriverProfileView(APIView):
 #
 # This is the driver's fallback HTTP list.
 #
-# Primary matching:
+# BASIC:
+#     All approved, online drivers can see Basic rides.
 #
-# customer creates ride
-#        ↓
-# matching.py
-#        ↓
-# nearest drivers notified
-#
-# This endpoint lets an online driver manually refresh
-# nearby pending rides.
+# PREMIUM:
+#     Only drivers with vehicle year 2012 or newer
+#     can see Premium rides.
 # ============================================================
 
 class AvailableRidesView(APIView):
@@ -182,6 +178,35 @@ class AvailableRidesView(APIView):
         # ----------------------------------------------------
 
         for ride in rides:
+
+            # ------------------------------------------------
+            # PREMIUM ELIGIBILITY
+            #
+            # Basic:
+            #     No vehicle-year restriction.
+            #
+            # Premium:
+            #     Driver must have 2012+ vehicle.
+            # ------------------------------------------------
+
+            if ride.service_type == "premium":
+
+                try:
+
+                    vehicle_year = int(
+                        profile.vehicle_year
+                    )
+
+                except (
+                    TypeError,
+                    ValueError,
+                ):
+
+                    continue
+
+                if vehicle_year < 2012:
+
+                    continue
 
             try:
 
@@ -320,6 +345,48 @@ class AcceptRideView(APIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        # ----------------------------------------------------
+        # PREMIUM DRIVER ELIGIBILITY
+        #
+        # Premium requires a 2012+ vehicle.
+        #
+        # Basic has no vehicle-year restriction.
+        # ----------------------------------------------------
+
+        if ride.service_type == "premium":
+
+            try:
+
+                vehicle_year = int(
+                    profile.vehicle_year
+                )
+
+            except (
+                TypeError,
+                ValueError,
+            ):
+
+                return Response(
+                    {
+                        "detail":
+                            "Your vehicle does not qualify "
+                            "for Premium rides."
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            if vehicle_year < 2012:
+
+                return Response(
+                    {
+                        "detail":
+                            "Your vehicle must be "
+                            "2012 or newer to accept "
+                            "Premium rides."
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
         # ----------------------------------------------------
         # ASSIGN DRIVER

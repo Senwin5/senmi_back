@@ -104,6 +104,15 @@ def find_nearest_drivers(ride):
         - have recent GPS location
         - be within matching radius
 
+    BASIC RIDE:
+
+        All eligible nearby drivers can receive the ride.
+
+    PREMIUM RIDE:
+
+        Only drivers with vehicle year 2012 or newer
+        can receive the ride.
+
     Returns:
 
         [
@@ -169,6 +178,54 @@ def find_nearest_drivers(ride):
 
     for availability in availabilities:
 
+        driver_profile = availability.driver
+
+
+        # ----------------------------------------------------
+        # PREMIUM DRIVER ELIGIBILITY
+        #
+        # BASIC:
+        #   No vehicle-year restriction.
+        #
+        # PREMIUM:
+        #   Vehicle must be 2012 or newer.
+        # ----------------------------------------------------
+
+        if ride.service_type == "premium":
+
+            try:
+
+                vehicle_year = int(
+                    driver_profile.vehicle_year
+                )
+
+            except (
+                TypeError,
+                ValueError,
+            ):
+
+                logger.info(
+                    "Driver %s is not eligible for "
+                    "Premium because vehicle year "
+                    "is invalid or missing.",
+                    driver_profile.driver_id,
+                )
+
+                continue
+
+
+            if vehicle_year < 2012:
+
+                logger.info(
+                    "Driver %s is not eligible for "
+                    "Premium. Vehicle year: %s.",
+                    driver_profile.driver_id,
+                    vehicle_year,
+                )
+
+                continue
+
+
         try:
 
             distance_km = calculate_distance_km(
@@ -188,7 +245,7 @@ def find_nearest_drivers(ride):
 
             logger.warning(
                 "Invalid GPS data for driver %s.",
-                availability.driver.driver_id,
+                driver_profile.driver_id,
             )
 
             continue
@@ -206,7 +263,7 @@ def find_nearest_drivers(ride):
         nearest_drivers.append({
 
             "driver":
-                availability.driver,
+                driver_profile,
 
             "distance_km":
                 round(distance_km, 2),
@@ -284,7 +341,7 @@ def notify_nearest_drivers(ride):
     if not nearest_drivers:
 
         logger.info(
-            "No nearby drivers found for ride %s.",
+            "No nearby eligible drivers found for ride %s.",
             ride.ride_id,
         )
 
@@ -429,6 +486,9 @@ def notify_nearest_drivers(ride):
                         "payment_method":
                             ride.payment_method,
 
+                        "service_type":
+                            ride.service_type,
+
                         "status":
                             ride.status,
 
@@ -486,9 +546,12 @@ def notify_nearest_drivers(ride):
 
         "Ride matching finished | "
         "ride=%s | "
+        "service_type=%s | "
         "drivers_notified=%s",
 
         ride.ride_id,
+
+        ride.service_type,
 
         len(notified_drivers),
 

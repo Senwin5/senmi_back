@@ -236,6 +236,7 @@ class RideDriverWallet(models.Model):
         )
 
 
+
 # ============================================================
 # RIDE REQUEST
 # ============================================================
@@ -261,6 +262,11 @@ class RideRequest(models.Model):
         ("pending", "Pending"),
         ("paid", "Paid"),
         ("failed", "Failed"),
+    ]
+
+    SERVICE_TYPE_CHOICES = [
+        ("basic", "Basic"),
+        ("premium", "Premium"),
     ]
 
     # ========================================================
@@ -290,6 +296,16 @@ class RideRequest(models.Model):
         unique=True,
         blank=True,
         editable=False,
+    )
+
+    # ========================================================
+    # RIDE SERVICE TYPE
+    # ========================================================
+
+    service_type = models.CharField(
+        max_length=20,
+        choices=SERVICE_TYPE_CHOICES,
+        default="basic",
     )
 
     # ========================================================
@@ -437,7 +453,7 @@ class RideRequest(models.Model):
     def __str__(self):
         return self.ride_id
 
-
+    
 # ============================================================
 # RIDE DRIVER TRACKING
 # ============================================================
@@ -683,6 +699,13 @@ class RidePricingConfig(models.Model):
         default=Decimal("15.00"),
     )
 
+    # Extra amount when customer chooses Premium.
+    premium_surcharge = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("400.00"),
+    )
+
     is_active = models.BooleanField(
         default=True
     )
@@ -693,3 +716,5 @@ class RidePricingConfig(models.Model):
 
     def __str__(self):
         return self.name
+
+

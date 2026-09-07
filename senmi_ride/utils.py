@@ -84,6 +84,7 @@ def get_active_ride_pricing():
 def calculate_ride_fare(
     distance_km,
     duration_minutes,
+    service_type="basic",
 ):
 
     pricing = get_active_ride_pricing()
@@ -96,16 +97,40 @@ def calculate_ride_fare(
         str(duration_minutes)
     )
 
+    # --------------------------------------------------------
+    # GENERAL / BASIC FARE
+    # --------------------------------------------------------
+
     fare = (
         pricing.base_fare
         + (distance * pricing.per_km_rate)
         + (duration * pricing.per_minute_rate)
     )
 
+    # --------------------------------------------------------
+    # PREMIUM
+    #
+    # Premium = Basic fare + Premium surcharge
+    #
+    # The default Premium surcharge is ₦400.
+    # --------------------------------------------------------
+
+    if service_type == "premium":
+
+        fare += pricing.premium_surcharge
+
     fare = fare.quantize(
         Decimal("0.01"),
         rounding=ROUND_HALF_UP,
     )
+
+    # --------------------------------------------------------
+    # SENMI SERVICE FEE
+    #
+    # Current setting:
+    # 15% Senmi
+    # 85% driver
+    # --------------------------------------------------------
 
     service_fee = (
         fare
@@ -117,6 +142,10 @@ def calculate_ride_fare(
         Decimal("0.01"),
         rounding=ROUND_HALF_UP,
     )
+
+    # --------------------------------------------------------
+    # DRIVER EARNING
+    # --------------------------------------------------------
 
     driver_earning = (
         fare - service_fee

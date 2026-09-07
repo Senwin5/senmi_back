@@ -112,6 +112,9 @@ class RideRequestSerializer(serializers.ModelSerializer):
             "driver",
             "driver_email",
 
+            # Ride service
+            "service_type",
+
             "pickup_address",
             "destination_address",
 
@@ -242,7 +245,6 @@ class RideDriverWalletSerializer(serializers.ModelSerializer):
         ]
 
         read_only_fields = fields
-
 
 
 # ============================================================
