@@ -104,7 +104,7 @@ class RideDriverProfileView(APIView):
 #     All approved, online drivers can see Basic rides.
 #
 # PREMIUM:
-#     Only drivers with vehicle year 2012 or newer
+#     Only drivers with vehicle year 2009 or newer
 #     can see Premium rides.
 # ============================================================
 
@@ -186,7 +186,7 @@ class AvailableRidesView(APIView):
             #     No vehicle-year restriction.
             #
             # Premium:
-            #     Driver must have 2012+ vehicle.
+            #     Driver must have 2009+ vehicle.
             # ------------------------------------------------
 
             if ride.service_type == "premium":
@@ -204,7 +204,7 @@ class AvailableRidesView(APIView):
 
                     continue
 
-                if vehicle_year < 2012:
+                if vehicle_year < 2009:
 
                     continue
 
@@ -349,7 +349,7 @@ class AcceptRideView(APIView):
         # ----------------------------------------------------
         # PREMIUM DRIVER ELIGIBILITY
         #
-        # Premium requires a 2012+ vehicle.
+        # Premium requires a 2009+ vehicle.
         #
         # Basic has no vehicle-year restriction.
         # ----------------------------------------------------
@@ -376,13 +376,13 @@ class AcceptRideView(APIView):
                     status=status.HTTP_403_FORBIDDEN,
                 )
 
-            if vehicle_year < 2012:
+            if vehicle_year < 2009:
 
                 return Response(
                     {
                         "detail":
                             "Your vehicle must be "
-                            "2012 or newer to accept "
+                            "2009 or newer to accept "
                             "Premium rides."
                     },
                     status=status.HTTP_403_FORBIDDEN,

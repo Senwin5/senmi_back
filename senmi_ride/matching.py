@@ -110,7 +110,7 @@ def find_nearest_drivers(ride):
 
     PREMIUM RIDE:
 
-        Only drivers with vehicle year 2012 or newer
+        Only drivers with vehicle year 2009 or newer
         can receive the ride.
 
     Returns:
@@ -188,7 +188,7 @@ def find_nearest_drivers(ride):
         #   No vehicle-year restriction.
         #
         # PREMIUM:
-        #   Vehicle must be 2012 or newer.
+        #   Vehicle must be 2009 or newer.
         # ----------------------------------------------------
 
         if ride.service_type == "premium":
@@ -214,7 +214,7 @@ def find_nearest_drivers(ride):
                 continue
 
 
-            if vehicle_year < 2012:
+            if vehicle_year < 2009:
 
                 logger.info(
                     "Driver %s is not eligible for "
