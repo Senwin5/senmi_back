@@ -9,7 +9,10 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 
-from senmi_ride.matching import notify_nearest_drivers
+from senmi_ride.matching import (
+    notify_nearest_drivers,
+    find_nearest_drivers,
+)
 
 from .models import RideRequest
 from .serializers import RideRequestSerializer
@@ -24,6 +27,7 @@ class CreateRideView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @transaction.atomic
     def post(self, request):
 
         serializer = RideRequestSerializer(
@@ -99,9 +103,38 @@ class CreateRideView(APIView):
             status="pending",
         )
 
-        # ========================================================
+        # ====================================================
+        # PREMIUM AVAILABILITY CHECK
+        #
+        # Premium requires a 2012+ vehicle.
+        #
+        # find_nearest_drivers() already applies the
+        # Premium vehicle-year rule.
+        # ====================================================
+
+        if service_type == "premium":
+
+            eligible_drivers = find_nearest_drivers(
+                ride
+            )
+
+            if not eligible_drivers:
+
+                ride.delete()
+
+                return Response(
+                    {
+                        "detail":
+                            "Premium is not available "
+                            "right now. Please choose "
+                            "Basic to continue."
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
+
+        # ====================================================
         # FIND AND NOTIFY NEAREST DRIVERS
-        # ========================================================
+        # ====================================================
 
         transaction.on_commit(
             lambda ride_id=ride.ride_id:
@@ -327,5 +360,3 @@ class PassengerCancelRideView(APIView):
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
-
-    
