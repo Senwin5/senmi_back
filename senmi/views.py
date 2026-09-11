@@ -3400,25 +3400,14 @@ class PaymentCallbackView(APIView):
                     }
                 )
 
-                # =====================================
-                # PUSH NOTIFICATION TO APPROVED RIDERS
-                # =====================================
+                # PUSH NOTIFICATION TO RIDERS
                 approved_riders = User.objects.filter(
                     role="rider",
                     riderprofile__status="approved"
                 )
 
-                logger.info(
-                    f"PAYMENT: Found {approved_riders.count()} approved riders"
-                )
-
                 for rider in approved_riders:
-
-                    logger.info(
-                        f"PAYMENT: Sending notification to rider {rider.id} - {rider.email}"
-                    )
-
-                    result = send_fcm_notification(
+                    send_fcm_notification(
                         user=rider,
                         title="New Delivery Available",
                         body=f"New package from {package.pickup_address}",
@@ -3428,10 +3417,6 @@ class PaymentCallbackView(APIView):
                             "pickup": package.pickup_address,
                             "delivery": package.delivery_address,
                         }
-                    )
-
-                    logger.info(
-                        f"PAYMENT: FCM result for rider {rider.id}: {result}"
                     )
 
         except Package.DoesNotExist:
