@@ -3211,6 +3211,52 @@ class PaystackWebhookView(APIView):
                     f"via webhook."
                 )
 
+
+                # ============================================================
+                # PUSH NOTIFICATION TO APPROVED RIDERS
+                # ============================================================
+
+                approved_riders = User.objects.filter(
+                    role="rider",
+                    riderprofile__status="approved"
+                )
+
+                logger.info(
+                    f"🔔 PACKAGE {package.package_id}: "
+                    f"FOUND {approved_riders.count()} APPROVED RIDERS"
+                )
+
+                for rider in approved_riders:
+
+                    logger.info(
+                        f"📲 SENDING NEW DELIVERY NOTIFICATION TO "
+                        f"RIDER {rider.username}"
+                    )
+
+                    try:
+                        result = send_fcm_notification(
+                            user=rider,
+                            title="New Delivery Available",
+                            body=f"New package from {package.pickup_address}",
+                            data={
+                                "type": "new_package",
+                                "package_id": package.package_id,
+                                "pickup": package.pickup_address,
+                                "delivery": package.delivery_address,
+                            }
+                        )
+
+                        logger.info(
+                            f"📲 RIDER NOTIFICATION RESULT "
+                            f"{rider.username}: {result}"
+                        )
+
+                    except Exception:
+                        logger.exception(
+                            f"❌ FAILED TO SEND RIDER NOTIFICATION "
+                            f"TO {rider.username}"
+                        )
+
         except Package.DoesNotExist:
 
             logger.warning(
@@ -3400,24 +3446,6 @@ class PaymentCallbackView(APIView):
                     }
                 )
 
-                # PUSH NOTIFICATION TO RIDERS
-                approved_riders = User.objects.filter(
-                    role="rider",
-                    riderprofile__status="approved"
-                )
-
-                for rider in approved_riders:
-                    send_fcm_notification(
-                        user=rider,
-                        title="New Delivery Available",
-                        body=f"New package from {package.pickup_address}",
-                        data={
-                            "type": "new_package",
-                            "package_id": package.package_id,
-                            "pickup": package.pickup_address,
-                            "delivery": package.delivery_address,
-                        }
-                    )
 
         except Package.DoesNotExist:
             #return Response({"error": "Package not found"}, status=404)
