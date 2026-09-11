@@ -3408,8 +3408,17 @@ class PaymentCallbackView(APIView):
                     riderprofile__status="approved"
                 )
 
+                logger.warning(
+                    f"🚨 NEW PACKAGE FCM: FOUND {approved_riders.count()} APPROVED RIDERS"
+                )
+
                 for rider in approved_riders:
-                    send_fcm_notification(
+
+                    logger.warning(
+                        f"🚨 NEW PACKAGE FCM: SENDING TO RIDER {rider.id} - {rider.username}"
+                    )
+
+                    result = send_fcm_notification(
                         user=rider,
                         title="New Delivery Available",
                         body=f"New package from {package.pickup_address}",
@@ -3419,6 +3428,10 @@ class PaymentCallbackView(APIView):
                             "pickup": package.pickup_address,
                             "delivery": package.delivery_address,
                         }
+                    )
+
+                    logger.warning(
+                        f"🚨 NEW PACKAGE FCM: RESULT FOR RIDER {rider.id} = {result}"
                     )
 
         except Package.DoesNotExist:
