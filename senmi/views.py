@@ -3191,6 +3191,47 @@ class PaystackWebhookView(APIView):
                     ]
                 )
 
+
+                # ====================================================
+                # NOTIFY PACKAGE CREATOR / SENDER
+                # ====================================================
+
+                try:
+                    Notification.objects.create(
+                        user=package.customer,
+                        type="receiver_payment",
+                        message=(
+                            f"Receiver payment confirmed. "
+                            f"{package.package_id}."
+                        ),
+                        target="single",
+                    )
+
+                    send_fcm_notification(
+                        user=package.customer,
+                        title="Payment Received",
+                        body=(
+                            f"Receiver payment confirmed. "
+                            f"{package.package_id}."
+                        ),
+                        data={
+                            "type": "receiver_payment",
+                            "package_id": package.package_id,
+                        },
+                    )
+
+                    logger.info(
+                        f"📲 SENDER PAYMENT NOTIFICATION SENT | "
+                        f"Package={package.package_id} | "
+                        f"Sender={package.customer.email}"
+                    )
+
+                except Exception:
+                    logger.exception(
+                        f"❌ Failed to notify package creator "
+                        f"for payment | Package={package.package_id}"
+                    )
+
                 # ====================================================
                 # EXISTING PACKAGE EMAIL
                 # ====================================================
@@ -3408,6 +3449,44 @@ class PaymentCallbackView(APIView):
                     "status",
                     "payment_completed_at"
                 ])
+
+                # =====================================
+                # NOTIFY PACKAGE CREATOR / SENDER
+                # =====================================
+                try:
+                    Notification.objects.create(
+                        user=package.customer,
+                        type="receiver_payment",
+                        message=(
+                            f"Receiver payment confirmed. "
+                            f"{package.package_id}."
+                        ),
+                        target="single",
+                    )
+
+                    send_fcm_notification(
+                        user=package.customer,
+                        title="Payment Received",
+                        body=(
+                            f"Receiver payment confirmed. "
+                            f"{package.package_id}."
+                        ),
+                        data={
+                            "type": "receiver_payment",
+                            "package_id": package.package_id,
+                        },
+                    )
+
+                    logger.info(
+                        f"📲 SENDER PAYMENT NOTIFICATION SENT | "
+                        f"Package={package.package_id}"
+                    )
+
+                except Exception:
+                    logger.exception(
+                        f"❌ Failed to notify sender for "
+                        f"package {package.package_id}"
+                    )
 
                 notify_admin_dashboard()
                 email_admin_payment_received(
