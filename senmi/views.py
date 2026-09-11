@@ -2011,7 +2011,6 @@ class CreatePackageView(APIView):
                         "type": "new_package",
                         "data": {
                             "id": package.id,
-                            #"description": package.description,
                             "pickup": package.pickup_address,
                             "delivery": package.delivery_address,
                             "price": float(package.price),
@@ -3252,7 +3251,6 @@ class PaystackWebhookView(APIView):
         )
 
 
-    
 
 class PaymentCallbackView(APIView):
     def get(self, request):
@@ -3402,14 +3400,25 @@ class PaymentCallbackView(APIView):
                     }
                 )
 
-                # PUSH NOTIFICATION TO RIDERS
+                # =====================================
+                # PUSH NOTIFICATION TO APPROVED RIDERS
+                # =====================================
                 approved_riders = User.objects.filter(
                     role="rider",
                     riderprofile__status="approved"
                 )
 
+                logger.info(
+                    f"PAYMENT: Found {approved_riders.count()} approved riders"
+                )
+
                 for rider in approved_riders:
-                    send_fcm_notification(
+
+                    logger.info(
+                        f"PAYMENT: Sending notification to rider {rider.id} - {rider.email}"
+                    )
+
+                    result = send_fcm_notification(
                         user=rider,
                         title="New Delivery Available",
                         body=f"New package from {package.pickup_address}",
@@ -3419,6 +3428,10 @@ class PaymentCallbackView(APIView):
                             "pickup": package.pickup_address,
                             "delivery": package.delivery_address,
                         }
+                    )
+
+                    logger.info(
+                        f"PAYMENT: FCM result for rider {rider.id}: {result}"
                     )
 
         except Package.DoesNotExist:
