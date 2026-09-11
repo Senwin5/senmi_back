@@ -1885,10 +1885,13 @@ class AcceptPackageView(APIView):
                     recipients=[r for r in recipients if r]
                 )"""
                 send_fcm_notification(
-                    package.customer,
-                    "Package Accepted",
-                    f"Rider accepted your package {package.package_id}",
-                    {"type": "package_accepted"}
+                    user=package.customer,
+                    title="Package Accepted",
+                    body=f"Rider accepted your package {package.package_id}",
+                    data={
+                        "type": "package",
+                        "package_id": package.package_id,
+                    },
                 )
 
                 # =========================
@@ -1987,11 +1990,15 @@ class CreatePackageView(APIView):
                 )"""
 
                 send_fcm_notification(
-                    request.user,
-                    "Package Created",
-                    f"Package {package.package_id} created successfully",
-                    {"type": "package_created"}
+                    user=request.user,
+                    title="Package Created",
+                    body=f"Package {package.package_id} created successfully",
+                    data={
+                        "type": "package",
+                        "package_id": package.package_id,
+                    },
                 )
+                
             except Exception as e:
                 logger.exception(f"Failed to send package creation email: {e}")
 
@@ -2301,19 +2308,25 @@ class UpdateDeliveryStatusView(APIView):
                     if new_status == "picked_up":
 
                         send_fcm_notification(
-                            package.customer,
-                            "Package Picked Up",
-                            f"Your package {package.package_id} has been picked up",
-                            {"type": "picked_up"}
+                            user=package.customer,
+                            title="Package Picked Up",
+                            body=f"Your package {package.package_id} has been picked up",
+                            data={
+                                "type": "package",
+                                "package_id": package.package_id,
+                            },
                         )
 
                     elif new_status == "delivered":
 
                         send_fcm_notification(
-                            package.customer,
-                            "Delivered",
-                            f"Package {package.package_id} delivered successfully",
-                            {"type": "delivered"}
+                            user=package.customer,
+                            title="Delivered",
+                            body=f"Package {package.package_id} delivered successfully",
+                            data={
+                                "type": "package",
+                                "package_id": package.package_id,
+                            },
                         )
 
                         # ONLY SEND EMAIL FOR DELIVERED
@@ -2333,10 +2346,13 @@ class UpdateDeliveryStatusView(APIView):
                     else:
 
                         send_fcm_notification(
-                            package.customer,
-                            "Package Update",
-                            f"Package {package.package_id} is now {new_status}",
-                            {"type": new_status}
+                            user=package.customer,
+                            title="Package Update",
+                            body=f"Package {package.package_id} is now {new_status}",
+                            data={
+                                "type": "package",
+                                "package_id": package.package_id,
+                            },
                         )
 
                 except Exception as e:
