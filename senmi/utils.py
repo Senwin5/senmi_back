@@ -54,8 +54,6 @@ def send_email(subject, message, from_email=None, recipient_list=None, recipient
         return False
 
 
-
-
 def send_fcm_notification(
     user=None,
     title="",
@@ -63,7 +61,7 @@ def send_fcm_notification(
     data=None,
 ):
     """
-    Send an FCM push notification to ONE supplied user.
+    Send an FCM data-only notification to ONE supplied user.
 
     Recipient selection is handled by the caller.
     """
@@ -95,41 +93,22 @@ def send_fcm_notification(
         return False
 
     # =========================================================
-    # SEND PUSH
+    # SEND DATA-ONLY PUSH
     # =========================================================
 
     success = False
 
     for token in tokens:
         try:
+
             message = messaging.Message(
-                notification=messaging.Notification(
-                    title=title,
-                    body=body,
-                    image="https://www.senmi.com.ng/static/logo.png",
-                ),
-
-                android=messaging.AndroidConfig(
-                    notification=messaging.AndroidNotification(
-                        image="https://www.senmi.com.ng/static/logo.png",
-                        icon="notification_icon",
-                        color="#ffffff",
-                    )
-                ),
-
-                apns=messaging.APNSConfig(
-                    payload=messaging.APNSPayload(
-                        aps=messaging.Aps(
-                            sound="default",
-                            badge=1,
-                            content_available=True,
-                        )
-                    )
-                ),
-
                 data={
-                    k: str(v)
-                    for k, v in (data or {}).items()
+                    "title": str(title),
+                    "body": str(body),
+                    **{
+                        k: str(v)
+                        for k, v in (data or {}).items()
+                    },
                 },
 
                 token=token,
