@@ -1986,22 +1986,12 @@ class CreatePackageView(APIView):
                     recipients=recipients
                 )"""
 
-                """send_fcm_notification(
+                send_fcm_notification(
                     request.user,
                     "Package Created",
                     f"Package {package.package_id} created successfully",
                     {"type": "package_created"}
-                )"""
-                send_fcm_notification(
-                    user=request.user,
-                    title="Package Created",
-                    body=f"Package {package.package_id} created successfully",
-                    data={
-                        "type": "package",
-                        "package_id": package.package_id,
-                    },
                 )
-                
             except Exception as e:
                 logger.exception(f"Failed to send package creation email: {e}")
 
