@@ -28,4 +28,4 @@ def support(request):
 
 
 def delete(request):
-    return render(request, "delete.html")
+    return render(request, "legal/delete.html")
