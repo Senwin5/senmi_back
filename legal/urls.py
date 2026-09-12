@@ -19,6 +19,6 @@ urlpatterns = [
     path('terms/', terms_conditions, name='terms'),
     path('faq/', faq, name='faq'),
     path('contact/', contact, name='contact'),
-    path("delete-account/", views.delete_account, name="delete_account"),
+    path("delete/", views.delete_account, name="delete"),
     path('support/', support, name='support'),
 ]
