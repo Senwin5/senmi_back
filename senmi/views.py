@@ -1379,6 +1379,7 @@ def rider_details(request, rider_id):
         # RIDER STATUS
         # =========================
         "status": profile.status,
+        "is_active": profile.user.is_active,
         "rejection_reason": profile.rejection_reason,
 
         # =========================
