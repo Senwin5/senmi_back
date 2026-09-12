@@ -438,27 +438,50 @@ class UserProfileView(APIView):
 # ------------------------------
 # Admin Views
 # ------------------------------
+# ------------------------------
+# Admin Views
+# ------------------------------
 class AdminRidersListView(APIView):
     permission_classes = [IsAdminOrSupport]
 
     def get(self, request):
         riders = RiderProfile.objects.select_related('user').order_by('-created_at')
+
         data = [{
             "id": r.id,
             "rider_id": r.rider_id,
             "username": r.user.username,
             "email": r.user.email,
             "status": r.status,
+
+            # ==================================================
+            # ACCOUNT STATUS
+            # ==================================================
+            "is_active": r.user.is_active,
+
             "phone": r.phone_number,
             "city": r.city,
             "address": r.address,
-            "profile_picture": r.profile_picture.url if r.profile_picture else None,
-            "nin_image": r.nin_image.url if r.nin_image else None,
-            "rider_image_with_vehicle": r.rider_image_with_vehicle.url if r.rider_image_with_vehicle else None,
+
+            "profile_picture":
+                r.profile_picture.url
+                if r.profile_picture
+                else None,
+
+            "nin_image":
+                r.nin_image.url
+                if r.nin_image
+                else None,
+
+            "rider_image_with_vehicle":
+                r.rider_image_with_vehicle.url
+                if r.rider_image_with_vehicle
+                else None,
         } for r in riders]
 
         paginator = StandardPagination()
         result = paginator.paginate_queryset(data, request)
+
         return paginator.get_paginated_response(result)
 
 
