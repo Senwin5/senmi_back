@@ -27,5 +27,5 @@ def support(request):
     return render(request, 'legal/support.html')
 
 
-def delete_account(request):
-    return render(request, "delete_account.html")
+def delete(request):
+    return render(request, "delete.html")

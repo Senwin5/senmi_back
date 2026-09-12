@@ -1,6 +1,7 @@
 from django.urls import path
 from .views import (
-    about
+    about,
+    delete
 ,
     privacy_policy,
     support,
@@ -19,6 +20,6 @@ urlpatterns = [
     path('terms/', terms_conditions, name='terms'),
     path('faq/', faq, name='faq'),
     path('contact/', contact, name='contact'),
-    path("delete/", views.delete_account, name="delete"),
+    path('delete/', delete, name='delete'),
     path('support/', support, name='support'),
 ]
