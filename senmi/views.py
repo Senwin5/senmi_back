@@ -4724,8 +4724,6 @@ class AdminWithdrawalsView(APIView):
 
         return Response(data)
     
-    
-
 
 class AdminRiderWalletView(APIView):
     permission_classes = [IsAdminOrSupport]
@@ -4736,17 +4734,22 @@ class AdminRiderWalletView(APIView):
             "rider__riderprofile",
         ).all()
 
-        data = [
-            {
-                "rider_id": w.rider.riderprofile.rider_id,
+        data = []
+
+        for w in wallets:
+            try:
+                rider_profile = w.rider.riderprofile
+            except RiderProfile.DoesNotExist:
+                continue
+
+            data.append({
+                "rider_id": rider_profile.rider_id,
                 "user_id": w.rider.user_id,
                 "username": w.rider.username,
                 "email": w.rider.email,
                 "balance": float(w.balance),
                 "total_earned": float(w.total_earned),
-            }
-            for w in wallets
-        ]
+            })
 
         return Response(data)
 
