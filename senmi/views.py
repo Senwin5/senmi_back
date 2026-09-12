@@ -2368,6 +2368,200 @@ class UpdateDeliveryStatusView(APIView):
         
         
 
+class AdminUpdatePackageStatusView(APIView):
+    permission_classes = [IsAdminOrSupport]
+
+    def post(self, request, package_id):
+        try:
+            with transaction.atomic():
+
+                package = Package.objects.select_for_update().get(
+                    package_id=package_id
+                )
+
+                new_status = (
+                    request.data.get("status") or ""
+                ).lower().strip()
+
+                # ============================================================
+                # ADMIN / SUPPORT STATUS FLOW
+                # ============================================================
+
+                allowed_statuses = [
+                    "pending",
+                    "paid",
+                    "accepted",
+                    "picked_up",
+                    "delivered",
+                    "cancelled",
+                ]
+
+                if new_status not in allowed_statuses:
+                    return Response(
+                        {
+                            "success": False,
+                            "error": "Invalid status"
+                        },
+                        status=400
+                    )
+
+                # ============================================================
+                # PENDING -> PAID
+                # ============================================================
+
+                if (
+                    package.status == "pending"
+                    and new_status == "paid"
+                ):
+
+                    package.status = "paid"
+                    package.is_paid = True
+
+                    if not package.payment_completed_at:
+                        package.payment_completed_at = timezone.now()
+
+                    package.save(
+                        update_fields=[
+                            "status",
+                            "is_paid",
+                            "payment_completed_at",
+                        ]
+                    )
+
+                    # Notify admin dashboard
+                    try:
+                        notify_admin_dashboard()
+                    except Exception as e:
+                        logger.exception(
+                            f"Admin dashboard notification failed: {e}"
+                        )
+
+                    # ========================================================
+                    # NOTIFY APPROVED RIDERS
+                    # Same idea as your Paystack webhook
+                    # ========================================================
+
+                    try:
+
+                        approved_riders = User.objects.filter(
+                            role="rider",
+                            riderprofile__status="approved"
+                        )
+
+                        for rider in approved_riders:
+
+                            try:
+                                send_fcm_notification(
+                                    user=rider,
+                                    title="New Delivery Available",
+                                    body=(
+                                        f"New package from "
+                                        f"{package.pickup_address}"
+                                    ),
+                                    data={
+                                        "type": "new_package",
+                                        "package_id": package.package_id,
+                                        "pickup": package.pickup_address,
+                                        "delivery": package.delivery_address,
+                                    }
+                                )
+
+                            except Exception:
+                                logger.exception(
+                                    f"Failed to notify rider "
+                                    f"{rider.username}"
+                                )
+
+                    except Exception:
+                        logger.exception(
+                            "Failed to notify approved riders"
+                        )
+
+                    return Response(
+                        {
+                            "success": True,
+                            "message": (
+                                f"Package {package.package_id} "
+                                f"marked as paid"
+                            ),
+                            "status": package.status,
+                            "is_paid": package.is_paid,
+                        },
+                        status=200
+                    )
+
+                # ============================================================
+                # OTHER ADMIN STATUS CHANGES
+                # ============================================================
+
+                package.status = new_status
+
+                if new_status == "paid":
+                    package.is_paid = True
+
+                    if not package.payment_completed_at:
+                        package.payment_completed_at = timezone.now()
+
+                    package.save(
+                        update_fields=[
+                            "status",
+                            "is_paid",
+                            "payment_completed_at",
+                        ]
+                    )
+
+                else:
+                    package.save(
+                        update_fields=["status"]
+                    )
+
+                try:
+                    notify_admin_dashboard()
+                except Exception as e:
+                    logger.exception(
+                        f"Admin dashboard notification failed: {e}"
+                    )
+
+                return Response(
+                    {
+                        "success": True,
+                        "message": (
+                            f"Package {package.package_id} "
+                            f"status updated to {new_status}"
+                        ),
+                        "status": package.status,
+                        "is_paid": package.is_paid,
+                    },
+                    status=200
+                )
+
+        except Package.DoesNotExist:
+
+            return Response(
+                {
+                    "success": False,
+                    "error": "Package not found"
+                },
+                status=404
+            )
+
+        except Exception as e:
+
+            logger.exception(
+                f"Admin package status update failed "
+                f"for {package_id}: {e}"
+            )
+
+            return Response(
+                {
+                    "success": False,
+                    "error": "Failed to update package status"
+                },
+                status=500
+            )
+
+        
+
 class RiderActivePackagesView(APIView):
     permission_classes = [IsAuthenticated, IsApprovedRider]
 
