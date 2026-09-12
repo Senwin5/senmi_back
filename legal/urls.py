@@ -9,6 +9,7 @@ from .views import (
     faq,
     contact,
 )
+from legal import views
 
 urlpatterns = [
     path('', home, name='home'),
@@ -18,5 +19,6 @@ urlpatterns = [
     path('terms/', terms_conditions, name='terms'),
     path('faq/', faq, name='faq'),
     path('contact/', contact, name='contact'),
+    path("delete-account/", views.delete_account, name="delete_account"),
     path('support/', support, name='support'),
 ]
