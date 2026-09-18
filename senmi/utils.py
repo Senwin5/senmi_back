@@ -61,9 +61,9 @@ def send_fcm_notification(
     data=None,
 ):
     """
-    Send an FCM data-only notification to ONE supplied user.
-
-    Recipient selection is handled by the caller.
+    Send an FCM notification to ONE supplied user.
+    Includes both notification and data payloads so that
+    notifications can appear when the app is backgrounded/closed.
     """
 
     if not user:
@@ -92,16 +92,20 @@ def send_fcm_notification(
         )
         return False
 
-    # =============================
-    # SEND DATA-ONLY PUSH
-    # =============================
+    # =========================================================
+    # SEND FCM
+    # =========================================================
 
     success = False
 
     for token in tokens:
         try:
-
             message = messaging.Message(
+                notification=messaging.Notification(
+                    title=str(title),
+                    body=str(body),
+                ),
+
                 data={
                     "title": str(title),
                     "body": str(body),
@@ -111,10 +115,22 @@ def send_fcm_notification(
                     },
                 },
 
+                android=messaging.AndroidConfig(
+                    priority="high",
+                    notification=messaging.AndroidNotification(
+                        sound="default",
+                    ),
+                ),
+
                 token=token,
             )
 
-            messaging.send(message)
+            response = messaging.send(message)
+
+            logger.info(
+                f"FCM SENT | User={user.id} | "
+                f"Token={token[:15]}... | Response={response}"
+            )
 
             success = True
 
