@@ -2824,14 +2824,110 @@ class InitializeReceiverPaymentView(APIView):
                     "payment_completed_at"
                 ])
 
+                # ==========================================================
+                # PAYMENT NOTIFICATIONS
+                # ==========================================================
+
+                # Notify package sender/customer
+                try:
+                    Notification.objects.create(
+                        user=package.customer,
+                        type="receiver_payment",
+                        message=(
+                            f"Receiver payment confirmed. "
+                            f"{package.package_id}."
+                        ),
+                        target="single",
+                    )
+
+                    send_fcm_notification(
+                        user=package.customer,
+                        title="Payment Received",
+                        body=(
+                            f"Receiver payment confirmed. "
+                            f"{package.package_id}."
+                        ),
+                        data={
+                            "type": "receiver_payment",
+                            "package_id": package.package_id,
+                        },
+                    )
+
+                    logger.info(
+                        f"📲 SENDER PAYMENT NOTIFICATION SENT | "
+                        f"Package={package.package_id} | "
+                        f"Sender={package.customer.email}"
+                    )
+
+                except Exception:
+                    logger.exception(
+                        f"❌ Failed to notify package creator "
+                        f"for payment | Package={package.package_id}"
+                    )
+
+
+                # Notify admin dashboard
+                try:
+                    notify_admin_dashboard()
+                except Exception:
+                    logger.exception(
+                        f"❌ Failed to notify admin dashboard | "
+                        f"Package={package.package_id}"
+                    )
+
+
+                # Notify approved riders
+                approved_riders = User.objects.filter(
+                    role="rider",
+                    riderprofile__status="approved"
+                )
+
+                logger.info(
+                    f"🔔 PACKAGE {package.package_id}: "
+                    f"FOUND {approved_riders.count()} APPROVED RIDERS"
+                )
+
+                for rider in approved_riders:
+
+                    logger.info(
+                        f"📲 SENDING NEW DELIVERY NOTIFICATION TO "
+                        f"RIDER {rider.username}"
+                    )
+
+                    try:
+                        result = send_fcm_notification(
+                            user=rider,
+                            title="New Delivery Available",
+                            body=f"New package from {package.pickup_address}",
+                            data={
+                                "type": "new_package",
+                                "package_id": package.package_id,
+                                "pickup": package.pickup_address,
+                                "delivery": package.delivery_address,
+                            }
+                        )
+
+                        logger.info(
+                            f"📲 RIDER NOTIFICATION RESULT "
+                            f"{rider.username}: {result}"
+                        )
+
+                    except Exception:
+                        logger.exception(
+                            f"❌ FAILED TO SEND RIDER NOTIFICATION "
+                            f"TO {rider.username}"
+                        )
+
+
+                # Existing admin payment email
                 email_admin_payment_received(
                     package,
                     payment_data,
                 )
 
                 return Response({
-                    "already_paid": True,
-                    "message": "Payment has already been made for this package."
+                    "success": True,
+                    "message": "Payment successful."
                 })
 
             # ========================================================
