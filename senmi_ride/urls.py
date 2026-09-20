@@ -23,6 +23,7 @@ from .views import (
 # ============================================================
 
 from .customer import (
+    RideFareQuoteView,
     CreateRideView,
     PassengerActiveRidesView,
     PassengerRideDetailView,
@@ -76,6 +77,12 @@ urlpatterns = [
     # ========================================================
     # PASSENGER
     # ========================================================
+
+    path(
+        "rides/quote/",
+        RideFareQuoteView.as_view(),
+        name="ride-fare-quote",
+    ),
 
     path(
         "rides/create/",

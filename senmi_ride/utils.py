@@ -20,9 +20,7 @@ def calculate_distance(
     """
     Calculate straight-line distance in kilometres.
 
-    This is currently used as a basic calculation.
-    Later, your actual routing provider can replace this
-    with road distance.
+    This is kept for existing/internal Ride calculations.
     """
 
     lat1 = radians(float(pickup_lat))
@@ -53,6 +51,224 @@ def calculate_distance(
     ).quantize(
         Decimal("0.01"),
         rounding=ROUND_HALF_UP,
+    )
+
+
+# ============================================================
+# RIDE ROAD ROUTE
+# ============================================================
+
+def calculate_road_route(
+    pickup_lat,
+    pickup_lng,
+    destination_lat,
+    destination_lng,
+):
+    """
+    Calculate actual driving distance and estimated duration
+    for a Ride using Google Routes API.
+
+    This is Ride-only functionality.
+    """
+
+    # --------------------------------------------------------
+    # SERVER GOOGLE MAPS API KEY
+    # --------------------------------------------------------
+
+    api_key = (
+        getattr(
+            settings,
+            "GOOGLE_MAPS_SERVER_API_KEY",
+            None,
+        )
+        or getattr(
+            settings,
+            "GOOGLE_MAPS_API_KEY",
+            None,
+        )
+    )
+
+    if not api_key:
+        raise ValueError(
+            "Google Maps API key is not configured."
+        )
+
+    # --------------------------------------------------------
+    # GOOGLE ROUTES API
+    # --------------------------------------------------------
+
+    url = (
+        "https://routes.googleapis.com/"
+        "directions/v2:computeRoutes"
+    )
+
+    payload = {
+        "origin": {
+            "location": {
+                "latLng": {
+                    "latitude": float(pickup_lat),
+                    "longitude": float(pickup_lng),
+                }
+            }
+        },
+
+        "destination": {
+            "location": {
+                "latLng": {
+                    "latitude": float(destination_lat),
+                    "longitude": float(destination_lng),
+                }
+            }
+        },
+
+        "travelMode": "DRIVE",
+
+        "routingPreference": "TRAFFIC_AWARE",
+
+        "computeAlternativeRoutes": False,
+
+        "languageCode": "en",
+
+        "units": "METRIC",
+    }
+
+    headers = {
+        "Content-Type": "application/json",
+
+        "X-Goog-Api-Key": api_key,
+
+        # Only request what the Ride fare needs.
+        "X-Goog-FieldMask": (
+            "routes.distanceMeters,"
+            "routes.duration"
+        ),
+    }
+
+    # --------------------------------------------------------
+    # REQUEST ROUTE
+    # --------------------------------------------------------
+
+    try:
+
+        response = requests.post(
+            url,
+            json=payload,
+            headers=headers,
+            timeout=15,
+        )
+
+        response.raise_for_status()
+
+        route_data = response.json()
+
+    except requests.RequestException as exc:
+
+        raise ValueError(
+            "Unable to calculate the driving route right now."
+        ) from exc
+
+    except ValueError as exc:
+
+        raise ValueError(
+            "Invalid route response."
+        ) from exc
+
+    # --------------------------------------------------------
+    # ROUTES
+    # --------------------------------------------------------
+
+    routes = route_data.get(
+        "routes",
+        []
+    )
+
+    if not routes:
+
+        raise ValueError(
+            "No driving route was found for these locations."
+        )
+
+    route = routes[0]
+
+    distance_meters = route.get(
+        "distanceMeters"
+    )
+
+    duration_value = route.get(
+        "duration"
+    )
+
+    if (
+        distance_meters is None
+        or duration_value is None
+    ):
+
+        raise ValueError(
+            "Incomplete route information was returned."
+        )
+
+    # --------------------------------------------------------
+    # DISTANCE
+    # --------------------------------------------------------
+
+    distance_km = (
+        Decimal(
+            str(distance_meters)
+        )
+        / Decimal("1000")
+    ).quantize(
+        Decimal("0.01"),
+        rounding=ROUND_HALF_UP,
+    )
+
+    # --------------------------------------------------------
+    # DURATION
+    #
+    # Google returns duration in seconds format.
+    #
+    # Example:
+    # "600s"
+    # "601.5s"
+    # --------------------------------------------------------
+
+    duration_string = str(
+        duration_value
+    ).strip()
+
+    try:
+
+        if duration_string.endswith("s"):
+
+            duration_seconds = float(
+                duration_string[:-1]
+            )
+
+        else:
+
+            duration_seconds = float(
+                duration_string
+            )
+
+    except (
+        TypeError,
+        ValueError,
+    ) as exc:
+
+        raise ValueError(
+            "Invalid route duration was returned."
+        ) from exc
+
+    # --------------------------------------------------------
+    # ROUND UP PARTIAL MINUTES
+    # --------------------------------------------------------
+
+    duration_minutes = (
+        int(duration_seconds) + 59
+    ) // 60
+
+    return (
+        distance_km,
+        duration_minutes,
     )
 
 

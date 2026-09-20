@@ -16,11 +16,209 @@ from senmi_ride.matching import (
 
 from .models import RideRequest
 from .serializers import RideRequestSerializer
-from .utils import calculate_ride_fare
+from .utils import (
+    calculate_ride_fare,
+    calculate_distance,
+)
 
 
 # ============================================================
-# customer.py CREATE RIDE
+# CUSTOMER RIDE FARE QUOTE
+# ============================================================
+
+class RideFareQuoteView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+
+        pickup_lat = request.data.get(
+            "pickup_lat"
+        )
+
+        pickup_lng = request.data.get(
+            "pickup_lng"
+        )
+
+        destination_lat = request.data.get(
+            "destination_lat"
+        )
+
+        destination_lng = request.data.get(
+            "destination_lng"
+        )
+
+        service_type = request.data.get(
+            "service_type",
+            "basic",
+        )
+
+        # ----------------------------------------------------
+        # REQUIRED LOCATIONS
+        # ----------------------------------------------------
+
+        if (
+            pickup_lat is None
+            or pickup_lng is None
+            or destination_lat is None
+            or destination_lng is None
+        ):
+
+            return Response(
+                {
+                    "detail":
+                        "Pickup and destination "
+                        "coordinates are required."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ----------------------------------------------------
+        # SERVICE TYPE
+        # ----------------------------------------------------
+
+        if service_type not in [
+            "basic",
+            "premium",
+        ]:
+
+            return Response(
+                {
+                    "detail":
+                        "Invalid ride service type."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ----------------------------------------------------
+        # CONVERT COORDINATES
+        # ----------------------------------------------------
+
+        try:
+
+            pickup_lat = float(
+                pickup_lat
+            )
+
+            pickup_lng = float(
+                pickup_lng
+            )
+
+            destination_lat = float(
+                destination_lat
+            )
+
+            destination_lng = float(
+                destination_lng
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+
+            return Response(
+                {
+                    "detail":
+                        "Invalid coordinate values."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ----------------------------------------------------
+        # CALCULATE DISTANCE
+        # ----------------------------------------------------
+
+        try:
+
+            distance_km = calculate_distance(
+                pickup_lat,
+                pickup_lng,
+                destination_lat,
+                destination_lng,
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+
+            return Response(
+                {
+                    "detail":
+                        "Unable to calculate ride distance."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ----------------------------------------------------
+        # ESTIMATED DURATION
+        #
+        # Temporary estimate:
+        # approximately 2 minutes per kilometre.
+        # ----------------------------------------------------
+
+        duration_minutes = max(
+            1,
+            int(
+                (float(distance_km) * 2) + 0.5
+            ),
+        )
+
+        # ----------------------------------------------------
+        # CALCULATE FARE
+        # ----------------------------------------------------
+
+        try:
+
+            (
+                fare,
+                service_fee,
+                driver_earning,
+            ) = calculate_ride_fare(
+                distance_km,
+                duration_minutes,
+                service_type=service_type,
+            )
+
+        except ValueError as exc:
+
+            return Response(
+                {
+                    "detail": str(exc)
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ----------------------------------------------------
+        # RETURN QUOTE
+        # ----------------------------------------------------
+
+        return Response(
+            {
+                "service_type": service_type,
+
+                "estimated_distance_km":
+                    str(distance_km),
+
+                "estimated_duration_minutes":
+                    duration_minutes,
+
+                "fare":
+                    str(fare),
+
+                "service_fee":
+                    str(service_fee),
+
+                "driver_earning":
+                    str(driver_earning),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+# ============================================================
+# CUSTOMER CREATE RIDE
 # ============================================================
 
 class CreateRideView(APIView):
@@ -106,10 +304,7 @@ class CreateRideView(APIView):
         # ====================================================
         # PREMIUM AVAILABILITY CHECK
         #
-        # Premium requires a 2012+ vehicle.
-        #
-        # find_nearest_drivers() already applies the
-        # Premium vehicle-year rule.
+        # Premium requires an eligible vehicle.
         # ====================================================
 
         if service_type == "premium":
@@ -152,7 +347,7 @@ class CreateRideView(APIView):
 
 
 # ============================================================
-# customer.py PASSENGER ACTIVE RIDES
+# CUSTOMER PASSENGER ACTIVE RIDES
 # ============================================================
 
 class PassengerActiveRidesView(APIView):
