@@ -347,6 +347,49 @@ class CreateRideView(APIView):
 
 
 # ============================================================
+# CUSTOMER RIDE HISTORY
+#
+# Returns every ride created by the logged-in customer.
+#
+# Includes:
+# pending
+# accepted
+# arrived
+# started
+# completed
+# cancelled
+# ============================================================
+
+class PassengerRideHistoryView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        rides = (
+            RideRequest.objects
+            .filter(
+                passenger=request.user,
+            )
+            .select_related(
+                "passenger",
+                "driver",
+            )
+            .order_by("-created_at")
+        )
+
+        serializer = RideRequestSerializer(
+            rides,
+            many=True
+        )
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
+        )
+
+
+# ============================================================
 # CUSTOMER PASSENGER ACTIVE RIDES
 # ============================================================
 

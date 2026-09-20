@@ -25,6 +25,7 @@ from .views import (
 from .customer import (
     RideFareQuoteView,
     CreateRideView,
+    PassengerRideHistoryView,
     PassengerActiveRidesView,
     PassengerRideDetailView,
     PassengerCancelRideView,
@@ -88,6 +89,17 @@ urlpatterns = [
         "rides/create/",
         CreateRideView.as_view(),
         name="create-ride",
+    ),
+
+    # ========================================================
+    # PASSENGER RIDE HISTORY
+    # IMPORTANT: MUST COME BEFORE rides/<str:ride_id>/
+    # ========================================================
+
+    path(
+        "rides/passenger/history/",
+        PassengerRideHistoryView.as_view(),
+        name="passenger-ride-history",
     ),
 
     path(
