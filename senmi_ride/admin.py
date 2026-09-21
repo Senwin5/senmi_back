@@ -12,9 +12,7 @@ from .models import (
 )
 
 
-# ============================================================
-# DRIVER PROFILE
-# ============================================================
+
 
 @admin.register(RideDriverProfile)
 class RideDriverProfileAdmin(admin.ModelAdmin):
@@ -49,6 +47,26 @@ class RideDriverProfileAdmin(admin.ModelAdmin):
         "driver_id",
         "created_at",
     )
+
+    actions = (
+        "approve_drivers",
+        "reject_drivers",
+    )
+
+    @admin.action(description="Approve selected drivers")
+    def approve_drivers(self, request, queryset):
+        queryset.update(
+            status="approved",
+            rejection_reason="",
+            is_online=False,
+        )
+
+    @admin.action(description="Reject selected drivers")
+    def reject_drivers(self, request, queryset):
+        queryset.update(
+            status="rejected",
+            is_online=False,
+        )
 
 
 # ============================================================
