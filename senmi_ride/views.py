@@ -122,7 +122,14 @@ class RideDriverProfileView(APIView):
 
         if serializer.is_valid():
 
-            serializer.save()
+            if profile.status == "rejected":
+                serializer.save(
+                    status="pending",
+                    is_online=False,
+                    rejection_reason="",
+                )
+            else:
+                serializer.save()
 
             return Response(
                 serializer.data,
@@ -133,6 +140,7 @@ class RideDriverProfileView(APIView):
             serializer.errors,
             status=status.HTTP_400_BAD_REQUEST,
         )
+
 
 
 
