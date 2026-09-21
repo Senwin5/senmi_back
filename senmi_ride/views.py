@@ -67,6 +67,46 @@ class RideDriverProfileView(APIView):
             status=status.HTTP_200_OK,
         )
 
+    def post(self, request):
+
+        if RideDriverProfile.objects.filter(
+            user=request.user
+        ).exists():
+
+            return Response(
+                {
+                    "detail":
+                        "Driver profile already exists."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = RideDriverProfileSerializer(
+            data=request.data,
+            context={"request": request},
+        )
+
+        if serializer.is_valid():
+
+            profile = serializer.save(
+                user=request.user,
+                status="pending",
+                is_online=False,
+            )
+
+            return Response(
+                RideDriverProfileSerializer(
+                    profile,
+                    context={"request": request},
+                ).data,
+                status=status.HTTP_201_CREATED,
+            )
+
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     def put(self, request):
 
         profile = get_object_or_404(
@@ -95,16 +135,12 @@ class RideDriverProfileView(APIView):
         )
 
 
+
+
 # ============================================================
 # AVAILABLE RIDES
-#
-# This is the driver's fallback HTTP list.
-#
-# BASIC:
-#     All approved, online drivers can see Basic rides.
-#
-# PREMIUM:
-#     Only drivers with vehicle year 2009 or newer
+# BASIC:All approved, online drivers can see Basic rides.
+# PREMIUM:Only drivers with vehicle year 2009 or newer
 #     can see Premium rides.
 # ============================================================
 

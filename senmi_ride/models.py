@@ -127,6 +127,26 @@ class RideDriverProfile(models.Model):
         unique=True,
     )
 
+
+    emergency_contact_name = models.CharField(
+    max_length=255,
+    blank=True,
+    )
+
+    emergency_contact_phone = models.CharField(
+        max_length=20,
+        blank=True,
+    )
+
+    emergency_contact_address = models.TextField(
+        blank=True,
+    )
+
+    emergency_contact_relationship = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
     # --------------------------------------------------------
     # DRIVER STATUS
     # --------------------------------------------------------
