@@ -3,6 +3,7 @@ import uuid
 from decimal import Decimal
 
 from django.db import transaction
+from django.db.models.aggregates import Sum
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
@@ -23,7 +24,6 @@ from .models import (
 )
 
 from .serializers import (
-    RideDriverAvailabilitySerializer,
     RideDriverProfileSerializer,
     RideRequestSerializer,
     RideTrackingSerializer,
@@ -1644,5 +1644,180 @@ class VerifyRideCommissionPaymentView(APIView):
                 "commission_paid":
                     True,
             },
+            status=status.HTTP_200_OK,
+        )
+
+
+# ============================================================
+# DRIVER RIDE HISTORY
+# ============================================================
+
+class DriverRideHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        rides = (
+            RideRequest.objects
+            .filter(driver=request.user)
+            .filter(status__in=["completed", "cancelled"])
+            .order_by("-created_at")
+        )
+
+        data = []
+
+        for ride in rides:
+            data.append({
+                "id": ride.id,
+                "ride_id": ride.ride_id,
+                "status": ride.status,
+
+                "pickup_address": ride.pickup_address,
+                "destination_address": ride.destination_address,
+
+                "pickup_lat": float(ride.pickup_lat or 0),
+                "pickup_lng": float(ride.pickup_lng or 0),
+
+                "destination_lat": float(ride.destination_lat or 0),
+                "destination_lng": float(ride.destination_lng or 0),
+
+                "estimated_distance_km": float(
+                    ride.estimated_distance_km or 0
+                ),
+
+                "estimated_duration_minutes": (
+                    ride.estimated_duration_minutes or 0
+                ),
+
+                "fare": float(ride.fare or 0),
+                "service_fee": float(ride.service_fee or 0),
+                "driver_earning": float(ride.driver_earning or 0),
+
+                "payment_method": ride.payment_method,
+                "payment_status": ride.payment_status,
+
+                "commission_paid": ride.commission_paid,
+
+                "created_at": (
+                    ride.created_at.isoformat()
+                    if ride.created_at
+                    else None
+                ),
+
+                "completed_at": (
+                    ride.completed_at.isoformat()
+                    if ride.completed_at
+                    else None
+                ),
+
+                "cancelled_at": (
+                    ride.cancelled_at.isoformat()
+                    if ride.cancelled_at
+                    else None
+                ),
+            })
+
+        return Response(
+            data,
+            status=status.HTTP_200_OK,
+        )
+
+
+# ============================================================
+# DRIVER STATS
+# ============================================================
+
+class DriverStatsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        today = timezone.localdate()
+
+        today_rides = RideRequest.objects.filter(
+            driver=request.user,
+            created_at__date=today,
+        )
+
+        completed_today = today_rides.filter(
+            status="completed"
+        )
+
+        today_earnings = (
+            completed_today.aggregate(
+                total=Sum("driver_earning")
+            )["total"]
+            or Decimal("0.00")
+        )
+
+        total_earnings = (
+            RideRequest.objects
+            .filter(
+                driver=request.user,
+                status="completed",
+            )
+            .aggregate(
+                total=Sum("driver_earning")
+            )["total"]
+            or Decimal("0.00")
+        )
+
+        total_completed_rides = RideRequest.objects.filter(
+            driver=request.user,
+            status="completed",
+        ).count()
+
+        return Response({
+            "today_earnings": float(today_earnings),
+            "completed_rides_today": completed_today.count(),
+            "total_rides_today": today_rides.count(),
+            "total_earnings": float(total_earnings),
+            "total_completed_rides": total_completed_rides,
+        }, status=status.HTTP_200_OK)
+
+
+# ============================================================
+# DRIVER COMMISSION PAYMENT HISTORY
+# ============================================================
+
+class DriverCommissionHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        payments = (
+            RideCommissionPayment.objects
+            .filter(driver=request.user)
+            .order_by("-created_at")
+        )
+
+        data = []
+
+        for payment in payments:
+            data.append({
+                "id": payment.id,
+                "reference": payment.reference,
+                "amount": float(payment.amount or 0),
+                "payment_method": payment.payment_method,
+                "status": payment.status,
+
+                "ride_id": (
+                    payment.ride.ride_id
+                    if payment.ride
+                    else None
+                ),
+
+                "paid_at": (
+                    payment.paid_at.isoformat()
+                    if payment.paid_at
+                    else None
+                ),
+
+                "created_at": (
+                    payment.created_at.isoformat()
+                    if payment.created_at
+                    else None
+                ),
+            })
+
+        return Response(
+            data,
             status=status.HTTP_200_OK,
         )

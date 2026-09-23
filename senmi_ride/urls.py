@@ -5,6 +5,9 @@ from django.urls import path
 # ============================================================
 
 from .views import (
+    DriverCommissionHistoryView,
+    DriverRideHistoryView,
+    DriverStatsView,
     RideDriverProfileView,
     AvailableRidesView,
     AcceptRideView,
@@ -202,5 +205,35 @@ urlpatterns = [
         "commission/verify/<str:reference>/",
         VerifyRideCommissionPaymentView.as_view(),
         name="verify-ride-commission",
+    ),
+
+        # ========================================================
+    # DRIVER HISTORY
+    # ========================================================
+
+    path(
+        "rides/driver/history/",
+        DriverRideHistoryView.as_view(),
+        name="driver-ride-history",
+    ),
+
+    # ========================================================
+    # DRIVER STATS
+    # ========================================================
+
+    path(
+        "driver/stats/",
+        DriverStatsView.as_view(),
+        name="driver-stats",
+    ),
+
+    # ========================================================
+    # DRIVER COMMISSION HISTORY
+    # ========================================================
+
+    path(
+        "commission/history/",
+        DriverCommissionHistoryView.as_view(),
+        name="driver-commission-history",
     ),
 ]
