@@ -19,51 +19,60 @@ from .models import (
 class RideDriverProfileSerializer(serializers.ModelSerializer):
 
     full_name = serializers.CharField(
-        required=True
+        required=True,
+        allow_blank=False,
     )
 
     phone_number = serializers.CharField(
-        required=True
+        required=True,
+        allow_blank=False,
     )
 
     address = serializers.CharField(
-        required=True
+        required=True,
+        allow_blank=False,
     )
 
     city = serializers.CharField(
-        required=True
+        required=True,
+        allow_blank=False,
     )
 
     state = serializers.CharField(
-        required=True
+        required=True,
+        allow_blank=False,
     )
 
     country = serializers.CharField(
-        required=True
+        required=True,
+        allow_blank=False,
     )
 
     profile_photo = serializers.ImageField(
-        required=True
+        required=True,
     )
 
     driver_license_photo = serializers.ImageField(
-        required=True
+        required=True,
     )
 
     vehicle_photo = serializers.ImageField(
-        required=True
+        required=True,
     )
 
     vehicle_brand = serializers.CharField(
-        required=True
+        required=True,
+        allow_blank=False,
     )
 
     vehicle_model = serializers.CharField(
-        required=True
+        required=True,
+        allow_blank=False,
     )
 
     plate_number = serializers.CharField(
-        required=True
+        required=True,
+        allow_blank=False,
     )
 
     class Meta:
