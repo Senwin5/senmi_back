@@ -77,6 +77,25 @@ class RideDriverProfile(models.Model):
         max_length=20
     )
 
+    address = models.TextField(
+    blank=True,
+    )
+
+    city = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
+    state = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
+    country = models.CharField(
+        max_length=100,
+        default="Nigeria",
+    )
+
     # --------------------------------------------------------
     # DRIVER IMAGES
     # KEEPING CLOUDINARY

@@ -142,9 +142,6 @@ class RideDriverProfileView(APIView):
         )
 
 
-
-
-
 # ============================================================
 # AVAILABLE RIDES
 # BASIC:All approved, online drivers can see Basic rides.

@@ -26,6 +26,22 @@ class RideDriverProfileSerializer(serializers.ModelSerializer):
         required=True
     )
 
+    address = serializers.CharField(
+        required=True
+    )
+
+    city = serializers.CharField(
+        required=True
+    )
+
+    state = serializers.CharField(
+        required=True
+    )
+
+    country = serializers.CharField(
+        required=True
+    )
+
     profile_photo = serializers.ImageField(
         required=True
     )
@@ -57,6 +73,10 @@ class RideDriverProfileSerializer(serializers.ModelSerializer):
             "driver_id",
             "full_name",
             "phone_number",
+            "address",
+            "city",
+            "state",
+            "country",
             "profile_photo",
             "driver_license_photo",
             "vehicle_photo",
