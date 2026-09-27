@@ -111,6 +111,13 @@ urlpatterns = [
         name="passenger-active-rides",
     ),
 
+
+    path(
+    "rides/available/",
+    AvailableRidesView.as_view(),
+    name="available-rides",
+    ),
+
     path(
         "rides/<str:ride_id>/",
         PassengerRideDetailView.as_view(),
@@ -120,18 +127,13 @@ urlpatterns = [
     path(
         "rides/<str:ride_id>/cancel/",
         PassengerCancelRideView.as_view(),
-        name="passenger-cancel-ride",
+        name="passenger-ride-cancel",
     ),
+
 
     # ========================================================
     # DRIVER
     # ========================================================
-
-    path(
-        "rides/available/",
-        AvailableRidesView.as_view(),
-        name="available-rides",
-    ),
 
     path(
         "rides/<str:ride_id>/accept/",

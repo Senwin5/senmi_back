@@ -302,17 +302,7 @@ class AvailableRidesView(APIView):
 
 
 
-# ============================================================
-# ACCEPT RIDE
-#
-# Rules:
-#
-# 1. Driver must be approved.
-# 2. Driver must be online.
-# 3. Driver cannot have another active ride.
-# 4. Driver cannot accept a new ride while commission is owed.
-# 5. Only one driver can accept a pending ride.
-# ============================================================
+
 
 class AcceptRideView(APIView):
 
