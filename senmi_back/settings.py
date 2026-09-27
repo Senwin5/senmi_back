@@ -178,6 +178,12 @@ DEFAULT_FROM_EMAIL = "Senmi <support@senmi.com.ng>"
 NOTIFY_EMAIL = os.getenv("NOTIFY_EMAIL")
 
 
+
+# ============================================================
+# GOOGLE MAPS / ROUTES API
+# ============================================================
+GOOGLE_MAPS_SERVER_API_KEY = os.getenv("GOOGLE_MAPS_SERVER_API_KEY")
+
 # Paystack configuration
 PAYSTACK_PUBLIC_KEY = os.getenv("PAYSTACK_PUBLIC_KEY")
 PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY")

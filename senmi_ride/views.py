@@ -300,16 +300,18 @@ class AvailableRidesView(APIView):
         )
 
 
+
+
 # ============================================================
 # ACCEPT RIDE
 #
-# Customer has created the ride.
+# Rules:
 #
-# Multiple drivers may receive the request.
-#
-# ONLY ONE DRIVER CAN WIN.
-#
-# select_for_update() locks the RideRequest row.
+# 1. Driver must be approved.
+# 2. Driver must be online.
+# 3. Driver cannot have another active ride.
+# 4. Driver cannot accept a new ride while commission is owed.
+# 5. Only one driver can accept a pending ride.
 # ============================================================
 
 class AcceptRideView(APIView):
@@ -320,13 +322,20 @@ class AcceptRideView(APIView):
     def post(self, request, ride_id):
 
         # ----------------------------------------------------
-        # VERIFY DRIVER
+        # LOCK DRIVER PROFILE
+        #
+        # This is important because it prevents the same
+        # driver from accepting two rides concurrently.
         # ----------------------------------------------------
 
         profile = get_object_or_404(
-            RideDriverProfile,
+            RideDriverProfile.objects.select_for_update(),
             user=request.user,
         )
+
+        # ----------------------------------------------------
+        # DRIVER MUST BE APPROVED
+        # ----------------------------------------------------
 
         if profile.status != "approved":
 
@@ -339,6 +348,10 @@ class AcceptRideView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        # ----------------------------------------------------
+        # DRIVER MUST BE ONLINE
+        # ----------------------------------------------------
+
         if not profile.is_online:
 
             return Response(
@@ -348,6 +361,82 @@ class AcceptRideView(APIView):
                         "accept a ride."
                 },
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ----------------------------------------------------
+        # DRIVER CAN ONLY HAVE ONE ACTIVE RIDE
+        #
+        # accepted
+        # arrived
+        # started
+        # ----------------------------------------------------
+
+        active_ride = (
+            RideRequest.objects
+            .filter(
+                driver=request.user,
+                status__in=[
+                    "accepted",
+                    "arrived",
+                    "started",
+                ],
+            )
+            .first()
+        )
+
+        if active_ride:
+
+            return Response(
+                {
+                    "detail":
+                        "You already have an active ride. "
+                        "Complete or cancel your current ride "
+                        "before accepting another one.",
+
+                    "active_ride_id":
+                        active_ride.ride_id,
+
+                    "active_ride_status":
+                        active_ride.status,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ----------------------------------------------------
+        # LOCK DRIVER WALLET
+        # ----------------------------------------------------
+
+        wallet, created = (
+            RideDriverWallet.objects
+            .select_for_update()
+            .get_or_create(
+                driver=request.user
+            )
+        )
+
+        # ----------------------------------------------------
+        # DRIVER MUST SETTLE OUTSTANDING COMMISSION
+        # BEFORE ACCEPTING ANOTHER RIDE
+        # ----------------------------------------------------
+
+        if wallet.commission_balance > Decimal("0.00"):
+
+            return Response(
+                {
+                    "detail":
+                        "Please pay your outstanding "
+                        "commission before accepting "
+                        "another ride.",
+
+                    "commission_due":
+                        str(
+                            wallet.commission_balance
+                        ),
+
+                    "commission_payment_required":
+                        True,
+                },
+                status=status.HTTP_402_PAYMENT_REQUIRED,
             )
 
         # ----------------------------------------------------
@@ -389,10 +478,6 @@ class AcceptRideView(APIView):
 
         # ----------------------------------------------------
         # PREMIUM DRIVER ELIGIBILITY
-        #
-        # Premium requires a 2009+ vehicle.
-        #
-        # Basic has no vehicle-year restriction.
         # ----------------------------------------------------
 
         if ride.service_type == "premium":
@@ -451,6 +536,7 @@ class AcceptRideView(APIView):
             ).data,
             status=status.HTTP_200_OK,
         )
+
 
 
 # ============================================================
@@ -1007,6 +1093,15 @@ class RideDriverWalletView(APIView):
 # DRIVER → SENMI COMMISSION PAYMENT
 # ============================================================
 
+# ============================================================
+# DRIVER → SENMI COMMISSION PAYMENT
+#
+# Driver pays the ENTIRE outstanding commission balance.
+#
+# This payment is not tied to one specific ride.
+# RideCommissionPayment.ride therefore remains NULL.
+# ============================================================
+
 class RideCommissionPaymentView(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -1014,24 +1109,14 @@ class RideCommissionPaymentView(APIView):
     @transaction.atomic
     def post(self, request):
 
-        ride_id = request.data.get(
-            "ride_id"
-        )
-
         payment_method = request.data.get(
             "payment_method",
             "card",
         )
 
-        if not ride_id:
-
-            return Response(
-                {
-                    "detail":
-                        "ride_id is required."
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        # ----------------------------------------------------
+        # ALLOWED PAYSTACK PAYMENT METHODS
+        # ----------------------------------------------------
 
         allowed_methods = {
             "card",
@@ -1050,62 +1135,24 @@ class RideCommissionPaymentView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        ride = get_object_or_404(
-            RideRequest.objects.select_for_update(),
-            ride_id=ride_id,
+        # ----------------------------------------------------
+        # LOCK DRIVER WALLET
+        # ----------------------------------------------------
+
+        wallet, created = (
+            RideDriverWallet.objects
+            .select_for_update()
+            .get_or_create(
+                driver=request.user
+            )
         )
 
         # ----------------------------------------------------
-        # ONLY DRIVER
-        # ----------------------------------------------------
-
-        if ride.driver_id != request.user.id:
-
-            return Response(
-                {
-                    "detail":
-                        "You are not the driver "
-                        "for this ride."
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        # ----------------------------------------------------
-        # MUST BE COMPLETED
-        # ----------------------------------------------------
-
-        if ride.status != "completed":
-
-            return Response(
-                {
-                    "detail":
-                        "Commission can only be paid "
-                        "after the ride is completed."
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # ----------------------------------------------------
-        # ALREADY PAID
-        # ----------------------------------------------------
-
-        if ride.commission_paid:
-
-            return Response(
-                {
-                    "detail":
-                        "Commission for this ride "
-                        "has already been paid."
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # ----------------------------------------------------
-        # COMMISSION AMOUNT
+        # GET OUTSTANDING BALANCE
         # ----------------------------------------------------
 
         amount = (
-            ride.service_fee
+            wallet.commission_balance
             or Decimal("0.00")
         )
 
@@ -1114,21 +1161,29 @@ class RideCommissionPaymentView(APIView):
             return Response(
                 {
                     "detail":
-                        "There is no commission "
-                        "to pay for this ride."
+                        "You have no outstanding commission.",
+
+                    "commission_due":
+                        "0.00",
+
+                    "commission_payment_required":
+                        False,
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         # ----------------------------------------------------
-        # EXISTING PENDING PAYMENT
+        # EXISTING PENDING SETTLEMENT PAYMENT
+        #
+        # Reuse it instead of creating duplicate Paystack
+        # transactions.
         # ----------------------------------------------------
 
         existing_payment = (
             RideCommissionPayment.objects
             .filter(
-                ride=ride,
                 driver=request.user,
+                ride__isnull=True,
                 status="pending",
             )
             .order_by("-created_at")
@@ -1137,55 +1192,93 @@ class RideCommissionPaymentView(APIView):
 
         if existing_payment:
 
-            if (
-                existing_payment.payment_method
-                != payment_method
-            ):
+            # If the payment amount still equals the current
+            # outstanding balance, reuse the payment.
+            if existing_payment.amount == amount:
 
-                existing_payment.payment_method = (
-                    payment_method
+                if (
+                    existing_payment.payment_method
+                    != payment_method
+                ):
+
+                    existing_payment.payment_method = (
+                        payment_method
+                    )
+
+                    existing_payment.save(
+                        update_fields=[
+                            "payment_method",
+                            "updated_at",
+                        ]
+                    )
+
+                return Response(
+                    {
+                        "payment_id":
+                            existing_payment.id,
+
+                        "amount":
+                            str(
+                                existing_payment.amount
+                            ),
+
+                        "payment_method":
+                            existing_payment.payment_method,
+
+                        "reference":
+                            existing_payment.reference,
+
+                        "payment_url":
+                            existing_payment.payment_url,
+
+                        "access_code":
+                            existing_payment.access_code,
+
+                        "status":
+                            existing_payment.status,
+
+                        "commission_due":
+                            str(
+                                wallet.commission_balance
+                            ),
+
+                        "message":
+                            "Existing commission payment found.",
+                    },
+                    status=status.HTTP_200_OK,
                 )
 
-                existing_payment.save(
-                    update_fields=[
-                        "payment_method",
-                        "updated_at",
-                    ]
-                )
+            # ------------------------------------------------
+            # Safety:
+            # If an old pending payment has a different
+            # amount, don't create another payment.
+            # ------------------------------------------------
 
             return Response(
                 {
-                    "payment_id":
-                        existing_payment.id,
+                    "detail":
+                        "You already have a pending "
+                        "commission payment. Please complete "
+                        "or verify that payment first.",
 
-                    "ride_id":
-                        ride.ride_id,
+                    "reference":
+                        existing_payment.reference,
 
                     "amount":
                         str(
                             existing_payment.amount
                         ),
 
-                    "payment_method":
-                        existing_payment.payment_method,
-
-                    "reference":
-                        existing_payment.reference,
-
-                    "payment_url":
-                        existing_payment.payment_url,
-
-                    "access_code":
-                        existing_payment.access_code,
-
-                    "status":
-                        existing_payment.status,
+                    "commission_due":
+                        str(
+                            wallet.commission_balance
+                        ),
                 },
-                status=status.HTTP_200_OK,
+                status=status.HTTP_409_CONFLICT,
             )
 
         # ----------------------------------------------------
-        # CREATE REFERENCE
+        # CREATE UNIQUE REFERENCE
         # ----------------------------------------------------
 
         reference = (
@@ -1194,12 +1287,15 @@ class RideCommissionPaymentView(APIView):
         )
 
         # ----------------------------------------------------
-        # CREATE PAYMENT
+        # CREATE SETTLEMENT PAYMENT
+        #
+        # ride=None because this payment settles the
+        # driver's total outstanding commission balance.
         # ----------------------------------------------------
 
         payment = RideCommissionPayment.objects.create(
             driver=request.user,
-            ride=ride,
+            ride=None,
             amount=amount,
             payment_method=payment_method,
             reference=reference,
@@ -1268,13 +1364,14 @@ class RideCommissionPaymentView(APIView):
             ]
         )
 
+        # ----------------------------------------------------
+        # RESPONSE
+        # ----------------------------------------------------
+
         return Response(
             {
                 "payment_id":
                     payment.id,
-
-                "ride_id":
-                    ride.ride_id,
 
                 "amount":
                     str(payment.amount),
@@ -1294,15 +1391,31 @@ class RideCommissionPaymentView(APIView):
                 "status":
                     payment.status,
 
+                "commission_due":
+                    str(
+                        wallet.commission_balance
+                    ),
+
+                "commission_payment_required":
+                    True,
+
                 "message":
                     "Paystack commission payment initialized.",
             },
             status=status.HTTP_201_CREATED,
         )
 
+    
 
 # ============================================================
 # COMPLETE COMMISSION PAYMENT
+# ============================================================
+
+# ============================================================
+# COMPLETE COMMISSION PAYMENT
+#
+# This settles the driver's ENTIRE outstanding commission
+# balance.
 # ============================================================
 
 def complete_ride_commission_payment(
@@ -1353,15 +1466,23 @@ def complete_ride_commission_payment(
         )
     )
 
+    outstanding_balance = (
+        wallet.commission_balance
+        or Decimal("0.00")
+    )
+
     # --------------------------------------------------------
-    # DRIVER CANNOT PAY MORE THAN OWED
+    # PAYMENT MUST MATCH THE CURRENT OUTSTANDING BALANCE
+    #
+    # We do not allow partial commission settlement.
     # --------------------------------------------------------
 
-    if wallet.commission_balance < payment.amount:
+    if payment.amount != outstanding_balance:
 
         raise ValueError(
-            "Commission balance is lower than "
-            "the payment amount."
+            "Commission payment amount does not "
+            "match the driver's current outstanding "
+            "commission balance."
         )
 
     # --------------------------------------------------------
@@ -1383,24 +1504,21 @@ def complete_ride_commission_payment(
     )
 
     # --------------------------------------------------------
-    # MARK RIDE COMMISSION PAID
+    # MARK ALL COMPLETED UNPAID RIDE COMMISSIONS AS SETTLED
+    #
+    # The payment represents the driver's complete
+    # outstanding commission balance.
     # --------------------------------------------------------
 
-    ride = payment.ride
-
-    if ride:
-
-        ride.commission_paid = True
-
-        ride.commission_paid_at = now
-
-        ride.save(
-            update_fields=[
-                "commission_paid",
-                "commission_paid_at",
-                "updated_at",
-            ]
-        )
+    RideRequest.objects.filter(
+        driver=payment.driver,
+        status="completed",
+        commission_paid=False,
+    ).update(
+        commission_paid=True,
+        commission_paid_at=now,
+        updated_at=now,
+    )
 
     # --------------------------------------------------------
     # CREATE TRANSACTION ONCE
@@ -1427,12 +1545,10 @@ def complete_ride_commission_payment(
     )
 
     # --------------------------------------------------------
-    # REDUCE COMMISSION BALANCE
+    # CLEAR OUTSTANDING COMMISSION
     # --------------------------------------------------------
 
-    wallet.commission_balance -= (
-        payment.amount
-    )
+    wallet.commission_balance = Decimal("0.00")
 
     wallet.total_commission_paid += (
         payment.amount

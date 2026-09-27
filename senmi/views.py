@@ -3066,7 +3066,6 @@ class InitializeReceiverPaymentView(APIView):
 # ------------------------------
 @method_decorator(csrf_exempt, name="dispatch")
 class PaystackWebhookView(APIView):
-
     authentication_classes = []
     permission_classes = []
 

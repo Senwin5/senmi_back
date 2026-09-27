@@ -439,7 +439,7 @@ def initialize_ride_commission_payment(
 
     payload = {
         "email": email,
-        "amount": str(amount_in_kobo),
+        "amount": amount_in_kobo,
         "reference": payment.reference,
         "channels": get_paystack_channel(
             payment.payment_method
