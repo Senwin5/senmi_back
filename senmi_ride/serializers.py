@@ -127,6 +127,11 @@ class RideRequestSerializer(serializers.ModelSerializer):
         read_only=True
     )
 
+    passenger_phone = serializers.CharField(
+        source="passenger.phone_number",
+        read_only=True
+    )
+
     driver_email = serializers.EmailField(
         source="driver.email",
         read_only=True
