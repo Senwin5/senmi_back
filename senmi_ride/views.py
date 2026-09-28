@@ -1828,6 +1828,39 @@ class DriverRideHistoryView(APIView):
         )
 
 
+
+# ============================================================
+# DRIVER DELETE RIDE HISTORY
+# ============================================================
+
+class DriverDeleteRideHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, ride_id):
+        try:
+            ride = RideRequest.objects.get(
+                ride_id=ride_id,
+                driver=request.user,
+                status__in=["completed", "cancelled"],
+            )
+        except RideRequest.DoesNotExist:
+            return Response(
+                {
+                    "detail": "Ride history not found."
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        ride.delete()
+
+        return Response(
+            {
+                "detail": "Ride history deleted successfully."
+            },
+            status=status.HTTP_204_NO_CONTENT,
+        )
+
+    
 # ============================================================
 # DRIVER STATS
 # ============================================================

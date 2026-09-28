@@ -6,6 +6,7 @@ from django.urls import path
 
 from .views import (
     DriverCommissionHistoryView,
+    DriverDeleteRideHistoryView,
     DriverRideHistoryView,
     DriverStatsView,
     RideDriverProfileView,
@@ -217,6 +218,12 @@ urlpatterns = [
         "rides/driver/history/",
         DriverRideHistoryView.as_view(),
         name="driver-ride-history",
+    ),
+
+    path(
+        "rides/<str:ride_id>/driver-delete/",
+        DriverDeleteRideHistoryView.as_view(),
+        name="driver-delete-ride-history",
     ),
 
     # ========================================================
