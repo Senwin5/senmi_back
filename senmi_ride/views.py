@@ -1858,6 +1858,78 @@ class DriverDeleteRideHistoryView(APIView):
                 "detail": "Ride history deleted successfully."
             },
             status=status.HTTP_204_NO_CONTENT,
+        )# ============================================================
+# DRIVER DELETE RIDE HISTORY
+# ============================================================
+
+class DriverDeleteRideHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, ride_id):
+        # ----------------------------------------------------
+        # CHECK DRIVER'S OUTSTANDING COMMISSION FIRST
+        # ----------------------------------------------------
+
+        try:
+            wallet = RideDriverWallet.objects.get(
+                driver=request.user
+            )
+
+            commission_due = wallet.commission_balance or Decimal("0.00")
+
+        except RideDriverWallet.DoesNotExist:
+            # No wallet means no outstanding commission.
+            commission_due = Decimal("0.00")
+
+        # ----------------------------------------------------
+        # DRIVER MUST PAY COMMISSION BEFORE DELETING HISTORY
+        # ----------------------------------------------------
+
+        if commission_due > Decimal("0.00"):
+            return Response(
+                {
+                    "detail": (
+                        f"Please pay your outstanding commission due "
+                        f"of ₦{commission_due:,.2f} before deleting "
+                        f"ride history."
+                    ),
+                    "commission_due": float(commission_due),
+                    "can_delete": False,
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # ----------------------------------------------------
+        # FIND ONLY THIS DRIVER'S COMPLETED/CANCELLED RIDE
+        # ----------------------------------------------------
+
+        try:
+            ride = RideRequest.objects.get(
+                ride_id=ride_id,
+                driver=request.user,
+                status__in=["completed", "cancelled"],
+            )
+
+        except RideRequest.DoesNotExist:
+            return Response(
+                {
+                    "detail": "Ride history not found."
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # ----------------------------------------------------
+        # COMMISSION IS ZERO → DELETE RIDE
+        # ----------------------------------------------------
+
+        ride.delete()
+
+        return Response(
+            {
+                "detail": "Ride history deleted successfully.",
+                "can_delete": True,
+            },
+            status=status.HTTP_204_NO_CONTENT,
         )
 
     
