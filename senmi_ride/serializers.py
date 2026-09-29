@@ -145,6 +145,7 @@ class RideRequestSerializer(serializers.ModelSerializer):
             "ride_id",
 
             "passenger",
+            "passenger_name",
             "passenger_email",
             "passenger_phone",
 
