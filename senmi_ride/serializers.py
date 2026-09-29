@@ -194,7 +194,11 @@ class RideRequestSerializer(serializers.ModelSerializer):
             "ride_id",
 
             "passenger",
+            "passenger_name",
+            "passenger_email",
+            "passenger_phone",
             "driver",
+            "driver_email",
 
             "fare",
             "service_fee",
@@ -214,6 +218,7 @@ class RideRequestSerializer(serializers.ModelSerializer):
             "completed_at",
             "cancelled_at",
         ]
+
 
 
 # ============================================================
