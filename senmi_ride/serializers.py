@@ -219,6 +219,22 @@ class RideRequestSerializer(serializers.ModelSerializer):
             "cancelled_at",
         ]
 
+    passenger_name = serializers.SerializerMethodField()
+
+    def get_passenger_name(self, obj):
+        first_name = (obj.passenger.first_name or "").strip()
+        last_name = (obj.passenger.last_name or "").strip()
+
+        full_name = f"{first_name} {last_name}".strip()
+
+        if full_name:
+            return full_name
+
+        if obj.passenger.username:
+            return obj.passenger.username
+
+        return obj.passenger.email
+
 
 
 # ============================================================
