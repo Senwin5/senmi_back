@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <!-- Favicon -->
     <link href="{% static 'favicon.ico' %}" rel="icon">
 
@@ -17,13 +18,27 @@
 
     <style>
 
-        body {
-            background-color: #f8f9fa;
+        :root {
+            --senmi-purple: #581C87;
+            --senmi-light-purple: #7C3AED;
+            --senmi-dark-purple: #3B0764;
+            --senmi-green: #49874C;
         }
 
+        body {
+            background-color: #ffffff;
+            color: #18181b;
+        }
+
+        /* =========================
+           NAVBAR
+        ========================= */
+
         .navbar {
-            padding-top: 15px;
-            padding-bottom: 15px;
+            padding-top: 14px;
+            padding-bottom: 14px;
+            background-color: #ffffff !important;
+            border-bottom: 1px solid rgba(189, 193, 196, 0.08);
         }
 
         .navbar-brand {
@@ -32,38 +47,94 @@
             letter-spacing: 1px;
         }
 
-        .hero-section{
-            padding:120px 0;
-            background:linear-gradient(135deg,#581C87,#3B0764);
-            color:#fff;
-            overflow:hidden;
+        .navbar-logo {
+            width: 48px;
+            height: 40px;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+
+        .navbar .nav-link {
+            color: #1bb559 !important;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .navbar .nav-link:hover {
+            color: var(--senmi-purple) !important;
+        }
+
+        .navbar .nav-link.active {
+            color: var(--senmi-purple) !important;
+        }
+
+        .navbar-toggler {
+            border: 1px solid rgba(88, 28, 135, 0.15);
+            padding: 8px 10px;
+        }
+
+        .navbar-toggler:focus {
+            box-shadow: 0 0 0 0.2rem rgba(88, 28, 135, 0.15);
+        }
+
+        .navbar-toggler-icon {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='%23581C87' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+        }
+
+        .navbar-contact-btn {
+            background-color: var(--senmi-purple);
+            border: 1px solid var(--senmi-purple);
+            color: #ffffff !important;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .navbar-contact-btn:hover {
+            background-color: var(--senmi-light-purple);
+            border-color: var(--senmi-light-purple);
+            color: #ffffff !important;
+            transform: translateY(-1px);
+        }
+
+
+        /* =========================
+           HERO / PURPLE CONTENT
+        ========================= */
+
+        .hero-section {
+            padding: 120px 0;
+            background: linear-gradient(
+                135deg,
+                #581C87,
+                #3B0764
+            );
+            color: #ffffff;
+            overflow: hidden;
         }
 
         .hero-section h1 {
             font-weight: 800;
         }
 
-        .footer {
-            background: #5B2C83;
-            color: white;
-            padding: 50px 0;
-            margin-top: 80px;
+        .hero-section p {
+            color: rgba(255, 255, 255, 0.88);
         }
 
-        .footer a:hover {
-            opacity: 0.8;
-        }
 
-        .legal-card {
-            border: none;
-            border-radius: 20px;
-        }
+        /* =========================
+           PURPLE SECTION TITLES
+        ========================= */
 
         .section-title {
-            color: #5B2C83;
+            color: var(--senmi-purple);
             font-weight: 700;
             margin-top: 40px;
         }
+
+
+        /* =========================
+           BUTTONS
+        ========================= */
 
         .download-btn {
             min-width: 220px;
@@ -71,13 +142,53 @@
             padding: 14px 20px;
             font-weight: 600;
         }
-        .navbar-logo {
-            width: 45px;
-            height: 45px;
-            border-radius: 3px;
-            object-fit: contain;
+
+        .btn-senmi {
+            background-color: var(--senmi-purple);
+            border-color: var(--senmi-purple);
+            color: #ffffff;
         }
-        
+
+        .btn-senmi:hover {
+            background-color: var(--senmi-light-purple);
+            border-color: var(--senmi-light-purple);
+            color: #ffffff;
+        }
+
+
+        /* =========================
+           CARDS
+        ========================= */
+
+        .legal-card {
+            border: none;
+            border-radius: 20px;
+        }
+
+
+        /* =========================
+           FOOTER
+        ========================= */
+
+        .footer {
+            background: linear-gradient(
+                135deg,
+                #581C87,
+                #3B0764
+            );
+            color: white;
+            padding: 50px 0;
+            margin-top: 80px;
+        }
+
+        .footer a {
+            transition: opacity 0.2s ease;
+        }
+
+        .footer a:hover {
+            opacity: 0.8;
+        }
+
         .footer-logo {
             width: 50px;
             height: 50px;
@@ -89,6 +200,41 @@
             padding: 5px;
         }
 
+
+        /* =========================
+           MOBILE
+        ========================= */
+
+        @media (max-width: 991.98px) {
+
+            .navbar {
+                padding-top: 10px;
+                padding-bottom: 10px;
+            }
+
+            .navbar-collapse {
+                padding-top: 15px;
+                padding-bottom: 10px;
+            }
+
+            .navbar-nav {
+                gap: 4px;
+            }
+
+            .navbar .nav-link {
+                padding: 10px 0 !important;
+            }
+
+            .navbar-contact-btn {
+                display: inline-block;
+                margin-top: 8px;
+            }
+
+            .hero-section {
+                padding: 80px 0;
+            }
+        }
+
     </style>
 
     {% block extra_css %}{% endblock %}
@@ -96,24 +242,41 @@
 
 <body>
 
-<!-- NAVBAR -->
-<nav class="navbar navbar-expand-lg navbar-dark shadow-sm"
-     style="background-color: #581C87;">
+<!-- =========================
+     NAVBAR
+========================= -->
+
+<nav class="navbar navbar-expand-lg shadow-sm">
+
     <div class="container">
 
+        <!-- LOGO -->
+
         <a class="navbar-brand d-flex align-items-center" href="/">
+
             <img src="{% static 'logo.png' %}"
-                alt="Senmi Logo"
-                class="navbar-logo">
+                 alt="Senmi Logo"
+                 class="navbar-logo">
+
         </a>
+
+
+        <!-- MOBILE MENU BUTTON -->
 
         <button class="navbar-toggler"
                 type="button"
                 data-bs-toggle="collapse"
-                data-bs-target="#navbarNav">
+                data-bs-target="#navbarNav"
+                aria-controls="navbarNav"
+                aria-expanded="false"
+                aria-label="Toggle navigation">
 
             <span class="navbar-toggler-icon"></span>
+
         </button>
+
+
+        <!-- NAVIGATION -->
 
         <div class="collapse navbar-collapse" id="navbarNav">
 
@@ -149,45 +312,65 @@
                     </a>
                 </li>
 
+                <!-- CONTACT -->
+
                 <li class="nav-item mt-3 mt-lg-0">
-                    <a class="btn ms-lg-3 px-4 rounded-pill text-white"
-                    href="/contact/"
-                    style="background-color: #49874C; border-color: #49874C;">
+
+                    <a class="btn ms-lg-3 px-4 rounded-pill navbar-contact-btn"
+                       href="/contact/">
 
                         Contact
+
                     </a>
+
                 </li>
 
             </ul>
 
         </div>
+
     </div>
+
 </nav>
 
-<!-- PAGE CONTENT -->
+
+<!-- =========================
+     PAGE CONTENT
+========================= -->
+
 {% block content %}
 
 {% endblock %}
 
-<!-- FOOTER -->
+
+<!-- =========================
+     FOOTER
+========================= -->
+
 <footer class="footer">
+
     <div class="container">
 
         <div class="row gy-4">
 
-            <!-- Company -->
+            <!-- COMPANY -->
+
             <div class="col-lg-5 col-md-12">
 
                 <h4 class="fw-bold mb-1 d-flex align-items-center">
+
                     <img src="{% static 'logo.png' %}"
-                        alt="Senmi Logo"
-                        class="footer-logo">
+                         alt="Senmi Logo"
+                         class="footer-logo">
+
                 </h4>
 
                 <p class="text-light mt-3">
+
                     Senmi provides technology-enabled package delivery services
                     across Lagos through approved independent riders engaged by
                     Real Time Delivery App Ltd.
+
                 </p>
 
                 <div class="d-flex flex-wrap gap-2 mt-4">
@@ -197,7 +380,9 @@
                        class="btn btn-light">
 
                         <i class="bi bi-google-play me-2"></i>
+
                         Google Play
+
                     </a>
 
                     <a href="https://apps.apple.com/"
@@ -205,14 +390,18 @@
                        class="btn btn-outline-light">
 
                         <i class="bi bi-apple me-2"></i>
+
                         App Store
+
                     </a>
 
                 </div>
 
             </div>
 
-            <!-- Quick Links -->
+
+            <!-- QUICK LINKS -->
+
             <div class="col-lg-2 col-md-4">
 
                 <h5 class="fw-bold mb-3">
@@ -222,34 +411,56 @@
                 <ul class="list-unstyled">
 
                     <li class="mb-2">
-                        <a href="/" class="text-light text-decoration-none">
+
+                        <a href="/"
+                           class="text-light text-decoration-none">
+
                             Home
+
                         </a>
+
                     </li>
 
                     <li class="mb-2">
-                        <a href="/about/" class="text-light text-decoration-none">
+
+                        <a href="/about/"
+                           class="text-light text-decoration-none">
+
                             About Us
+
                         </a>
+
                     </li>
 
                     <li class="mb-2">
-                        <a href="/support/" class="text-light text-decoration-none">
+
+                        <a href="/support/"
+                           class="text-light text-decoration-none">
+
                             Support
+
                         </a>
+
                     </li>
 
                     <li class="mb-2">
-                        <a href="/contact/" class="text-light text-decoration-none">
+
+                        <a href="/contact/"
+                           class="text-light text-decoration-none">
+
                             Contact
+
                         </a>
+
                     </li>
 
                 </ul>
 
             </div>
 
-            <!-- Legal -->
+
+            <!-- LEGAL -->
+
             <div class="col-lg-2 col-md-4">
 
                 <h5 class="fw-bold mb-3">
@@ -259,31 +470,56 @@
                 <ul class="list-unstyled">
 
                     <li class="mb-2">
-                        <a href="/terms/" class="text-light text-decoration-none">
+
+                        <a href="/terms/"
+                           class="text-light text-decoration-none">
+
                             Terms & Conditions
+
                         </a>
+
                     </li>
 
                     <li class="mb-2">
-                        <a href="/privacy/" class="text-light text-decoration-none">
+
+                        <a href="/privacy/"
+                           class="text-light text-decoration-none">
+
                             Privacy Policy
+
                         </a>
-                    </li>
-                    <li class="mb-2">
-                        <a href="/faq/" class="text-light text-decoration-none">
-                            FAQ
-                        </a>
+
                     </li>
 
                     <li class="mb-2">
-                        <a href="/delete/" class="text-light text-decoration-none">
-                            Delete Account
+
+                        <a href="/faq/"
+                           class="text-light text-decoration-none">
+
+                            FAQ
+
                         </a>
+
                     </li>
+
+                    <li class="mb-2">
+
+                        <a href="/delete/"
+                           class="text-light text-decoration-none">
+
+                            Delete Account
+
+                        </a>
+
+                    </li>
+
                 </ul>
+
             </div>
 
-            <!-- Contact -->
+
+            <!-- CONTACT -->
+
             <div class="col-lg-3 col-md-4">
 
                 <h5 class="fw-bold mb-3">
@@ -291,38 +527,58 @@
                 </h5>
 
                 <p class="mb-2">
+
                     <i class="bi bi-envelope-fill me-2"></i>
+
                     senmisupport@gmail.com
+
                 </p>
 
                 <p class="mb-2">
+
                     <i class="bi bi-telephone-fill me-2"></i>
+
                     +234 911 734 1739
+
                 </p>
 
                 <p class="mb-0">
+
                     <i class="bi bi-geo-alt-fill me-2"></i>
+
                     Lagos, Nigeria
+
                 </p>
 
             </div>
 
         </div>
 
+
         <hr class="border-secondary my-4">
-        
+
+
         <div class="row justify-content-center">
 
             <div class="col-md-6">
+
                 <small class="text-light">
-                    © 2026 Real Time Delivery App Ltd. All rights reserved.
+
+                    © 2026 Real Time Delivery App Ltd.
+                    All rights reserved.
+
                 </small>
+
             </div>
 
         </div>
 
     </div>
+
 </footer>
+
+
+<!-- Bootstrap JS -->
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
