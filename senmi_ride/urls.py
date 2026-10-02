@@ -33,6 +33,8 @@ from .customer import (
     PassengerActiveRidesView,
     PassengerRideDetailView,
     PassengerCancelRideView,
+    CreateRideShareView,
+    PublicRideTrackingView,
 )
 
 
@@ -79,6 +81,17 @@ urlpatterns = [
         name="ride-driver-location",
     ),
 
+    path(
+        "rides/<str:ride_id>/share/",
+        CreateRideShareView.as_view(),
+        name="create-ride-share",
+    ),
+    
+    path(
+    "rides/shared/<str:token>/",
+    PublicRideTrackingView.as_view(),
+    name="public-ride-tracking",
+    ),
     # ========================================================
     # PASSENGER
     # ========================================================

@@ -757,3 +757,37 @@ class RidePricingConfig(models.Model):
         return self.name
 
 
+# ============================================================
+# PUBLIC LIVE RIDE SHARE
+# ============================================================
+
+class RideShareToken(models.Model):
+
+    ride = models.ForeignKey(
+        RideRequest,
+        on_delete=models.CASCADE,
+        related_name="share_tokens",
+    )
+
+    token = models.CharField(
+        max_length=128,
+        unique=True,
+        db_index=True,
+        editable=False,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    revoked = models.BooleanField(
+        default=False
+    )
+
+    def __str__(self):
+        return f"{self.ride.ride_id} - {self.token}"

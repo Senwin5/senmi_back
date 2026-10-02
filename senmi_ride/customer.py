@@ -1,12 +1,15 @@
 # senmi_ride/customer.py
 
+from datetime import timedelta
+import secrets
+
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
 
 from senmi_ride.matching import (
@@ -14,7 +17,7 @@ from senmi_ride.matching import (
     find_nearest_drivers,
 )
 
-from .models import RideRequest
+from .models import RideDriverAvailability, RideDriverProfile, RideRequest, RideShareToken, RideTracking
 from .serializers import RideRequestSerializer
 from .utils import (
     calculate_ride_fare,
@@ -708,6 +711,312 @@ class PassengerRideDetailView(APIView):
             status=status.HTTP_200_OK,
         )
 
+
+# ============================================================
+# CREATE PUBLIC LIVE RIDE SHARE LINK
+# ============================================================
+
+class CreateRideShareView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, ride_id):
+
+        ride = get_object_or_404(
+            RideRequest,
+            ride_id=ride_id,
+            passenger=request.user,
+        )
+
+        # ----------------------------------------------------
+        # ONLY ACTIVE RIDES CAN BE SHARED
+        # ----------------------------------------------------
+
+        if ride.status in [
+            "completed",
+            "cancelled",
+        ]:
+
+            return Response(
+                {
+                    "detail":
+                        "This ride can no longer be shared."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ----------------------------------------------------
+        # REUSE EXISTING ACTIVE TOKEN
+        # ----------------------------------------------------
+
+        existing_token = (
+            RideShareToken.objects
+            .filter(
+                ride=ride,
+                revoked=False,
+            )
+            .order_by("-created_at")
+            .first()
+        )
+
+        if existing_token:
+
+            if (
+                existing_token.expires_at is None
+                or existing_token.expires_at > timezone.now()
+            ):
+
+                share_url = (
+                    "https://www.senmi.com.ng/track/"
+                    f"{existing_token.token}"
+                )
+
+                return Response(
+                    {
+                        "share_url": share_url,
+                        "token": existing_token.token,
+                    },
+                    status=status.HTTP_200_OK,
+                )
+
+        # ----------------------------------------------------
+        # CREATE NEW SECURE TOKEN
+        # ----------------------------------------------------
+
+        token = secrets.token_urlsafe(32)
+
+        share = RideShareToken.objects.create(
+            ride=ride,
+            token=token,
+            expires_at=timezone.now() + timedelta(hours=24),
+        )
+
+        share_url = (
+            "https://www.senmi.com.ng/track/"
+            f"{share.token}"
+        )
+
+        return Response(
+            {
+                "share_url": share_url,
+                "token": share.token,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+
+# ============================================================
+# PUBLIC LIVE RIDE TRACKING
+# ============================================================
+
+class PublicRideTrackingView(APIView):
+
+    permission_classes = [AllowAny]
+
+    def get(self, request, token):
+
+        share = get_object_or_404(
+            RideShareToken.objects.select_related(
+                "ride",
+                "ride__driver",
+            ),
+            token=token,
+            revoked=False,
+        )
+
+        # ----------------------------------------------------
+        # CHECK EXPIRATION
+        # ----------------------------------------------------
+
+        if (
+            share.expires_at is not None
+            and timezone.now() >= share.expires_at
+        ):
+
+            return Response(
+                {
+                    "detail":
+                        "This ride tracking link has expired."
+                },
+                status=status.HTTP_410_GONE,
+            )
+
+        ride = share.ride
+
+        # ----------------------------------------------------
+        # GET DRIVER PROFILE
+        # ----------------------------------------------------
+
+        driver_profile = None
+
+        if ride.driver:
+
+            driver_profile = (
+                RideDriverProfile.objects
+                .filter(
+                    user=ride.driver
+                )
+                .first()
+            )
+
+        # ----------------------------------------------------
+        # DRIVER INFORMATION
+        # ----------------------------------------------------
+
+        driver_name = None
+        vehicle_number = None
+        driver_image = None
+
+        if driver_profile:
+
+            driver_name = driver_profile.full_name
+
+            vehicle_number = (
+                driver_profile.plate_number
+            )
+
+            if driver_profile.profile_photo:
+
+                try:
+                    driver_image = (
+                        driver_profile
+                        .profile_photo
+                        .url
+                    )
+                except Exception:
+                    driver_image = None
+
+        # ----------------------------------------------------
+        # GET LATEST RIDE TRACKING LOCATION
+        # ----------------------------------------------------
+
+        latest_tracking = (
+            RideTracking.objects
+            .filter(
+                ride=ride
+            )
+            .order_by("-timestamp")
+            .first()
+        )
+
+        driver_lat = None
+        driver_lng = None
+        driver_location_updated_at = None
+
+        if latest_tracking:
+
+            driver_lat = latest_tracking.latitude
+            driver_lng = latest_tracking.longitude
+
+            driver_location_updated_at = (
+                latest_tracking.timestamp.isoformat()
+            )
+
+        # ----------------------------------------------------
+        # FALLBACK TO DRIVER AVAILABILITY
+        # ----------------------------------------------------
+
+        if (
+            driver_lat is None
+            and ride.driver
+        ):
+
+            driver_profile_for_location = (
+                RideDriverProfile.objects
+                .filter(
+                    user=ride.driver
+                )
+                .first()
+            )
+
+            if driver_profile_for_location:
+
+                availability = (
+                    RideDriverAvailability.objects
+                    .filter(
+                        driver=driver_profile_for_location
+                    )
+                    .first()
+                )
+
+                if availability:
+
+                    driver_lat = (
+                        availability.latitude
+                    )
+
+                    driver_lng = (
+                        availability.longitude
+                    )
+
+                    driver_location_updated_at = (
+                        availability.updated_at
+                        .isoformat()
+                    )
+
+        # ----------------------------------------------------
+        # ETA
+        # ----------------------------------------------------
+
+        eta_minutes = None
+
+        if (
+            ride.estimated_duration_minutes
+            is not None
+        ):
+
+            eta_minutes = (
+                ride.estimated_duration_minutes
+            )
+
+        # ----------------------------------------------------
+        # PUBLIC RESPONSE
+        # ----------------------------------------------------
+
+        return Response(
+            {
+                "ride_id": ride.ride_id,
+
+                "status": ride.status,
+
+                "pickup": {
+                    "address": ride.pickup_address,
+                    "lat": ride.pickup_lat,
+                    "lng": ride.pickup_lng,
+                },
+
+                "destination": {
+                    "address": ride.destination_address,
+                    "lat": ride.destination_lat,
+                    "lng": ride.destination_lng,
+                },
+
+                "driver": {
+                    "name": driver_name,
+                    "vehicle_number": vehicle_number,
+                    "image": driver_image,
+                },
+
+                "driver_location": {
+                    "lat": driver_lat,
+                    "lng": driver_lng,
+                    "updated_at":
+                        driver_location_updated_at,
+                },
+
+                "eta_minutes": eta_minutes,
+
+                "share_expires_at": (
+                    share.expires_at.isoformat()
+                    if share.expires_at
+                    else None
+                ),
+            },
+            status=status.HTTP_200_OK,
+        )
+    
+    
 class PassengerCancelRideView(APIView):
 
     permission_classes = [IsAuthenticated]
