@@ -228,6 +228,43 @@ class CreateRideView(APIView):
     @transaction.atomic
     def post(self, request):
 
+                # ----------------------------------------------------
+        # CUSTOMER CAN ONLY HAVE ONE ACTIVE RIDE
+        # ----------------------------------------------------
+
+        active_ride = (
+            RideRequest.objects
+            .select_for_update()
+            .filter(
+                passenger=request.user,
+                status__in=[
+                    "pending",
+                    "accepted",
+                    "arrived",
+                    "started",
+                ],
+            )
+            .order_by("-created_at")
+            .first()
+        )
+
+        if active_ride:
+            return Response(
+                {
+                    "detail":
+                        "You already have an active ride. "
+                        "Complete or cancel your current ride "
+                        "before booking another one.",
+
+                    "active_ride_id":
+                        active_ride.ride_id,
+
+                    "active_ride_status":
+                        active_ride.status,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
         serializer = RideRequestSerializer(
             data=request.data
         )
@@ -427,7 +464,6 @@ class PassengerActiveRidesView(APIView):
             status=status.HTTP_200_OK
         )
 
-
 # ============================================================
 # PASSENGER RIDE DETAIL
 # ============================================================
@@ -453,27 +489,224 @@ class PassengerRideDetailView(APIView):
         )
 
 
-# ============================================================
-# PASSENGER CANCEL RIDE
-#
-# pending
-#     customer CAN cancel
-#
-# accepted
-#     customer CAN cancel
-#
-# arrived
-#     customer CAN cancel
-#
-# started
-#     customer CANNOT cancel
-#
-# completed
-#     customer CANNOT cancel
-#
-# cancelled
-#     cannot cancel again
-# ============================================================
+    @transaction.atomic
+    def patch(self, request, ride_id):
+
+        ride = get_object_or_404(
+            RideRequest.objects.select_for_update(),
+            ride_id=ride_id,
+            passenger=request.user,
+        )
+
+        # ----------------------------------------------------
+        # RIDE STATUS
+        # ----------------------------------------------------
+
+        if ride.status not in [
+            "pending",
+            "accepted",
+            "arrived",
+        ]:
+
+            return Response(
+                {
+                    "detail":
+                        "The trip route can no longer be changed "
+                        "after the ride has started."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ----------------------------------------------------
+        # REQUIRED ROUTE DATA
+        # ----------------------------------------------------
+
+        pickup_address = request.data.get(
+            "pickup_address"
+        )
+
+        destination_address = request.data.get(
+            "destination_address"
+        )
+
+        pickup_lat = request.data.get(
+            "pickup_lat"
+        )
+
+        pickup_lng = request.data.get(
+            "pickup_lng"
+        )
+
+        destination_lat = request.data.get(
+            "destination_lat"
+        )
+
+        destination_lng = request.data.get(
+            "destination_lng"
+        )
+
+        if (
+            pickup_address is None
+            or destination_address is None
+            or pickup_lat is None
+            or pickup_lng is None
+            or destination_lat is None
+            or destination_lng is None
+        ):
+
+            return Response(
+                {
+                    "detail":
+                        "Pickup and destination "
+                        "information are required."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ----------------------------------------------------
+        # CONVERT COORDINATES
+        # ----------------------------------------------------
+
+        try:
+
+            pickup_lat = float(
+                pickup_lat
+            )
+
+            pickup_lng = float(
+                pickup_lng
+            )
+
+            destination_lat = float(
+                destination_lat
+            )
+
+            destination_lng = float(
+                destination_lng
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+
+            return Response(
+                {
+                    "detail":
+                        "Invalid pickup or destination coordinates."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ----------------------------------------------------
+        # CALCULATE NEW DISTANCE
+        # ----------------------------------------------------
+
+        try:
+
+            distance_km = calculate_distance(
+                pickup_lat,
+                pickup_lng,
+                destination_lat,
+                destination_lng,
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+
+            return Response(
+                {
+                    "detail":
+                        "Unable to calculate ride distance."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ----------------------------------------------------
+        # ESTIMATED DURATION
+        #
+        # Keep the same calculation used by RideFareQuoteView.
+        # ----------------------------------------------------
+
+        duration_minutes = max(
+            1,
+            int(
+                (float(distance_km) * 2) + 0.5
+            ),
+        )
+
+        # ----------------------------------------------------
+        # RECALCULATE FARE
+        # ----------------------------------------------------
+
+        try:
+
+            (
+                fare,
+                service_fee,
+                driver_earning,
+            ) = calculate_ride_fare(
+                distance_km,
+                duration_minutes,
+                service_type=ride.service_type,
+            )
+
+        except ValueError as exc:
+
+            return Response(
+                {
+                    "detail": str(exc)
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ----------------------------------------------------
+        # UPDATE RIDE
+        # ----------------------------------------------------
+
+        ride.pickup_address = pickup_address
+        ride.destination_address = destination_address
+
+        ride.pickup_lat = pickup_lat
+        ride.pickup_lng = pickup_lng
+
+        ride.destination_lat = destination_lat
+        ride.destination_lng = destination_lng
+
+        ride.estimated_distance_km = distance_km
+        ride.estimated_duration_minutes = duration_minutes
+
+        ride.fare = fare
+        ride.service_fee = service_fee
+        ride.driver_earning = driver_earning
+
+        ride.save(
+            update_fields=[
+                "pickup_address",
+                "destination_address",
+                "pickup_lat",
+                "pickup_lng",
+                "destination_lat",
+                "destination_lng",
+                "estimated_distance_km",
+                "estimated_duration_minutes",
+                "fare",
+                "service_fee",
+                "driver_earning",
+                "updated_at",
+            ]
+        )
+
+        # ----------------------------------------------------
+        # RESPONSE
+        # ----------------------------------------------------
+
+        return Response(
+            RideRequestSerializer(ride).data,
+            status=status.HTTP_200_OK,
+        )
 
 class PassengerCancelRideView(APIView):
 

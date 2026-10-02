@@ -95,10 +95,9 @@ urlpatterns = [
         name="create-ride",
     ),
 
-    # ========================================================
+    # ================================
     # PASSENGER RIDE HISTORY
-    # IMPORTANT: MUST COME BEFORE rides/<str:ride_id>/
-    # ========================================================
+    # ================================
 
     path(
         "rides/passenger/history/",
