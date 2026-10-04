@@ -119,6 +119,8 @@ class RideDriverProfileSerializer(serializers.ModelSerializer):
 
 class RideDriverSummarySerializer(serializers.ModelSerializer):
 
+    profile_photo = serializers.SerializerMethodField()
+
     class Meta:
         model = RideDriverProfile
 
@@ -138,6 +140,16 @@ class RideDriverSummarySerializer(serializers.ModelSerializer):
 
         read_only_fields = fields
 
+    def get_profile_photo(self, obj):
+        if not obj.profile_photo:
+            return None
+
+        try:
+            return obj.profile_photo.url
+        except Exception:
+            return None
+
+        
 # ============================================================
 # RIDE REQUEST
 # ============================================================
