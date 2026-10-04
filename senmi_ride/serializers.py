@@ -116,6 +116,28 @@ class RideDriverProfileSerializer(serializers.ModelSerializer):
         ]
 
 
+
+class RideDriverSummarySerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = RideDriverProfile
+
+        fields = [
+            "driver_id",
+            "full_name",
+            "phone_number",
+            "profile_photo",
+            "vehicle_brand",
+            "vehicle_model",
+            "vehicle_color",
+            "vehicle_year",
+            "plate_number",
+            "rating",
+            "rating_count",
+        ]
+
+        read_only_fields = fields
+
 # ============================================================
 # RIDE REQUEST
 # ============================================================
@@ -137,6 +159,11 @@ class RideRequestSerializer(serializers.ModelSerializer):
         read_only=True
     )
 
+    driver_profile = RideDriverSummarySerializer(
+        source="driver.ride_driver_profile",
+        read_only=True
+    )
+
     class Meta:
         model = RideRequest
 
@@ -151,6 +178,7 @@ class RideRequestSerializer(serializers.ModelSerializer):
 
             "driver",
             "driver_email",
+            "driver_profile",
 
             # Ride service
             "service_type",
@@ -199,6 +227,7 @@ class RideRequestSerializer(serializers.ModelSerializer):
             "passenger_phone",
             "driver",
             "driver_email",
+            "driver_profile",
 
             "fare",
             "service_fee",
