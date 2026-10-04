@@ -481,6 +481,7 @@ class PassengerRideDetailView(APIView):
             RideRequest.objects.select_related(
                 "passenger",
                 "driver",
+                "driver__ride_driver_profile",
             ),
             ride_id=ride_id,
             passenger=request.user,
