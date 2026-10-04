@@ -414,6 +414,7 @@ class PassengerRideHistoryView(APIView):
             .select_related(
                 "passenger",
                 "driver",
+                "driver__ride_driver_profile",
             )
             .order_by("-created_at")
         )
