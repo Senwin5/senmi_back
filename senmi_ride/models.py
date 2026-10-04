@@ -8,6 +8,8 @@ from cloudinary.models import CloudinaryField
 from django.core.files.uploadedfile import InMemoryUploadedFile
 import sys
 
+from django.db.models.aggregates import Avg, Count
+
 
 # ============================================================
 # IMAGE COMPRESSION
@@ -572,6 +574,42 @@ class RideRating(models.Model):
             f"{self.ride.ride_id} - "
             f"{self.rating}/5"
         )
+
+    def update_driver_rating(self):
+        """
+        Recalculate this driver's average rating
+        and total number of ratings.
+        """
+
+        driver_profile = self.driver.ride_driver_profile
+
+        stats = RideRating.objects.filter(
+            driver=self.driver
+        ).aggregate(
+            average_rating=Avg("rating"),
+            total_ratings=Count("id"),
+        )
+
+        driver_profile.rating = round(
+            stats["average_rating"] or 0,
+            2,
+        )
+
+        driver_profile.rating_count = (
+            stats["total_ratings"] or 0
+        )
+
+        driver_profile.save(
+            update_fields=[
+                "rating",
+                "rating_count",
+            ]
+        )
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
+        self.update_driver_rating()
 
 
 # ============================================================
