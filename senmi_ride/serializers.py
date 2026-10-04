@@ -175,6 +175,7 @@ class RideRequestSerializer(serializers.ModelSerializer):
         source="driver.ride_driver_profile",
         read_only=True
     )
+    has_rating = serializers.SerializerMethodField()
 
     class Meta:
         model = RideRequest
@@ -191,6 +192,7 @@ class RideRequestSerializer(serializers.ModelSerializer):
             "driver",
             "driver_email",
             "driver_profile",
+            "has_rating",
 
             # Ride service
             "service_type",
@@ -240,6 +242,7 @@ class RideRequestSerializer(serializers.ModelSerializer):
             "driver",
             "driver_email",
             "driver_profile",
+            "has_rating",
 
             "fare",
             "service_fee",
@@ -261,6 +264,11 @@ class RideRequestSerializer(serializers.ModelSerializer):
         ]
 
     passenger_name = serializers.SerializerMethodField()
+
+    def get_has_rating(self, obj):
+        return RideRating.objects.filter(
+            ride=obj
+        ).exists()
 
     def get_passenger_name(self, obj):
         first_name = (obj.passenger.first_name or "").strip()
