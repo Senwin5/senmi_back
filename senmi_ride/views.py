@@ -3,7 +3,7 @@ import uuid
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models.aggregates import Sum
+from django.db.models.aggregates import Avg, Count, Sum
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
@@ -1046,13 +1046,41 @@ class RideRatingView(APIView):
             comment=comment,
         )
 
+        # ------------------------------------------------------------
+        # UPDATE DRIVER RATING
+        # ------------------------------------------------------------
+
+        driver_profile = ride.driver.ride_driver_profile
+
+        rating_stats = RideRating.objects.filter(
+            driver=ride.driver
+        ).aggregate(
+            average_rating=Avg("rating"),
+            total_ratings=Count("id"),
+        )
+
+        driver_profile.rating = round(
+            rating_stats["average_rating"] or 0,
+            2,
+        )
+
+        driver_profile.rating_count = (
+            rating_stats["total_ratings"] or 0
+        )
+
+        driver_profile.save(
+            update_fields=[
+                "rating",
+                "rating_count",
+            ]
+        )
+
         return Response(
             RideRatingSerializer(
                 rating
             ).data,
             status=status.HTTP_201_CREATED,
         )
-
 
 # ============================================================
 # DRIVER WALLET
