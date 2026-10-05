@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Track My Senmi Ride</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: #f5f5f7;
+            color: #1f1f1f;
+            font-family:
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                Roboto,
+                Arial,
+                sans-serif;
+        }
+
+        .page {
+            width: 100%;
+            min-height: 100vh;
+            padding: 24px 16px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .logo {
+            font-size: 30px;
+            font-weight: 800;
+            color: #5b2cff;
+            margin-bottom: 6px;
+        }
+
+        .subtitle {
+            margin: 0;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .card {
+            background: #ffffff;
+            border-radius: 18px;
+            padding: 20px;
+            margin-bottom: 14px;
+            box-shadow:
+                0 5px 25px rgba(0, 0, 0, 0.06);
+        }
+
+        .status-card {
+            text-align: center;
+        }
+
+        .status-label {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #777;
+            margin-bottom: 8px;
+        }
+
+        .status {
+            font-size: 25px;
+            font-weight: 800;
+            color: #5b2cff;
+        }
+
+        .eta {
+            margin-top: 8px;
+            color: #555;
+            font-size: 14px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 800;
+            margin-bottom: 15px;
+        }
+
+        .location {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .location:last-child {
+            margin-bottom: 0;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-top: 4px;
+            flex-shrink: 0;
+        }
+
+        .pickup-dot {
+            background: #2e7d32;
+        }
+
+        .destination-dot {
+            background: #d32f2f;
+        }
+
+        .location-content {
+            flex: 1;
+        }
+
+        .location-label {
+            font-size: 12px;
+            color: #777;
+            margin-bottom: 3px;
+        }
+
+        .location-address {
+            font-size: 14px;
+            font-weight: 600;
+            line-height: 1.4;
+        }
+
+        .driver {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .driver-image {
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: #eeeeee;
+        }
+
+        .driver-placeholder {
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            background: #eeeeee;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 25px;
+        }
+
+        .driver-name {
+            font-weight: 800;
+            font-size: 16px;
+        }
+
+        .vehicle {
+            margin-top: 4px;
+            color: #666;
+            font-size: 13px;
+        }
+
+        .driver-location {
+            margin-top: 14px;
+            padding: 12px;
+            border-radius: 12px;
+            background: #f4f1ff;
+            color: #4b2abf;
+            font-size: 13px;
+        }
+
+        .map-link {
+            display: block;
+            width: 100%;
+            margin-top: 14px;
+            padding: 13px;
+            border-radius: 12px;
+            text-align: center;
+            text-decoration: none;
+            background: #5b2cff;
+            color: #ffffff;
+            font-weight: 700;
+        }
+
+        .updated {
+            text-align: center;
+            color: #888;
+            font-size: 11px;
+            margin-top: 15px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 35px 15px;
+            color: #777;
+        }
+
+        .error {
+            text-align: center;
+            padding: 25px 15px;
+        }
+
+        .error-title {
+            font-size: 20px;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .error-message {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="page">
+
+    <div class="container">
+
+        <div class="header">
+            <div class="logo">SENMI</div>
+
+            <p class="subtitle">
+                Live Ride Tracking
+            </p>
+        </div>
+
+
+        <div id="loadingCard" class="card loading">
+            Loading live ride...
+        </div>
+
+
+        <div id="errorCard" class="card error hidden">
+
+            <div class="error-title">
+                Unable to Load Ride
+            </div>
+
+            <div
+                id="errorMessage"
+                class="error-message"
+            >
+                Please try again.
+            </div>
+
+        </div>
+
+
+        <div id="rideContent" class="hidden">
+
+            <div class="card status-card">
+
+                <div class="status-label">
+                    Ride Status
+                </div>
+
+                <div
+                    id="rideStatus"
+                    class="status"
+                >
+                    Loading...
+                </div>
+
+                <div
+                    id="eta"
+                    class="eta"
+                ></div>
+
+            </div>
+
+
+            <div class="card">
+
+                <div class="section-title">
+                    Trip
+                </div>
+
+
+                <div class="location">
+
+                    <div class="dot pickup-dot"></div>
+
+                    <div class="location-content">
+
+                        <div class="location-label">
+                            PICKUP
+                        </div>
+
+                        <div
+                            id="pickupAddress"
+                            class="location-address"
+                        >
+                            -
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="location">
+
+                    <div class="dot destination-dot"></div>
+
+                    <div class="location-content">
+
+                        <div class="location-label">
+                            DESTINATION
+                        </div>
+
+                        <div
+                            id="destinationAddress"
+                            class="location-address"
+                        >
+                            -
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="card">
+
+                <div class="section-title">
+                    Driver
+                </div>
+
+                <div class="driver">
+
+                    <div
+                        id="driverImageContainer"
+                        class="driver-placeholder"
+                    >
+                        🚗
+                    </div>
+
+                    <div>
+
+                        <div
+                            id="driverName"
+                            class="driver-name"
+                        >
+                            Driver not assigned
+                        </div>
+
+                        <div
+                            id="vehicleNumber"
+                            class="vehicle"
+                        ></div>
+
+                    </div>
+
+                </div>
+
+
+                <div
+                    id="driverLocation"
+                    class="driver-location hidden"
+                >
+                    Driver location is updating...
+                </div>
+
+
+                <a
+                    id="mapLink"
+                    class="map-link hidden"
+                    href="#"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    View Driver Location
+                </a>
+
+            </div>
+
+
+            <div
+                id="updatedAt"
+                class="updated"
+            ></div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+    const shareToken = "{{ token|escapejs }}";
+
+    const apiUrl =
+        "/api/ride/rides/shared/"
+        + encodeURIComponent(shareToken)
+        + "/";
+
+
+    const loadingCard =
+        document.getElementById("loadingCard");
+
+    const errorCard =
+        document.getElementById("errorCard");
+
+    const errorMessage =
+        document.getElementById("errorMessage");
+
+    const rideContent =
+        document.getElementById("rideContent");
+
+
+    function showError(message) {
+
+        loadingCard.classList.add("hidden");
+
+        rideContent.classList.add("hidden");
+
+        errorCard.classList.remove("hidden");
+
+        errorMessage.textContent = message;
+    }
+
+
+    function formatStatus(status) {
+
+        if (!status) {
+            return "Unknown";
+        }
+
+        return status
+            .toString()
+            .replaceAll("_", " ")
+            .replace(/\b\w/g, function(letter) {
+                return letter.toUpperCase();
+            });
+    }
+
+
+    function formatDate(value) {
+
+        if (!value) {
+            return "";
+        }
+
+        try {
+
+            return new Date(value).toLocaleString();
+
+        } catch (error) {
+
+            return value;
+        }
+    }
+
+
+    async function loadRide() {
+
+        try {
+
+            const response =
+                await fetch(apiUrl, {
+                    method: "GET",
+                    headers: {
+                        "Accept": "application/json"
+                    },
+                    cache: "no-store"
+                });
+
+
+            let data = null;
+
+            try {
+
+                data = await response.json();
+
+            } catch (error) {
+
+                throw new Error(
+                    "The server returned an invalid response."
+                );
+
+            }
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.detail ||
+                    data.message ||
+                    "Unable to load shared ride."
+                );
+
+            }
+
+
+            loadingCard.classList.add("hidden");
+
+            errorCard.classList.add("hidden");
+
+            rideContent.classList.remove("hidden");
+
+
+            document.getElementById(
+                "rideStatus"
+            ).textContent =
+                formatStatus(data.status);
+
+
+            document.getElementById(
+                "pickupAddress"
+            ).textContent =
+                data.pickup?.address ||
+                "Pickup location unavailable";
+
+
+            document.getElementById(
+                "destinationAddress"
+            ).textContent =
+                data.destination?.address ||
+                "Destination unavailable";
+
+
+            const driverName =
+                data.driver?.name;
+
+            document.getElementById(
+                "driverName"
+            ).textContent =
+                driverName ||
+                "Driver not assigned";
+
+
+            const vehicleNumber =
+                data.driver?.vehicle_number;
+
+            document.getElementById(
+                "vehicleNumber"
+            ).textContent =
+                vehicleNumber
+                    ? "Vehicle: " + vehicleNumber
+                    : "";
+
+
+            const driverImage =
+                data.driver?.image;
+
+
+            const imageContainer =
+                document.getElementById(
+                    "driverImageContainer"
+                );
+
+
+            if (driverImage) {
+
+                imageContainer.outerHTML =
+                    '<img class="driver-image" ' +
+                    'src="' +
+                    driverImage +
+                    '" ' +
+                    'alt="Driver">';
+
+            }
+
+
+            const eta =
+                document.getElementById("eta");
+
+
+            if (
+                data.eta_minutes !== null &&
+                data.eta_minutes !== undefined
+            ) {
+
+                eta.textContent =
+                    "Estimated arrival: "
+                    + data.eta_minutes
+                    + " minutes";
+
+            } else {
+
+                eta.textContent = "";
+
+            }
+
+
+            const driverLocation =
+                data.driver_location;
+
+
+            const driverLocationBox =
+                document.getElementById(
+                    "driverLocation"
+                );
+
+
+            const mapLink =
+                document.getElementById(
+                    "mapLink"
+                );
+
+
+            if (
+                driverLocation &&
+                driverLocation.lat !== null &&
+                driverLocation.lng !== null
+            ) {
+
+                driverLocationBox.classList.remove(
+                    "hidden"
+                );
+
+                driverLocationBox.textContent =
+                    "Driver location is available and updating live.";
+
+
+                const mapUrl =
+                    "https://www.google.com/maps/search/?api=1"
+                    + "&query="
+                    + encodeURIComponent(
+                        driverLocation.lat
+                        + ","
+                        + driverLocation.lng
+                    );
+
+
+                mapLink.href = mapUrl;
+
+                mapLink.classList.remove(
+                    "hidden"
+                );
+
+            } else {
+
+                driverLocationBox.classList.add(
+                    "hidden"
+                );
+
+                mapLink.classList.add(
+                    "hidden"
+                );
+
+            }
+
+
+            const updatedAt =
+                driverLocation?.updated_at;
+
+
+            document.getElementById(
+                "updatedAt"
+            ).textContent =
+                updatedAt
+                    ? "Last location update: "
+                        + formatDate(updatedAt)
+                    : "Waiting for driver location...";
+
+
+        } catch (error) {
+
+            console.error(
+                "Shared ride error:",
+                error
+            );
+
+
+            showError(
+                error.message ||
+                "Unable to load the shared ride."
+            );
+
+        }
+
+    }
+
+
+    loadRide();
+
+
+    setInterval(
+        loadRide,
+        5000
+    );
+
+</script>
+
+</body>
+</html>
