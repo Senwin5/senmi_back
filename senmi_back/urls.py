@@ -3,11 +3,19 @@ from django.urls import path,include
 from django.conf import settings
 from django.conf.urls.static import static
 
+from senmi_ride.customer import PublicRideTrackingPage
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path ('',include ('senmi.urls')),
     path('', include('legal.urls')),
     path('api/ride/', include('senmi_ride.urls')),
+
+    path(
+        'track/<str:token>/',
+        PublicRideTrackingPage,
+        name='public-ride-tracking-page',
+    ),
    
 ]
 

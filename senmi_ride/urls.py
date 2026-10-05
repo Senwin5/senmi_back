@@ -86,12 +86,14 @@ urlpatterns = [
         CreateRideShareView.as_view(),
         name="create-ride-share",
     ),
+
+    
     
     path(
-    "rides/shared/<str:token>/",
-    PublicRideTrackingView.as_view(),
-    name="public-ride-tracking",
-    ),
+        "rides/shared/<str:token>/",
+        PublicRideTrackingView.as_view(),
+        name="public-ride-tracking",
+        ),
     # ========================================================
     # PASSENGER
     # ========================================================

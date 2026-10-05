@@ -4,7 +4,7 @@ from datetime import timedelta
 import secrets
 
 from django.db import transaction
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 
 from rest_framework.views import APIView
@@ -713,6 +713,15 @@ class PassengerRideDetailView(APIView):
         )
 
 
+def PublicRideTrackingPage(request, token):
+    return render(
+        request,
+        "rides/public_ride_tracking.html",
+        {
+            "token": token,
+        },
+    )
+
 # ============================================================
 # CREATE PUBLIC LIVE RIDE SHARE LINK
 # ============================================================
@@ -769,7 +778,7 @@ class CreateRideShareView(APIView):
 
                 share_url = (
                     "https://www.senmi.com.ng/track/"
-                    f"{existing_token.token}"
+                    f"{existing_token.token}/"
                 )
 
                 return Response(
@@ -794,7 +803,7 @@ class CreateRideShareView(APIView):
 
         share_url = (
             "https://www.senmi.com.ng/track/"
-            f"{share.token}"
+            f"{share.token}/"
         )
 
         return Response(
