@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
 
     <meta
@@ -11,6 +13,7 @@
     <title>Track My Senmi Ride</title>
 
     <style>
+
         * {
             box-sizing: border-box;
         }
@@ -147,12 +150,25 @@
             gap: 14px;
         }
 
+        .driver-image-container {
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            background: #eeeeee;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
         .driver-image {
             width: 58px;
             height: 58px;
             border-radius: 50%;
             object-fit: cover;
             background: #eeeeee;
+            display: block;
         }
 
         .driver-placeholder {
@@ -164,6 +180,7 @@
             align-items: center;
             justify-content: center;
             font-size: 25px;
+            flex-shrink: 0;
         }
 
         .driver-name {
@@ -230,10 +247,13 @@
         }
 
         .hidden {
-            display: none;
+            display: none !important;
         }
+
     </style>
+
 </head>
+
 
 <body>
 
@@ -242,20 +262,30 @@
     <div class="container">
 
         <div class="header">
-            <div class="logo">SENMI</div>
+
+            <div class="logo">
+                SENMI
+            </div>
 
             <p class="subtitle">
                 Live Ride Tracking
             </p>
+
         </div>
 
 
-        <div id="loadingCard" class="card loading">
+        <div
+            id="loadingCard"
+            class="card loading"
+        >
             Loading live ride...
         </div>
 
 
-        <div id="errorCard" class="card error hidden">
+        <div
+            id="errorCard"
+            class="card error hidden"
+        >
 
             <div class="error-title">
                 Unable to Load Ride
@@ -271,7 +301,10 @@
         </div>
 
 
-        <div id="rideContent" class="hidden">
+        <div
+            id="rideContent"
+            class="hidden"
+        >
 
             <div class="card status-card">
 
@@ -353,14 +386,30 @@
                     Driver
                 </div>
 
+
                 <div class="driver">
 
                     <div
                         id="driverImageContainer"
-                        class="driver-placeholder"
+                        class="driver-image-container"
                     >
-                        🚗
+
+                        <span
+                            id="driverPlaceholderIcon"
+                            class="driver-placeholder"
+                        >
+                            🚗
+                        </span>
+
+                        <img
+                            id="driverImage"
+                            class="driver-image hidden"
+                            src=""
+                            alt="Driver"
+                        >
+
                     </div>
+
 
                     <div>
 
@@ -416,7 +465,17 @@
 
 <script>
 
-    const shareToken = "{{ token|escapejs }}";
+    /*
+     * Public ride tracking token
+     */
+
+    const shareToken =
+        "{{ token|escapejs }}";
+
+
+    /*
+     * Public API endpoint
+     */
 
     const apiUrl =
         "/api/ride/rides/shared/"
@@ -424,82 +483,149 @@
         + "/";
 
 
+    /*
+     * Main page elements
+     */
+
     const loadingCard =
-        document.getElementById("loadingCard");
+        document.getElementById(
+            "loadingCard"
+        );
+
 
     const errorCard =
-        document.getElementById("errorCard");
+        document.getElementById(
+            "errorCard"
+        );
+
 
     const errorMessage =
-        document.getElementById("errorMessage");
+        document.getElementById(
+            "errorMessage"
+        );
+
 
     const rideContent =
-        document.getElementById("rideContent");
+        document.getElementById(
+            "rideContent"
+        );
 
+
+    /*
+     * Show an error
+     */
 
     function showError(message) {
 
-        loadingCard.classList.add("hidden");
+        loadingCard.classList.add(
+            "hidden"
+        );
 
-        rideContent.classList.add("hidden");
+        rideContent.classList.add(
+            "hidden"
+        );
 
-        errorCard.classList.remove("hidden");
+        errorCard.classList.remove(
+            "hidden"
+        );
 
-        errorMessage.textContent = message;
+        errorMessage.textContent =
+            message ||
+            "Unable to load the shared ride.";
+
     }
 
+
+    /*
+     * Format ride status
+     */
 
     function formatStatus(status) {
 
         if (!status) {
+
             return "Unknown";
+
         }
+
 
         return status
             .toString()
             .replaceAll("_", " ")
             .replace(/\b\w/g, function(letter) {
+
                 return letter.toUpperCase();
+
             });
+
     }
 
+
+    /*
+     * Format date/time
+     */
 
     function formatDate(value) {
 
         if (!value) {
+
             return "";
+
         }
+
 
         try {
 
-            return new Date(value).toLocaleString();
+            return new Date(
+                value
+            ).toLocaleString();
 
         } catch (error) {
 
             return value;
+
         }
+
     }
 
+
+    /*
+     * Load public ride information
+     *
+     * This function runs every 5 seconds.
+     */
 
     async function loadRide() {
 
         try {
 
             const response =
-                await fetch(apiUrl, {
-                    method: "GET",
-                    headers: {
-                        "Accept": "application/json"
-                    },
-                    cache: "no-store"
-                });
+                await fetch(
+                    apiUrl,
+                    {
+                        method: "GET",
 
+                        headers: {
+                            "Accept":
+                                "application/json"
+                        },
+
+                        cache: "no-store"
+                    }
+                );
+
+
+            /*
+             * Parse JSON response
+             */
 
             let data = null;
 
+
             try {
 
-                data = await response.json();
+                data =
+                    await response.json();
 
             } catch (error) {
 
@@ -510,67 +636,156 @@
             }
 
 
+            /*
+             * Handle API errors
+             */
+
             if (!response.ok) {
 
                 throw new Error(
-                    data.detail ||
-                    data.message ||
+                    data?.detail ||
+                    data?.message ||
                     "Unable to load shared ride."
                 );
 
             }
 
 
-            loadingCard.classList.add("hidden");
+            /*
+             * Show ride content
+             */
 
-            errorCard.classList.add("hidden");
+            loadingCard.classList.add(
+                "hidden"
+            );
 
-            rideContent.classList.remove("hidden");
+            errorCard.classList.add(
+                "hidden"
+            );
 
-
-            document.getElementById(
-                "rideStatus"
-            ).textContent =
-                formatStatus(data.status);
-
-
-            document.getElementById(
-                "pickupAddress"
-            ).textContent =
-                data.pickup?.address ||
-                "Pickup location unavailable";
+            rideContent.classList.remove(
+                "hidden"
+            );
 
 
-            document.getElementById(
-                "destinationAddress"
-            ).textContent =
-                data.destination?.address ||
-                "Destination unavailable";
+            /*
+             * Ride status
+             */
 
+            const rideStatus =
+                document.getElementById(
+                    "rideStatus"
+                );
+
+
+            if (rideStatus) {
+
+                rideStatus.textContent =
+                    formatStatus(
+                        data?.status
+                    );
+
+            }
+
+
+            /*
+             * Pickup address
+             */
+
+            const pickupAddress =
+                document.getElementById(
+                    "pickupAddress"
+                );
+
+
+            if (pickupAddress) {
+
+                pickupAddress.textContent =
+                    data?.pickup?.address ||
+                    "Pickup location unavailable";
+
+            }
+
+
+            /*
+             * Destination address
+             */
+
+            const destinationAddress =
+                document.getElementById(
+                    "destinationAddress"
+                );
+
+
+            if (destinationAddress) {
+
+                destinationAddress.textContent =
+                    data?.destination?.address ||
+                    "Destination unavailable";
+
+            }
+
+
+            /*
+             * Driver name
+             */
 
             const driverName =
-                data.driver?.name;
+                data?.driver?.name;
 
-            document.getElementById(
-                "driverName"
-            ).textContent =
-                driverName ||
-                "Driver not assigned";
 
+            const driverNameElement =
+                document.getElementById(
+                    "driverName"
+                );
+
+
+            if (driverNameElement) {
+
+                driverNameElement.textContent =
+                    driverName ||
+                    "Driver not assigned";
+
+            }
+
+
+            /*
+             * Vehicle number
+             */
 
             const vehicleNumber =
-                data.driver?.vehicle_number;
+                data?.driver?.vehicle_number;
 
-            document.getElementById(
-                "vehicleNumber"
-            ).textContent =
-                vehicleNumber
-                    ? "Vehicle: " + vehicleNumber
-                    : "";
 
+            const vehicleNumberElement =
+                document.getElementById(
+                    "vehicleNumber"
+                );
+
+
+            if (vehicleNumberElement) {
+
+                vehicleNumberElement.textContent =
+                    vehicleNumber
+                        ? "Vehicle: "
+                            + vehicleNumber
+                        : "";
+
+            }
+
+
+            /*
+             * Driver image
+             *
+             * IMPORTANT:
+             * We do NOT replace driverImageContainer.
+             *
+             * The container stays in the DOM permanently,
+             * so the 5-second polling will continue working.
+             */
 
             const driverImage =
-                data.driver?.image;
+                data?.driver?.image;
 
 
             const imageContainer =
@@ -579,41 +794,103 @@
                 );
 
 
-            if (driverImage) {
-
-                imageContainer.outerHTML =
-                    '<img class="driver-image" ' +
-                    'src="' +
-                    driverImage +
-                    '" ' +
-                    'alt="Driver">';
-
-            }
+            const driverImageElement =
+                document.getElementById(
+                    "driverImage"
+                );
 
 
-            const eta =
-                document.getElementById("eta");
+            const driverPlaceholderIcon =
+                document.getElementById(
+                    "driverPlaceholderIcon"
+                );
 
 
             if (
-                data.eta_minutes !== null &&
-                data.eta_minutes !== undefined
+                imageContainer &&
+                driverImageElement &&
+                driverPlaceholderIcon
             ) {
 
-                eta.textContent =
-                    "Estimated arrival: "
-                    + data.eta_minutes
-                    + " minutes";
+                if (driverImage) {
 
-            } else {
+                    /*
+                     * Update existing image element.
+                     */
 
-                eta.textContent = "";
+                    driverImageElement.src =
+                        driverImage;
+
+
+                    driverImageElement.classList.remove(
+                        "hidden"
+                    );
+
+
+                    driverPlaceholderIcon.classList.add(
+                        "hidden"
+                    );
+
+                } else {
+
+                    /*
+                     * No driver image.
+                     * Show the car placeholder.
+                     */
+
+                    driverImageElement.src = "";
+
+                    driverImageElement.classList.add(
+                        "hidden"
+                    );
+
+
+                    driverPlaceholderIcon.classList.remove(
+                        "hidden"
+                    );
+
+                }
 
             }
 
 
+            /*
+             * ETA
+             */
+
+            const eta =
+                document.getElementById(
+                    "eta"
+                );
+
+
+            if (eta) {
+
+                if (
+                    data?.eta_minutes !== null &&
+                    data?.eta_minutes !== undefined
+                ) {
+
+                    eta.textContent =
+                        "Estimated arrival: "
+                        + data.eta_minutes
+                        + " minutes";
+
+                } else {
+
+                    eta.textContent = "";
+
+                }
+
+            }
+
+
+            /*
+             * Driver location
+             */
+
             const driverLocation =
-                data.driver_location;
+                data?.driver_location;
 
 
             const driverLocationBox =
@@ -631,16 +908,31 @@
             if (
                 driverLocation &&
                 driverLocation.lat !== null &&
-                driverLocation.lng !== null
+                driverLocation.lat !== undefined &&
+                driverLocation.lng !== null &&
+                driverLocation.lng !== undefined
             ) {
 
-                driverLocationBox.classList.remove(
-                    "hidden"
-                );
+                /*
+                 * Show driver location message.
+                 */
 
-                driverLocationBox.textContent =
-                    "Driver location is available and updating live.";
+                if (driverLocationBox) {
 
+                    driverLocationBox.classList.remove(
+                        "hidden"
+                    );
+
+
+                    driverLocationBox.textContent =
+                        "Driver location is available and updating live.";
+
+                }
+
+
+                /*
+                 * Google Maps link.
+                 */
 
                 const mapUrl =
                     "https://www.google.com/maps/search/?api=1"
@@ -652,39 +944,80 @@
                     );
 
 
-                mapLink.href = mapUrl;
+                if (mapLink) {
 
-                mapLink.classList.remove(
-                    "hidden"
-                );
+                    mapLink.href =
+                        mapUrl;
+
+
+                    mapLink.classList.remove(
+                        "hidden"
+                    );
+
+                }
 
             } else {
 
-                driverLocationBox.classList.add(
-                    "hidden"
-                );
+                /*
+                 * Driver location is not available yet.
+                 */
 
-                mapLink.classList.add(
-                    "hidden"
-                );
+                if (driverLocationBox) {
+
+                    driverLocationBox.classList.add(
+                        "hidden"
+                    );
+
+                }
+
+
+                if (mapLink) {
+
+                    mapLink.classList.add(
+                        "hidden"
+                    );
+
+                    mapLink.removeAttribute(
+                        "href"
+                    );
+
+                }
 
             }
 
+
+            /*
+             * Last driver location update
+             */
 
             const updatedAt =
                 driverLocation?.updated_at;
 
 
-            document.getElementById(
-                "updatedAt"
-            ).textContent =
-                updatedAt
-                    ? "Last location update: "
-                        + formatDate(updatedAt)
-                    : "Waiting for driver location...";
+            const updatedAtElement =
+                document.getElementById(
+                    "updatedAt"
+                );
+
+
+            if (updatedAtElement) {
+
+                updatedAtElement.textContent =
+                    updatedAt
+                        ? "Last location update: "
+                            + formatDate(
+                                updatedAt
+                            )
+                        : "Waiting for driver location...";
+
+            }
 
 
         } catch (error) {
+
+            /*
+             * Log the actual error in browser console.
+             */
 
             console.error(
                 "Shared ride error:",
@@ -692,8 +1025,12 @@
             );
 
 
+            /*
+             * Show friendly error to user.
+             */
+
             showError(
-                error.message ||
+                error?.message ||
                 "Unable to load the shared ride."
             );
 
@@ -702,8 +1039,16 @@
     }
 
 
+    /*
+     * Load immediately when page opens.
+     */
+
     loadRide();
 
+
+    /*
+     * Refresh live ride information every 5 seconds.
+     */
 
     setInterval(
         loadRide,
@@ -712,5 +1057,7 @@
 
 </script>
 
+
 </body>
+
 </html>
