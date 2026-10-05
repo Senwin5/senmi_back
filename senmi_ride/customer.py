@@ -807,9 +807,8 @@ class CreateRideShareView(APIView):
         )
 
 
-
-
 def PublicRideTrackingPage(request, token):
+
     return render(
         request,
         "rides/public_ride_tracking.html",
@@ -892,12 +891,15 @@ class PublicRideTrackingView(APIView):
             if driver_profile.profile_photo:
 
                 try:
+
                     driver_image = (
-                        driver_profile
-                        .profile_photo
-                        .url
+                        request.build_absolute_uri(
+                            driver_profile.profile_photo.url
+                        )
                     )
+
                 except Exception:
+
                     driver_image = None
 
         # ----------------------------------------------------
@@ -989,9 +991,21 @@ class PublicRideTrackingView(APIView):
 
         return Response(
             {
+                # ------------------------------------------------
+                # RIDE ID
+                # ------------------------------------------------
+
                 "ride_id": ride.ride_id,
 
+                # ------------------------------------------------
+                # RIDE STATUS
+                # ------------------------------------------------
+
                 "status": ride.status,
+
+                # ------------------------------------------------
+                # PICKUP
+                # ------------------------------------------------
 
                 "pickup": {
                     "address": ride.pickup_address,
@@ -999,17 +1013,29 @@ class PublicRideTrackingView(APIView):
                     "lng": ride.pickup_lng,
                 },
 
+                # ------------------------------------------------
+                # DESTINATION
+                # ------------------------------------------------
+
                 "destination": {
                     "address": ride.destination_address,
                     "lat": ride.destination_lat,
                     "lng": ride.destination_lng,
                 },
 
+                # ------------------------------------------------
+                # DRIVER
+                # ------------------------------------------------
+
                 "driver": {
                     "name": driver_name,
                     "vehicle_number": vehicle_number,
                     "image": driver_image,
                 },
+
+                # ------------------------------------------------
+                # DRIVER LOCATION
+                # ------------------------------------------------
 
                 "driver_location": {
                     "lat": driver_lat,
@@ -1018,7 +1044,15 @@ class PublicRideTrackingView(APIView):
                         driver_location_updated_at,
                 },
 
+                # ------------------------------------------------
+                # ETA
+                # ------------------------------------------------
+
                 "eta_minutes": eta_minutes,
+
+                # ------------------------------------------------
+                # SHARE EXPIRATION
+                # ------------------------------------------------
 
                 "share_expires_at": (
                     share.expires_at.isoformat()
@@ -1028,7 +1062,6 @@ class PublicRideTrackingView(APIView):
             },
             status=status.HTTP_200_OK,
         )
-    
     
 class PassengerCancelRideView(APIView):
 
