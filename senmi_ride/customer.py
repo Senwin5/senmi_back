@@ -5,12 +5,13 @@ import secrets
 
 from django.db import transaction
 from django.shortcuts import get_object_or_404, render
-from django.utils import timezone
+from django.utils import cache, json, timezone
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
+import urllib
 
 from senmi_ride.matching import (
     notify_nearest_drivers,
@@ -820,6 +821,150 @@ def PublicRideTrackingPage(request, token):
 
 
 # ============================================================
+# REVERSE GEOCODE DRIVER LOCATION
+# ============================================================
+
+def get_driver_location_address(
+    latitude,
+    longitude,
+    ride_id,
+):
+    """
+    Convert driver GPS coordinates into a readable
+    street/location address.
+
+    The result is cached so the public tracking page
+    does not call the geocoding service every 5 seconds.
+    """
+
+    if (
+        latitude is None
+        or longitude is None
+    ):
+        return None
+
+    try:
+
+        # ----------------------------------------------------
+        # ROUND COORDINATES
+        # ----------------------------------------------------
+
+        latitude = round(
+            float(latitude),
+            5,
+        )
+
+        longitude = round(
+            float(longitude),
+            5,
+        )
+
+        # ----------------------------------------------------
+        # CACHE KEY
+        # ----------------------------------------------------
+
+        cache_key = (
+            "senmi_driver_address_"
+            f"{ride_id}_"
+            f"{latitude}_"
+            f"{longitude}"
+        )
+
+        cached_address = cache.get(
+            cache_key
+        )
+
+        if cached_address:
+
+            return cached_address
+
+        # ----------------------------------------------------
+        # Nominatim reverse geocoding URL
+        # ----------------------------------------------------
+
+        query = urllib.parse.urlencode(
+            {
+                "lat": latitude,
+                "lon": longitude,
+                "format": "jsonv2",
+                "addressdetails": 1,
+                "zoom": 18,
+                "accept-language": "en",
+            }
+        )
+
+        url = (
+            "https://nominatim.openstreetmap.org/reverse?"
+            + query
+        )
+
+        # ----------------------------------------------------
+        # IDENTIFY SENMI TO NOMINATIM
+        # ----------------------------------------------------
+
+        request = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent":
+                    "SenmiRideTracking/1.0 "
+                    "(https://www.senmi.com.ng)"
+            },
+        )
+
+        # ----------------------------------------------------
+        # REQUEST ADDRESS
+        # ----------------------------------------------------
+
+        with urllib.request.urlopen(
+            request,
+            timeout=5,
+        ) as response:
+
+            result = json.loads(
+                response.read().decode(
+                    "utf-8"
+                )
+            )
+
+        # ----------------------------------------------------
+        # GET DISPLAY ADDRESS
+        # ----------------------------------------------------
+
+        address = (
+            result.get("display_name")
+        )
+
+        if not address:
+
+            return None
+
+        # ----------------------------------------------------
+        # CACHE ADDRESS
+        #
+        # Cache for 60 seconds.
+        # This prevents the 5-second ride polling from
+        # repeatedly calling the geocoder.
+        # ----------------------------------------------------
+
+        cache.set(
+            cache_key,
+            address,
+            60,
+        )
+
+        return address
+
+    except Exception as error:
+
+        print(
+            "Driver reverse geocoding error:",
+            error,
+        )
+
+        return None
+
+    
+# ============================================================
 # PUBLIC LIVE RIDE TRACKING
 # ============================================================
 
@@ -968,7 +1113,7 @@ class PublicRideTrackingView(APIView):
                         .isoformat()
                     )
 
-        # ----------------------------------------------------
+                # ----------------------------------------------------
         # ETA
         # ----------------------------------------------------
 
@@ -981,6 +1126,25 @@ class PublicRideTrackingView(APIView):
 
             eta_minutes = (
                 ride.estimated_duration_minutes
+            )
+
+        # ----------------------------------------------------
+        # DRIVER LOCATION ADDRESS
+        # ----------------------------------------------------
+
+        driver_location_address = None
+
+        if (
+            driver_lat is not None
+            and driver_lng is not None
+        ):
+
+            driver_location_address = (
+                get_driver_location_address(
+                    driver_lat,
+                    driver_lng,
+                    ride.ride_id,
+                )
             )
 
         # ----------------------------------------------------
@@ -1014,6 +1178,8 @@ class PublicRideTrackingView(APIView):
                 "driver_location": {
                     "lat": driver_lat,
                     "lng": driver_lng,
+                    "address":
+                        driver_location_address,
                     "updated_at":
                         driver_location_updated_at,
                 },

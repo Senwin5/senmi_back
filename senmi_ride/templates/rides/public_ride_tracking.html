@@ -917,15 +917,27 @@
                  * Show driver location message.
                  */
 
-                if (driverLocationBox) {
+                                if (driverLocationBox) {
 
                     driverLocationBox.classList.remove(
                         "hidden"
                     );
 
 
-                    driverLocationBox.textContent =
-                        "Driver location is available and updating live.";
+                    if (
+                        driverLocation.address
+                    ) {
+
+                        driverLocationBox.textContent =
+                            "📍 "
+                            + driverLocation.address;
+
+                    } else {
+
+                        driverLocationBox.textContent =
+                            "Driver location is available and updating live.";
+
+                    }
 
                 }
 
@@ -934,14 +946,23 @@
                  * Google Maps link.
                  */
 
+                                const mapQuery =
+                    driverLocation.address
+                        ? driverLocation.address
+                        : (
+                            driverLocation.lat
+                            + ","
+                            + driverLocation.lng
+                        );
+
+
                 const mapUrl =
                     "https://www.google.com/maps/search/?api=1"
                     + "&query="
                     + encodeURIComponent(
-                        driverLocation.lat
-                        + ","
-                        + driverLocation.lng
-                    );
+                        mapQuery
+                    );   + driverLocation.lng
+                    
 
 
                 if (mapLink) {
