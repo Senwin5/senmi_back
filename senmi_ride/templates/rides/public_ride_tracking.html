@@ -68,7 +68,7 @@
             padding: 20px;
             margin-bottom: 14px;
             box-shadow:
-                0 5px 25px rgba(0, 0, 0, 0.06);
+                0 5px 25px rgba(224, 219, 224, 0.06);
         }
 
         .status-card {
@@ -248,6 +248,36 @@
 
         .hidden {
             display: none !important;
+        }
+
+
+                /* ----------------------------------------------------
+         * LIVE DRIVER MAP
+         * ---------------------------------------------------- */
+
+        .driver-map {
+            width: 100%;
+            height: 280px;
+            margin-top: 14px;
+            border-radius: 14px;
+            overflow: hidden;
+            background: #eeeeee;
+            position: relative;
+        }
+
+        .driver-map iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            display: block;
+        }
+
+        .driver-location-address {
+            margin-top: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #4b2abf;
+            line-height: 1.4;
         }
 
     </style>
@@ -436,6 +466,24 @@
                 >
                     Driver location is updating...
                 </div>
+
+
+                        <!-- ------------------------------------------------
+             * LIVE DRIVER MAP
+             * ------------------------------------------------ -->
+
+        <div
+            id="driverMap"
+            class="driver-map hidden"
+        >
+        </div>
+
+
+        <div
+            id="driverLocationAddress"
+            class="driver-location-address hidden"
+        >
+        </div>
 
 
                 <a
@@ -891,6 +939,118 @@
 
             const driverLocation =
                 data?.driver_location;
+
+                    /* ------------------------------------------------
+         * LIVE DRIVER MAP
+         * ------------------------------------------------ */
+
+        const driverMap =
+            document.getElementById(
+                "driverMap"
+            );
+
+
+        const driverLocationAddress =
+            document.getElementById(
+                "driverLocationAddress"
+            );
+
+
+        if (
+            driverLocation &&
+            driverLocation.lat !== null &&
+            driverLocation.lat !== undefined &&
+            driverLocation.lng !== null &&
+            driverLocation.lng !== undefined
+        ) {
+
+            const latitude =
+                driverLocation.lat;
+
+
+            const longitude =
+                driverLocation.lng;
+
+
+            /* ------------------------------------------------
+             * CREATE ONE DRIVER PIN
+             * ------------------------------------------------ */
+
+            if (driverMap) {
+
+                driverMap.classList.remove(
+                    "hidden"
+                );
+
+
+                const mapUrl =
+                    "https://www.google.com/maps/embed/v1/view"
+                    + "?key=YOUR_GOOGLE_MAPS_API_KEY"
+                    + "&center="
+                    + latitude
+                    + ","
+                    + longitude
+                    + "&zoom=16";
+
+
+                driverMap.innerHTML =
+                    '<iframe '
+                    + 'src="'
+                    + mapUrl
+                    + '" '
+                    + 'loading="lazy" '
+                    + 'allowfullscreen '
+                    + 'referrerpolicy="no-referrer-when-downgrade">'
+                    + '</iframe>';
+
+            }
+
+
+            /* ------------------------------------------------
+             * DRIVER LOCATION NAME
+             * ------------------------------------------------ */
+
+            if (
+                driverLocationAddress &&
+                driverLocation.address
+            ) {
+
+                driverLocationAddress.classList.remove(
+                    "hidden"
+                );
+
+
+                driverLocationAddress.textContent =
+                    "📍 "
+                    + driverLocation.address;
+
+            }
+
+        } else {
+
+            if (driverMap) {
+
+                driverMap.classList.add(
+                    "hidden"
+                );
+
+                driverMap.innerHTML = "";
+
+            }
+
+
+            if (driverLocationAddress) {
+
+                driverLocationAddress.classList.add(
+                    "hidden"
+                );
+
+                driverLocationAddress.textContent =
+                    "";
+
+            }
+
+        }
 
 
             const driverLocationBox =
