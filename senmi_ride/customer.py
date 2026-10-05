@@ -968,7 +968,7 @@ class PublicRideTrackingView(APIView):
                         .isoformat()
                     )
 
-                # ----------------------------------------------------
+        # ----------------------------------------------------
         # ETA
         # ----------------------------------------------------
 
@@ -982,8 +982,6 @@ class PublicRideTrackingView(APIView):
             eta_minutes = (
                 ride.estimated_duration_minutes
             )
-
-        driver_location_address = None
 
         # ----------------------------------------------------
         # PUBLIC RESPONSE
@@ -1016,7 +1014,6 @@ class PublicRideTrackingView(APIView):
                 "driver_location": {
                     "lat": driver_lat,
                     "lng": driver_lng,
-                    "address": driver_location_address,
                     "updated_at":
                         driver_location_updated_at,
                 },
