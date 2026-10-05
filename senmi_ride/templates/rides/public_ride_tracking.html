@@ -68,7 +68,7 @@
             padding: 20px;
             margin-bottom: 14px;
             box-shadow:
-                0 5px 25px rgba(224, 219, 224, 0.06);
+                0 5px 25px rgba(158, 46, 176, 0.06);
         }
 
         .status-card {
@@ -917,27 +917,15 @@
                  * Show driver location message.
                  */
 
-                                if (driverLocationBox) {
+                if (driverLocationBox) {
 
                     driverLocationBox.classList.remove(
                         "hidden"
                     );
 
 
-                    if (
-                        driverLocation.address
-                    ) {
-
-                        driverLocationBox.textContent =
-                            "📍 "
-                            + driverLocation.address;
-
-                    } else {
-
-                        driverLocationBox.textContent =
-                            "Driver location is available and updating live.";
-
-                    }
+                    driverLocationBox.textContent =
+                        "Driver location is available and updating live.";
 
                 }
 
@@ -946,23 +934,14 @@
                  * Google Maps link.
                  */
 
-                                const mapQuery =
-                    driverLocation.address
-                        ? driverLocation.address
-                        : (
-                            driverLocation.lat
-                            + ","
-                            + driverLocation.lng
-                        );
-
-
                 const mapUrl =
                     "https://www.google.com/maps/search/?api=1"
                     + "&query="
                     + encodeURIComponent(
-                        mapQuery
-                    );   + driverLocation.lng
-                    
+                        driverLocation.lat
+                        + ","
+                        + driverLocation.lng
+                    );
 
 
                 if (mapLink) {
