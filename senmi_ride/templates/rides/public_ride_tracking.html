@@ -62,6 +62,23 @@
             font-size: 14px;
         }
 
+        /* ----------------------------------------------------
+           RIDE ID
+        ---------------------------------------------------- */
+
+        .ride-id {
+            margin-top: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #777;
+            letter-spacing: 0.4px;
+        }
+
+        .ride-id span {
+            color: #333;
+            font-weight: 800;
+        }
+
         .card {
             background: #ffffff;
             border-radius: 18px;
@@ -270,6 +287,14 @@
             <p class="subtitle">
                 Live Ride Tracking
             </p>
+
+            <!-- RIDE ID -->
+            <div
+                id="rideId"
+                class="ride-id"
+            >
+                Ride ID: Loading...
+            </div>
 
         </div>
 
@@ -666,6 +691,29 @@
             rideContent.classList.remove(
                 "hidden"
             );
+
+
+            /*
+             * Ride ID
+             */
+
+            const rideIdElement =
+                document.getElementById(
+                    "rideId"
+                );
+
+
+            if (rideIdElement) {
+
+                rideIdElement.innerHTML =
+                    "Ride ID: <span>"
+                    + (
+                        data?.ride_id ||
+                        "Unavailable"
+                    )
+                    + "</span>";
+
+            }
 
 
             /*
