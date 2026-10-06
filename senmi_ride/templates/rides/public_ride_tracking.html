@@ -931,22 +931,44 @@
                  * Google Maps link.
                  */
 
-                const mapQuery =
-                    driverLocation.address
-                    ||
-                    (
-                        driverLocation.lat
-                        + ","
-                        + driverLocation.lng
-                    );
+                let mapUrl = "";
 
 
-                const mapUrl =
-                    "https://www.google.com/maps/search/?api=1"
-                    + "&query="
-                    + encodeURIComponent(
-                        mapQuery
-                    );
+                if (driverLocation.place_id) {
+
+                    mapUrl =
+                        "https://www.google.com/maps/search/?api=1"
+                        + "&query="
+                        + encodeURIComponent(
+                            driverLocation.address
+                            || "Driver location"
+                        )
+                        + "&query_place_id="
+                        + encodeURIComponent(
+                            driverLocation.place_id
+                        );
+
+                } else {
+
+                    const mapQuery =
+                        driverLocation.address
+                        ||
+                        (
+                            driverLocation.lat
+                            + ","
+                            + driverLocation.lng
+                        );
+
+
+                    mapUrl =
+                        "https://www.google.com/maps/search/?api=1"
+                        + "&query="
+                        + encodeURIComponent(
+                            mapQuery
+                        );
+
+                }
+
 
                 if (mapLink) {
 
