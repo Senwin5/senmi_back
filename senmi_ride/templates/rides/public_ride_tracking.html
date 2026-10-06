@@ -931,15 +931,22 @@
                  * Google Maps link.
                  */
 
-                const mapUrl =
-                    "https://www.google.com/maps/search/?api=1"
-                    + "&query="
-                    + encodeURIComponent(
+                const mapQuery =
+                    driverLocation.address
+                    ||
+                    (
                         driverLocation.lat
                         + ","
                         + driverLocation.lng
                     );
 
+
+                const mapUrl =
+                    "https://www.google.com/maps/search/?api=1"
+                    + "&query="
+                    + encodeURIComponent(
+                        mapQuery
+                    );
 
                 if (mapLink) {
 
