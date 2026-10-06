@@ -201,6 +201,7 @@
             background: #f4f1ff;
             color: #4b2abf;
             font-size: 13px;
+            line-height: 1.5;
         }
 
         .map-link {
@@ -776,12 +777,6 @@
 
             /*
              * Driver image
-             *
-             * IMPORTANT:
-             * We do NOT replace driverImageContainer.
-             *
-             * The container stays in the DOM permanently,
-             * so the 5-second polling will continue working.
              */
 
             const driverImage =
@@ -814,10 +809,6 @@
 
                 if (driverImage) {
 
-                    /*
-                     * Update existing image element.
-                     */
-
                     driverImageElement.src =
                         driverImage;
 
@@ -832,11 +823,6 @@
                     );
 
                 } else {
-
-                    /*
-                     * No driver image.
-                     * Show the car placeholder.
-                     */
 
                     driverImageElement.src = "";
 
@@ -914,7 +900,8 @@
             ) {
 
                 /*
-                 * Show driver location message.
+                 * Show driver location message
+                 * AND STREET ADDRESS.
                  */
 
                 if (driverLocationBox) {
@@ -924,8 +911,18 @@
                     );
 
 
-                    driverLocationBox.textContent =
-                        "Driver location is available and updating live.";
+                    if (driverLocation.address) {
+
+                        driverLocationBox.textContent =
+                            "Driver is currently on "
+                            + driverLocation.address;
+
+                    } else {
+
+                        driverLocationBox.textContent =
+                            "Driver location is available and updating live.";
+
+                    }
 
                 }
 

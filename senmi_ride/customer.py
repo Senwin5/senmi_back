@@ -5,9 +5,10 @@ import secrets
 
 from django.db import transaction
 from django.shortcuts import get_object_or_404, render
-from django.utils import timezone
+from django.utils import cache, timezone
 
-from rest_framework.views import APIView
+import requests
+from rest_framework.views import APIView, settings
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
@@ -819,7 +820,107 @@ def PublicRideTrackingPage(request, token):
     )
 
 
+# ============================================================
+# GOOGLE REVERSE GEOCODING
+# ============================================================
 
+def get_driver_street_address(latitude, longitude):
+
+    if latitude is None or longitude is None:
+        return None
+
+    try:
+
+        # ----------------------------------------------------
+        # CACHE LOCATION FOR 60 SECONDS
+        # ----------------------------------------------------
+        cache_key = (
+            f"driver_street_address_"
+            f"{round(float(latitude), 5)}_"
+            f"{round(float(longitude), 5)}"
+        )
+
+        cached_address = cache.get(cache_key)
+
+        if cached_address:
+            return cached_address
+
+        # ----------------------------------------------------
+        # GOOGLE MAPS API KEY
+        # ----------------------------------------------------
+        google_maps_api_key = getattr(
+            settings,
+            "GOOGLE_MAPS_SERVER_API_KEY",
+            None,
+        )
+
+        if not google_maps_api_key:
+            return None
+
+        # ----------------------------------------------------
+        # GOOGLE REVERSE GEOCODING
+        # ----------------------------------------------------
+        response = requests.get(
+            "https://maps.googleapis.com/maps/api/geocode/json",
+            params={
+                "latlng":
+                    f"{latitude},{longitude}",
+                "key":
+                    google_maps_api_key,
+            },
+            timeout=5,
+        )
+
+        response.raise_for_status()
+
+        data = response.json()
+
+        # ----------------------------------------------------
+        # CHECK GOOGLE RESPONSE
+        # ----------------------------------------------------
+        if data.get("status") != "OK":
+            return None
+
+        results = data.get(
+            "results",
+            [],
+        )
+
+        if not results:
+            return None
+
+        # ----------------------------------------------------
+        # GOOGLE'S MOST RELEVANT ADDRESS
+        # ----------------------------------------------------
+        address = (
+            results[0]
+            .get("formatted_address")
+        )
+
+        if not address:
+            return None
+
+        # ----------------------------------------------------
+        # CACHE ADDRESS
+        # ----------------------------------------------------
+        cache.set(
+            cache_key,
+            address,
+            timeout=60,
+        )
+
+        return address
+
+    except Exception as error:
+
+        print(
+            "Google reverse geocoding error:",
+            error,
+        )
+
+        return None
+
+    
 # ============================================================
 # PUBLIC LIVE RIDE TRACKING
 # ============================================================
@@ -970,6 +1071,24 @@ class PublicRideTrackingView(APIView):
                     )
 
         # ----------------------------------------------------
+        # DRIVER STREET ADDRESS
+        # ----------------------------------------------------
+
+        driver_street_address = None
+
+        if (
+            driver_lat is not None
+            and driver_lng is not None
+        ):
+
+            driver_street_address = (
+                get_driver_street_address(
+                    driver_lat,
+                    driver_lng,
+                )
+            )
+
+        # ----------------------------------------------------
         # ETA
         # ----------------------------------------------------
 
@@ -995,31 +1114,47 @@ class PublicRideTrackingView(APIView):
                 "status": ride.status,
 
                 "pickup": {
-                    "address": ride.pickup_address,
-                    "lat": ride.pickup_lat,
-                    "lng": ride.pickup_lng,
+                    "address":
+                        ride.pickup_address,
+                    "lat":
+                        ride.pickup_lat,
+                    "lng":
+                        ride.pickup_lng,
                 },
 
                 "destination": {
-                    "address": ride.destination_address,
-                    "lat": ride.destination_lat,
-                    "lng": ride.destination_lng,
+                    "address":
+                        ride.destination_address,
+                    "lat":
+                        ride.destination_lat,
+                    "lng":
+                        ride.destination_lng,
                 },
 
                 "driver": {
-                    "name": driver_name,
-                    "vehicle_number": vehicle_number,
-                    "image": driver_image,
+                    "name":
+                        driver_name,
+                    "vehicle_number":
+                        vehicle_number,
+                    "image":
+                        driver_image,
                 },
 
                 "driver_location": {
-                    "lat": driver_lat,
-                    "lng": driver_lng,
+                    "lat":
+                        driver_lat,
+                    "lng":
+                        driver_lng,
+
+                    "address":
+                        driver_street_address,
+
                     "updated_at":
                         driver_location_updated_at,
                 },
 
-                "eta_minutes": eta_minutes,
+                "eta_minutes":
+                    eta_minutes,
 
                 "share_expires_at": (
                     share.expires_at.isoformat()
