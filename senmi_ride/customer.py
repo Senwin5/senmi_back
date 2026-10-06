@@ -3,24 +3,34 @@
 from datetime import timedelta
 import secrets
 
+import requests
+
+from django.conf import settings
+from django.core.cache import cache
 from django.db import transaction
 from django.shortcuts import get_object_or_404, render
-from django.utils import cache, timezone
+from django.utils import timezone
 
-import requests
-from rest_framework.views import APIView
-from django.conf import settings
-from rest_framework.response import Response
-from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from senmi_ride.matching import (
     notify_nearest_drivers,
     find_nearest_drivers,
 )
 
-from .models import RideDriverAvailability, RideDriverProfile, RideRequest, RideShareToken, RideTracking
+from .models import (
+    RideDriverAvailability,
+    RideDriverProfile,
+    RideRequest,
+    RideShareToken,
+    RideTracking,
+)
+
 from .serializers import RideRequestSerializer
+
 from .utils import (
     calculate_ride_fare,
     calculate_distance,
