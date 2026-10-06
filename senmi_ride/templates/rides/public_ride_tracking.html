@@ -933,15 +933,13 @@
 
                 let mapUrl = "";
 
-
                 if (driverLocation.place_id) {
 
                     mapUrl =
                         "https://www.google.com/maps/search/?api=1"
                         + "&query="
                         + encodeURIComponent(
-                            driverLocation.address
-                            || "Driver location"
+                            driverLocation.address || "Driver location"
                         )
                         + "&query_place_id="
                         + encodeURIComponent(
@@ -951,22 +949,17 @@
                 } else {
 
                     const mapQuery =
-                        driverLocation.address
-                        ||
+                        driverLocation.address ||
                         (
                             driverLocation.lat
                             + ","
                             + driverLocation.lng
                         );
 
-
                     mapUrl =
                         "https://www.google.com/maps/search/?api=1"
                         + "&query="
-                        + encodeURIComponent(
-                            mapQuery
-                        );
-
+                        + encodeURIComponent(mapQuery);
                 }
 
 

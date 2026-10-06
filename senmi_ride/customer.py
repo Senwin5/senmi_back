@@ -832,8 +832,9 @@ def get_driver_street_address(latitude, longitude):
     try:
 
         # ----------------------------------------------------
-        # CACHE LOCATION FOR 60 SECONDS
+        # CACHE
         # ----------------------------------------------------
+
         cache_key = (
             f"driver_street_address_"
             f"{round(float(latitude), 5)}_"
@@ -846,8 +847,9 @@ def get_driver_street_address(latitude, longitude):
             return cached_address
 
         # ----------------------------------------------------
-        # GOOGLE MAPS API KEY
+        # GOOGLE MAPS SERVER API KEY
         # ----------------------------------------------------
+
         google_maps_api_key = getattr(
             settings,
             "GOOGLE_MAPS_SERVER_API_KEY",
@@ -855,20 +857,24 @@ def get_driver_street_address(latitude, longitude):
         )
 
         if not google_maps_api_key:
+            print(
+                "ERROR: GOOGLE_MAPS_SERVER_API_KEY is not configured."
+            )
             return None
 
         # ----------------------------------------------------
         # GOOGLE REVERSE GEOCODING
         # ----------------------------------------------------
+
         response = requests.get(
             "https://maps.googleapis.com/maps/api/geocode/json",
             params={
-                "latlng":
-                    f"{latitude},{longitude}",
-                "key":
-                    google_maps_api_key,
+                "latlng": f"{latitude},{longitude}",
+                "key": google_maps_api_key,
+                "language": "en",
+                "region": "ng",
             },
-            timeout=5,
+            timeout=10,
         )
 
         response.raise_for_status()
@@ -876,37 +882,104 @@ def get_driver_street_address(latitude, longitude):
         data = response.json()
 
         # ----------------------------------------------------
-        # CHECK GOOGLE RESPONSE
+        # VERY IMPORTANT: PRINT GOOGLE RESPONSE STATUS
         # ----------------------------------------------------
-        if data.get("status") != "OK":
-            return None
 
-        results = data.get(
-            "results",
-            [],
+        print(
+            "GOOGLE GEOCODING STATUS:",
+            data.get("status"),
         )
 
+        print(
+            "GOOGLE GEOCODING ERROR:",
+            data.get("error_message"),
+        )
+
+        # ----------------------------------------------------
+        # CHECK RESULTS
+        # ----------------------------------------------------
+
+        if data.get("status") != "OK":
+
+            print(
+                "Google reverse geocoding failed:",
+                data,
+            )
+
+            return None
+
+        results = data.get("results", [])
+
         if not results:
+
+            print(
+                "Google reverse geocoding returned no results."
+            )
+
             return None
 
         # ----------------------------------------------------
-        # GOOGLE'S MOST RELEVANT ADDRESS
+        # FIND A GOOD STREET ADDRESS
         # ----------------------------------------------------
-        address = (
-            results[0]
-            .get("formatted_address")
+
+        preferred_types = [
+            "street_address",
+            "premise",
+            "subpremise",
+            "route",
+        ]
+
+        selected_result = None
+
+        for result in results:
+
+            result_types = result.get(
+                "types",
+                [],
+            )
+
+            if any(
+                result_type in result_types
+                for result_type in preferred_types
+            ):
+
+                selected_result = result
+                break
+
+        # ----------------------------------------------------
+        # FALLBACK TO FIRST RESULT
+        # ----------------------------------------------------
+
+        if selected_result is None:
+
+            selected_result = results[0]
+
+        address = selected_result.get(
+            "formatted_address"
         )
 
         if not address:
+
+            print(
+                "Google returned a result but no formatted_address:",
+                selected_result,
+            )
+
             return None
 
         # ----------------------------------------------------
-        # CACHE ADDRESS
+        # CACHE
         # ----------------------------------------------------
+
         cache.set(
             cache_key,
             address,
             timeout=60,
+        )
+
+        print(
+            "DRIVER STREET ADDRESS:",
+            address,
         )
 
         return address
@@ -915,10 +988,11 @@ def get_driver_street_address(latitude, longitude):
 
         print(
             "Google reverse geocoding error:",
-            error,
+            repr(error),
         )
 
         return None
+    
 
     
 # ============================================================
