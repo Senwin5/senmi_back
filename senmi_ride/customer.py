@@ -8,7 +8,8 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import cache, timezone
 
 import requests
-from rest_framework.views import APIView, settings
+from rest_framework.views import APIView
+from django.conf import settings
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
@@ -719,6 +720,10 @@ class PassengerRideDetailView(APIView):
 # CREATE PUBLIC LIVE RIDE SHARE LINK
 # ============================================================
 
+# ============================================================
+# CREATE PUBLIC LIVE RIDE SHARE LINK
+# ============================================================
+
 class CreateRideShareView(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -808,9 +813,12 @@ class CreateRideShareView(APIView):
         )
 
 
-
+# ============================================================
+# PUBLIC RIDE TRACKING HTML PAGE
+# ============================================================
 
 def PublicRideTrackingPage(request, token):
+
     return render(
         request,
         "rides/public_ride_tracking.html",
@@ -827,12 +835,18 @@ def PublicRideTrackingPage(request, token):
 def get_driver_street_address(latitude, longitude):
 
     if latitude is None or longitude is None:
+
+        print(
+            "Reverse geocoding: "
+            "latitude or longitude is missing."
+        )
+
         return None
 
     try:
 
         # ----------------------------------------------------
-        # CACHE
+        # CACHE LOCATION FOR 60 SECONDS
         # ----------------------------------------------------
 
         cache_key = (
@@ -841,10 +855,13 @@ def get_driver_street_address(latitude, longitude):
             f"{round(float(longitude), 5)}"
         )
 
-        cached_address = cache.get(cache_key)
+        cached_location = cache.get(
+            cache_key
+        )
 
-        if cached_address:
-            return cached_address
+        if cached_location:
+
+            return cached_location
 
         # ----------------------------------------------------
         # GOOGLE MAPS SERVER API KEY
@@ -857,9 +874,12 @@ def get_driver_street_address(latitude, longitude):
         )
 
         if not google_maps_api_key:
+
             print(
-                "ERROR: GOOGLE_MAPS_SERVER_API_KEY is not configured."
+                "ERROR: GOOGLE_MAPS_SERVER_API_KEY "
+                "is not configured."
             )
+
             return None
 
         # ----------------------------------------------------
@@ -869,10 +889,14 @@ def get_driver_street_address(latitude, longitude):
         response = requests.get(
             "https://maps.googleapis.com/maps/api/geocode/json",
             params={
-                "latlng": f"{latitude},{longitude}",
-                "key": google_maps_api_key,
-                "language": "en",
-                "region": "ng",
+                "latlng":
+                    f"{latitude},{longitude}",
+
+                "key":
+                    google_maps_api_key,
+
+                "language":
+                    "en",
             },
             timeout=10,
         )
@@ -882,119 +906,97 @@ def get_driver_street_address(latitude, longitude):
         data = response.json()
 
         # ----------------------------------------------------
-        # VERY IMPORTANT: PRINT GOOGLE RESPONSE STATUS
+        # DEBUG GOOGLE RESPONSE
         # ----------------------------------------------------
 
         print(
-            "GOOGLE GEOCODING STATUS:",
-            data.get("status"),
-        )
-
-        print(
-            "GOOGLE GEOCODING ERROR:",
-            data.get("error_message"),
+            "GOOGLE GEOCODING RESPONSE:",
+            data,
         )
 
         # ----------------------------------------------------
-        # CHECK RESULTS
+        # CHECK GOOGLE STATUS
         # ----------------------------------------------------
 
         if data.get("status") != "OK":
 
             print(
                 "Google reverse geocoding failed:",
-                data,
+                data.get("status"),
+                data.get("error_message"),
             )
 
             return None
 
-        results = data.get("results", [])
+        results = data.get(
+            "results",
+            [],
+        )
 
         if not results:
 
             print(
-                "Google reverse geocoding returned no results."
+                "Google returned OK but no geocoding results."
             )
 
             return None
 
         # ----------------------------------------------------
-        # FIND A GOOD STREET ADDRESS
+        # USE FIRST GOOGLE RESULT
         # ----------------------------------------------------
 
-        preferred_types = [
-            "street_address",
-            "premise",
-            "subpremise",
-            "route",
-        ]
+        result = results[0]
 
-        selected_result = None
-
-        for result in results:
-
-            result_types = result.get(
-                "types",
-                [],
-            )
-
-            if any(
-                result_type in result_types
-                for result_type in preferred_types
-            ):
-
-                selected_result = result
-                break
-
-        # ----------------------------------------------------
-        # FALLBACK TO FIRST RESULT
-        # ----------------------------------------------------
-
-        if selected_result is None:
-
-            selected_result = results[0]
-
-        address = selected_result.get(
+        address = result.get(
             "formatted_address"
+        )
+
+        place_id = result.get(
+            "place_id"
         )
 
         if not address:
 
             print(
-                "Google returned a result but no formatted_address:",
-                selected_result,
+                "Google result has no formatted_address."
             )
 
             return None
 
         # ----------------------------------------------------
-        # CACHE
+        # BUILD LOCATION RESULT
+        # ----------------------------------------------------
+
+        geocoded_location = {
+            "address":
+                address,
+
+            "place_id":
+                place_id,
+        }
+
+        # ----------------------------------------------------
+        # CACHE LOCATION
         # ----------------------------------------------------
 
         cache.set(
             cache_key,
-            address,
+            geocoded_location,
             timeout=60,
         )
 
-        print(
-            "DRIVER STREET ADDRESS:",
-            address,
-        )
-
-        return address
+        return geocoded_location
 
     except Exception as error:
 
         print(
-            "Google reverse geocoding error:",
+            "Google reverse geocoding exception:",
             repr(error),
         )
 
         return None
-    
 
-    
+
 # ============================================================
 # PUBLIC LIVE RIDE TRACKING
 # ============================================================
@@ -1059,7 +1061,9 @@ class PublicRideTrackingView(APIView):
 
         if driver_profile:
 
-            driver_name = driver_profile.full_name
+            driver_name = (
+                driver_profile.full_name
+            )
 
             vehicle_number = (
                 driver_profile.plate_number
@@ -1068,12 +1072,15 @@ class PublicRideTrackingView(APIView):
             if driver_profile.profile_photo:
 
                 try:
+
                     driver_image = (
                         driver_profile
                         .profile_photo
                         .url
                     )
+
                 except Exception:
+
                     driver_image = None
 
         # ----------------------------------------------------
@@ -1095,11 +1102,18 @@ class PublicRideTrackingView(APIView):
 
         if latest_tracking:
 
-            driver_lat = latest_tracking.latitude
-            driver_lng = latest_tracking.longitude
+            driver_lat = (
+                latest_tracking.latitude
+            )
+
+            driver_lng = (
+                latest_tracking.longitude
+            )
 
             driver_location_updated_at = (
-                latest_tracking.timestamp.isoformat()
+                latest_tracking
+                .timestamp
+                .isoformat()
             )
 
         # ----------------------------------------------------
@@ -1140,7 +1154,8 @@ class PublicRideTrackingView(APIView):
                     )
 
                     driver_location_updated_at = (
-                        availability.updated_at
+                        availability
+                        .updated_at
                         .isoformat()
                     )
 
@@ -1149,18 +1164,33 @@ class PublicRideTrackingView(APIView):
         # ----------------------------------------------------
 
         driver_street_address = None
+        driver_place_id = None
 
         if (
             driver_lat is not None
             and driver_lng is not None
         ):
 
-            driver_street_address = (
+            geocoded_location = (
                 get_driver_street_address(
                     driver_lat,
                     driver_lng,
                 )
             )
+
+            if geocoded_location:
+
+                driver_street_address = (
+                    geocoded_location.get(
+                        "address"
+                    )
+                )
+
+                driver_place_id = (
+                    geocoded_location.get(
+                        "place_id"
+                    )
+                )
 
         # ----------------------------------------------------
         # ETA
@@ -1183,15 +1213,19 @@ class PublicRideTrackingView(APIView):
 
         return Response(
             {
-                "ride_id": ride.ride_id,
+                "ride_id":
+                    ride.ride_id,
 
-                "status": ride.status,
+                "status":
+                    ride.status,
 
                 "pickup": {
                     "address":
                         ride.pickup_address,
+
                     "lat":
                         ride.pickup_lat,
+
                     "lng":
                         ride.pickup_lng,
                 },
@@ -1199,8 +1233,10 @@ class PublicRideTrackingView(APIView):
                 "destination": {
                     "address":
                         ride.destination_address,
+
                     "lat":
                         ride.destination_lat,
+
                     "lng":
                         ride.destination_lng,
                 },
@@ -1208,8 +1244,10 @@ class PublicRideTrackingView(APIView):
                 "driver": {
                     "name":
                         driver_name,
+
                     "vehicle_number":
                         vehicle_number,
+
                     "image":
                         driver_image,
                 },
@@ -1217,11 +1255,15 @@ class PublicRideTrackingView(APIView):
                 "driver_location": {
                     "lat":
                         driver_lat,
+
                     "lng":
                         driver_lng,
 
                     "address":
                         driver_street_address,
+
+                    "place_id":
+                        driver_place_id,
 
                     "updated_at":
                         driver_location_updated_at,
@@ -1238,6 +1280,8 @@ class PublicRideTrackingView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
     
     
 class PassengerCancelRideView(APIView):
