@@ -713,14 +713,6 @@ class PassengerRideDetailView(APIView):
         )
 
 
-def PublicRideTrackingPage(request, token):
-    return render(
-        request,
-        "rides/public_ride_tracking.html",
-        {
-            "token": token,
-        },
-    )
 
 # ============================================================
 # CREATE PUBLIC LIVE RIDE SHARE LINK
@@ -813,6 +805,18 @@ class CreateRideShareView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+
+
+def PublicRideTrackingPage(request, token):
+    return render(
+        request,
+        "rides/public_ride_tracking.html",
+        {
+            "token": token,
+        },
+    )
 
 
 
