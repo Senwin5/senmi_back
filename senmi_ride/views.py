@@ -2069,37 +2069,98 @@ class DriverCommissionHistoryView(APIView):
 
 from rest_framework.permissions import IsAdminUser
 
-
 class AdminAllRidesView(APIView):
     permission_classes = [IsAdminUser]
 
     def get(self, request):
         rides = RideRequest.objects.select_related(
-            "passenger", "driver"
+            "passenger",
+            "driver",
+        ).prefetch_related(
+            "tracking",
         ).order_by("-created_at")
 
         data = []
 
         for ride in rides:
+            # Get the most recent location reported for this ride.
+            latest_tracking = (
+                ride.tracking.order_by("-timestamp").first()
+            )
+
+            # Fallback to the driver's availability location
+            # if no ride-specific tracking location exists.
+            driver_lat = None
+            driver_lng = None
+
+            if latest_tracking:
+                driver_lat = latest_tracking.latitude
+                driver_lng = latest_tracking.longitude
+
+            elif ride.driver:
+                availability = (
+                    RideDriverAvailability.objects.filter(
+                        driver__user=ride.driver
+                    ).first()
+                )
+
+                if availability:
+                    driver_lat = availability.latitude
+                    driver_lng = availability.longitude
+
             data.append({
                 "id": ride.id,
                 "ride_id": ride.ride_id,
+
                 "passenger": (
-                    ride.passenger.get_full_name()
-                    or ride.passenger.username
-                    if ride.passenger else "Unknown"
+                    (
+                        ride.passenger.get_full_name()
+                        or ride.passenger.username
+                    )
+                    if ride.passenger
+                    else "Unknown"
                 ),
+
                 "driver": (
-                    ride.driver.get_full_name()
-                    or ride.driver.username
-                    if ride.driver else "Not assigned"
+                    (
+                        ride.driver.get_full_name()
+                        or ride.driver.username
+                    )
+                    if ride.driver
+                    else "Not assigned"
                 ),
+
                 "pickup": ride.pickup_address,
                 "destination": ride.destination_address,
+
+                # Journey coordinates required by Flutter.
+                "pickup_lat": ride.pickup_lat,
+                "pickup_lng": ride.pickup_lng,
+                "destination_lat": ride.destination_lat,
+                "destination_lng": ride.destination_lng,
+
+                # Latest available driver coordinates.
+                "driver_lat": driver_lat,
+                "driver_lng": driver_lng,
+
                 "fare": float(ride.fare or 0),
                 "status": ride.status,
-                "created_at": ride.created_at.isoformat()
-                    if ride.created_at else None,
+
+                "created_at": (
+                    ride.created_at.isoformat()
+                    if ride.created_at
+                    else None
+                ),
+
+                "driver_location_updated_at": (
+                    latest_tracking.timestamp.isoformat()
+                    if latest_tracking
+                    else (
+                        availability.updated_at.isoformat()
+                        if ride.driver and availability
+                        else None
+                    )
+                ),
             })
 
         return Response(data, status=status.HTTP_200_OK)
