@@ -2208,3 +2208,55 @@ class AdminAllRidesView(APIView):
             })
 
         return Response(data, status=status.HTTP_200_OK)
+
+class AdminDriversView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        profiles = RideDriverProfile.objects.select_related(
+            "user"
+        ).order_by("-created_at")
+
+        data = []
+
+        for profile in profiles:
+            driver = RideDriverProfileSerializer(
+                profile,
+                context={"request": request},
+            ).data
+
+            driver["email"] = profile.user.email
+            driver["completed_rides"] = RideRequest.objects.filter(
+                driver=profile.user,
+                status="completed",
+            ).count()
+
+            data.append(driver)
+
+        return Response(
+            {"drivers": data},
+            status=status.HTTP_200_OK,
+        )
+
+
+class AdminDriverDetailView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, driver_id):
+        profile = get_object_or_404(
+            RideDriverProfile.objects.select_related("user"),
+            driver_id=driver_id,
+        )
+
+        data = RideDriverProfileSerializer(
+            profile,
+            context={"request": request},
+        ).data
+
+        data["email"] = profile.user.email
+        data["completed_rides"] = RideRequest.objects.filter(
+            driver=profile.user,
+            status="completed",
+        ).count()
+
+        return Response(data, status=status.HTTP_200_OK)

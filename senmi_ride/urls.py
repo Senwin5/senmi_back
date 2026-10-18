@@ -6,6 +6,8 @@ from django.urls import path
 
 from .views import (
     AdminAllRidesView,
+    AdminDriverDetailView,
+    AdminDriversView,
     DriverCommissionHistoryView,
     DriverDeleteRideHistoryView,
     DriverRideHistoryView,
@@ -265,4 +267,15 @@ urlpatterns = [
         AdminAllRidesView.as_view(),
         name="admin-all-rides",
     ),
+
+    path(
+    "admin/drivers/",
+    AdminDriversView.as_view(),
+    name="admin-drivers",
+    ),
+    path(
+    "admin/drivers/<str:driver_id>/",
+    AdminDriverDetailView.as_view(),
+    name="admin-driver-detail",
+),
 ]
