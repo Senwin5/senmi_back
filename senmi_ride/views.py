@@ -11,6 +11,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
+from django.contrib.auth import get_user_model
+from django.db.models import Q
 
 from .models import (
     RideDriverAvailability,
@@ -2258,5 +2260,53 @@ class AdminDriverDetailView(APIView):
             driver=profile.user,
             status="completed",
         ).count()
+
+        return Response(data, status=status.HTTP_200_OK)
+
+
+
+# ============================================================
+# ADMIN: ALL CUSTOMERS
+# ============================================================
+
+class AdminCustomersView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        User = get_user_model()
+
+        customers = User.objects.filter(
+            role="customer"
+        ).order_by("-date_joined")
+
+        data = []
+
+        for customer in customers:
+            rides = RideRequest.objects.filter(
+                passenger=customer,
+                status="completed",
+            )
+
+            totals = rides.aggregate(
+                total_rides=Count("id"),
+                total_spent=Sum("fare"),
+            )
+
+            data.append({
+                "id": customer.user_id,
+                "name": (
+                    customer.get_full_name().strip()
+                    or customer.username
+                ),
+                "email": customer.email,
+                "phone": customer.phone_number,
+                "rides": totals["total_rides"] or 0,
+                "spent": str(totals["total_spent"] or 0),
+                "status": (
+                    "Active" if customer.is_active
+                    else "Suspended"
+                ),
+                "joined": customer.date_joined.isoformat(),
+            })
 
         return Response(data, status=status.HTTP_200_OK)
