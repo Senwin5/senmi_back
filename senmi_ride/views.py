@@ -2061,3 +2061,45 @@ class DriverCommissionHistoryView(APIView):
             data,
             status=status.HTTP_200_OK,
         )
+
+
+# ============================================================
+# ADMIN: ALL RIDES
+# ============================================================
+
+from rest_framework.permissions import IsAdminUser
+
+
+class AdminAllRidesView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        rides = RideRequest.objects.select_related(
+            "passenger", "driver"
+        ).order_by("-created_at")
+
+        data = []
+
+        for ride in rides:
+            data.append({
+                "id": ride.id,
+                "ride_id": ride.ride_id,
+                "passenger": (
+                    ride.passenger.get_full_name()
+                    or ride.passenger.username
+                    if ride.passenger else "Unknown"
+                ),
+                "driver": (
+                    ride.driver.get_full_name()
+                    or ride.driver.username
+                    if ride.driver else "Not assigned"
+                ),
+                "pickup": ride.pickup_address,
+                "destination": ride.destination_address,
+                "fare": float(ride.fare or 0),
+                "status": ride.status,
+                "created_at": ride.created_at.isoformat()
+                    if ride.created_at else None,
+            })
+
+        return Response(data, status=status.HTTP_200_OK)

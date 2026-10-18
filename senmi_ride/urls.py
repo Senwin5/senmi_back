@@ -5,6 +5,7 @@ from django.urls import path
 # ============================================================
 
 from .views import (
+    AdminAllRidesView,
     DriverCommissionHistoryView,
     DriverDeleteRideHistoryView,
     DriverRideHistoryView,
@@ -258,5 +259,10 @@ urlpatterns = [
         "commission/history/",
         DriverCommissionHistoryView.as_view(),
         name="driver-commission-history",
+    ),
+    path(
+        "admin/rides/",
+        AdminAllRidesView.as_view(),
+        name="admin-all-rides",
     ),
 ]
