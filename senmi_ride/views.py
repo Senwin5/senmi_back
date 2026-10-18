@@ -2069,29 +2069,32 @@ class DriverCommissionHistoryView(APIView):
 
 from rest_framework.permissions import IsAdminUser
 
+
 class AdminAllRidesView(APIView):
     permission_classes = [IsAdminUser]
 
     def get(self, request):
-        rides = RideRequest.objects.select_related(
-            "passenger",
-            "driver",
-        ).prefetch_related(
-            "tracking",
-        ).order_by("-created_at")
+        rides = (
+            RideRequest.objects
+            .select_related(
+                "passenger",
+                "driver",
+                "driver__ride_driver_profile",
+            )
+            .prefetch_related("tracking")
+            .order_by("-created_at")
+        )
 
         data = []
 
         for ride in rides:
-            # Get the most recent location reported for this ride.
             latest_tracking = (
                 ride.tracking.order_by("-timestamp").first()
             )
 
-            # Fallback to the driver's availability location
-            # if no ride-specific tracking location exists.
             driver_lat = None
             driver_lng = None
+            availability = None
 
             if latest_tracking:
                 driver_lat = latest_tracking.latitude
@@ -2099,51 +2102,92 @@ class AdminAllRidesView(APIView):
 
             elif ride.driver:
                 availability = (
-                    RideDriverAvailability.objects.filter(
-                        driver__user=ride.driver
-                    ).first()
+                    RideDriverAvailability.objects
+                    .filter(driver__user=ride.driver)
+                    .first()
                 )
 
                 if availability:
                     driver_lat = availability.latitude
                     driver_lng = availability.longitude
 
+            # Passenger contact details
+            passenger = ride.passenger
+
+            passenger_name = "Unknown"
+            passenger_phone = ""
+
+            if passenger:
+                passenger_name = (
+                    passenger.get_full_name()
+                    or passenger.username
+                    or passenger.email
+                    or "Unknown"
+                )
+
+                passenger_phone = (
+                    getattr(passenger, "phone_number", "")
+                    or ""
+                )
+
+            # Driver profile and contact details
+            driver_name = "Not assigned"
+            driver_phone = ""
+
+            if ride.driver:
+                driver_name = (
+                    ride.driver.get_full_name()
+                    or ride.driver.username
+                    or "Not assigned"
+                )
+
+                try:
+                    driver_profile = ride.driver.ride_driver_profile
+
+                    driver_name = (
+                        driver_profile.full_name
+                        or driver_name
+                    )
+
+                    driver_phone = (
+                        driver_profile.phone_number or ""
+                    )
+                except RideDriverProfile.DoesNotExist:
+                    pass
+
             data.append({
                 "id": ride.id,
                 "ride_id": ride.ride_id,
 
-                "passenger": (
-                    (
-                        ride.passenger.get_full_name()
-                        or ride.passenger.username
-                    )
-                    if ride.passenger
-                    else "Unknown"
-                ),
+                "passenger": passenger_name,
+                "passenger_phone": passenger_phone,
 
-                "driver": (
-                    (
-                        ride.driver.get_full_name()
-                        or ride.driver.username
-                    )
-                    if ride.driver
-                    else "Not assigned"
-                ),
+                "driver": driver_name,
+                "driver_phone": driver_phone,
 
                 "pickup": ride.pickup_address,
                 "destination": ride.destination_address,
 
-                # Journey coordinates required by Flutter.
                 "pickup_lat": ride.pickup_lat,
                 "pickup_lng": ride.pickup_lng,
                 "destination_lat": ride.destination_lat,
                 "destination_lng": ride.destination_lng,
 
-                # Latest available driver coordinates.
                 "driver_lat": driver_lat,
                 "driver_lng": driver_lng,
 
+                # Financial breakdown
                 "fare": float(ride.fare or 0),
+                "service_fee": float(ride.service_fee or 0),
+                "driver_earning": float(
+                    ride.driver_earning or 0
+                ),
+
+                "service_type": ride.service_type,
+                "payment_method": ride.payment_method,
+                "payment_status": ride.payment_status,
+                "commission_paid": ride.commission_paid,
+
                 "status": ride.status,
 
                 "created_at": (
@@ -2157,7 +2201,7 @@ class AdminAllRidesView(APIView):
                     if latest_tracking
                     else (
                         availability.updated_at.isoformat()
-                        if ride.driver and availability
+                        if availability
                         else None
                     )
                 ),
