@@ -2264,7 +2264,6 @@ class AdminDriverDetailView(APIView):
         return Response(data, status=status.HTTP_200_OK)
 
 
-
 # ============================================================
 # ADMIN: ALL CUSTOMERS
 # ============================================================
@@ -2283,14 +2282,43 @@ class AdminCustomersView(APIView):
 
         for customer in customers:
             rides = RideRequest.objects.filter(
-                passenger=customer,
-                status="completed",
+                passenger=customer
+            ).order_by("-created_at")
+
+            completed_rides = rides.filter(
+                status="completed"
             )
 
-            totals = rides.aggregate(
-                total_rides=Count("id"),
-                total_spent=Sum("fare"),
+            totals = completed_rides.aggregate(
+                total_spent=Sum("fare")
             )
+
+            recent_rides = []
+
+            for ride in rides[:5]:
+                recent_rides.append({
+                    "id": ride.ride_id,
+                    "status": ride.status,
+                    "service_type": ride.service_type,
+                    "pickup_address": ride.pickup_address,
+                    "destination_address": (
+                        ride.destination_address
+                    ),
+                    "fare": str(ride.fare),
+                    "payment_method": ride.payment_method,
+                    "payment_status": ride.payment_status,
+                    "created_at": ride.created_at.isoformat(),
+                    "completed_at": (
+                        ride.completed_at.isoformat()
+                        if ride.completed_at
+                        else None
+                    ),
+                    "cancelled_at": (
+                        ride.cancelled_at.isoformat()
+                        if ride.cancelled_at
+                        else None
+                    ),
+                })
 
             data.append({
                 "id": customer.user_id,
@@ -2300,13 +2328,40 @@ class AdminCustomersView(APIView):
                 ),
                 "email": customer.email,
                 "phone": customer.phone_number,
-                "rides": totals["total_rides"] or 0,
-                "spent": str(totals["total_spent"] or 0),
                 "status": (
-                    "Active" if customer.is_active
+                    "Active"
+                    if customer.is_active
                     else "Suspended"
                 ),
                 "joined": customer.date_joined.isoformat(),
+
+                # Ride statistics
+                "total_rides": rides.count(),
+                "rides": completed_rides.count(),
+                "pending_rides": rides.filter(
+                    status="pending"
+                ).count(),
+                "cancelled_rides": rides.filter(
+                    status="cancelled"
+                ).count(),
+                "active_rides": rides.filter(
+                    status__in=[
+                        "accepted",
+                        "arrived",
+                        "started",
+                    ]
+                ).count(),
+
+                # Completed-ride spending
+                "spent": str(
+                    totals["total_spent"] or 0
+                ),
+
+                # Latest five rides
+                "recent_rides": recent_rides,
             })
 
-        return Response(data, status=status.HTTP_200_OK)
+        return Response(
+            data,
+            status=status.HTTP_200_OK
+        )
