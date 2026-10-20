@@ -2305,51 +2305,70 @@ class AdminCustomersView(APIView):
             for ride in rides[:5]:
                 recent_rides.append({
                     "id": ride.ride_id,
+                    "ride_id": ride.ride_id,
                     "status": ride.status,
                     "service_type": ride.service_type,
 
-                    # Pickup location
+                    # Passenger details
+                    "passenger": (
+                        ride.passenger.get_full_name().strip()
+                        or ride.passenger.username
+                        or ride.passenger.email
+                        or "Unknown"
+                    ),
+                    "passenger_phone": (
+                        getattr(ride.passenger, "phone_number", "") or ""
+                    ),
+
+                    # Driver details
+                    "driver": (
+                        (
+                            ride.driver.ride_driver_profile.full_name
+                            or ride.driver.get_full_name()
+                            or ride.driver.username
+                        )
+                        if ride.driver else "Not assigned"
+                    ),
+                    "driver_phone": (
+                        ride.driver.ride_driver_profile.phone_number
+                        if ride.driver and hasattr(
+                            ride.driver, "ride_driver_profile"
+                        )
+                        else ""
+                    ),
+
+                    # Pickup
                     "pickup_address": ride.pickup_address,
                     "pickup_lat": ride.pickup_lat,
                     "pickup_lng": ride.pickup_lng,
 
-                    # Destination location
-                    "destination_address": (
-                        ride.destination_address
-                    ),
+                    # Destination
+                    "destination_address": ride.destination_address,
                     "destination_lat": ride.destination_lat,
                     "destination_lng": ride.destination_lng,
 
-                    # Driver location
-                    # These fields are included only if
-                    # they exist directly on RideRequest.
-                    "driver_lat": (
-                        getattr(ride, "driver_lat", None)
-                    ),
-                    "driver_lng": (
-                        getattr(ride, "driver_lng", None)
-                    ),
+                    # Financial breakdown
+                    "fare": str(ride.fare or 0),
+                    "service_fee": str(ride.service_fee or 0),
+                    "driver_earning": str(ride.driver_earning or 0),
 
-                    # Fare and payment
-                    "fare": str(ride.fare),
+                    # Payment details
                     "payment_method": ride.payment_method,
                     "payment_status": ride.payment_status,
+                    "commission_paid": ride.commission_paid,
 
                     # Dates
                     "created_at": (
                         ride.created_at.isoformat()
-                        if ride.created_at
-                        else None
+                        if ride.created_at else None
                     ),
                     "completed_at": (
                         ride.completed_at.isoformat()
-                        if ride.completed_at
-                        else None
+                        if ride.completed_at else None
                     ),
                     "cancelled_at": (
                         ride.cancelled_at.isoformat()
-                        if ride.cancelled_at
-                        else None
+                        if ride.cancelled_at else None
                     ),
                 })
 
