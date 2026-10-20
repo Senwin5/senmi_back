@@ -2427,3 +2427,126 @@ class AdminCustomersView(APIView):
             data,
             status=status.HTTP_200_OK
         )
+
+
+class AdminDriverActivityView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, driver_id):
+        profile = get_object_or_404(
+            RideDriverProfile.objects.select_related("user"),
+            driver_id=driver_id,
+        )
+
+        # Only rides assigned to this driver's user account.
+        rides = (
+            RideRequest.objects
+            .filter(driver=profile.user)
+            .select_related("passenger", "driver")
+            .prefetch_related("tracking")
+            .order_by("-created_at")
+        )
+
+        summary = rides.aggregate(
+            total_rides=Count("id"),
+            completed_rides=Count(
+                "id", filter=Q(status="completed")
+            ),
+            cancelled_rides=Count(
+                "id", filter=Q(status__in=["cancelled", "canceled"])
+            ),
+            active_rides=Count(
+                "id",
+                filter=Q(status__in=["accepted", "arrived", "started"])
+            ),
+            total_fare=Sum(
+                "fare", filter=Q(status="completed")
+            ),
+            total_service_fee=Sum(
+                "service_fee", filter=Q(status="completed")
+            ),
+            total_driver_earning=Sum(
+                "driver_earning", filter=Q(status="completed")
+            ),
+        )
+
+        ride_data = []
+
+        for ride in rides:
+            latest_tracking = ride.tracking.order_by("-timestamp").first()
+
+            passenger = ride.passenger
+            passenger_name = "Unknown"
+            passenger_phone = ""
+
+            if passenger:
+                passenger_name = (
+                    passenger.get_full_name()
+                    or passenger.username
+                    or passenger.email
+                    or "Unknown"
+                )
+                passenger_phone = (
+                    getattr(passenger, "phone_number", "") or ""
+                )
+
+            ride_data.append({
+                "id": ride.id,
+                "ride_id": ride.ride_id,
+                "passenger": passenger_name,
+                "passenger_phone": passenger_phone,
+                "pickup": ride.pickup_address,
+                "destination": ride.destination_address,
+                "pickup_lat": ride.pickup_lat,
+                "pickup_lng": ride.pickup_lng,
+                "destination_lat": ride.destination_lat,
+                "destination_lng": ride.destination_lng,
+                "fare": float(ride.fare or 0),
+                "service_fee": float(ride.service_fee or 0),
+                "driver_earning": float(ride.driver_earning or 0),
+                "service_type": ride.service_type,
+                "payment_method": ride.payment_method,
+                "payment_status": ride.payment_status,
+                "commission_paid": ride.commission_paid,
+                "status": ride.status,
+                "created_at": (
+                    ride.created_at.isoformat()
+                    if ride.created_at else None
+                ),
+                "completed_at": (
+                    ride.completed_at.isoformat()
+                    if ride.completed_at else None
+                ),
+                "cancelled_at": (
+                    ride.cancelled_at.isoformat()
+                    if ride.cancelled_at else None
+                ),
+                "driver_lat": (
+                    latest_tracking.latitude if latest_tracking else None
+                ),
+                "driver_lng": (
+                    latest_tracking.longitude if latest_tracking else None
+                ),
+                "driver_location_updated_at": (
+                    latest_tracking.timestamp.isoformat()
+                    if latest_tracking else None
+                ),
+            })
+
+        driver_data = RideDriverProfileSerializer(
+            profile,
+            context={"request": request},
+        ).data
+        driver_data["email"] = profile.user.email
+
+        # Normalize empty financial totals to zero.
+        summary = {
+            key: (float(value or 0) if key.startswith("total_") else value)
+            for key, value in summary.items()
+        }
+
+        return Response({
+            "driver": driver_data,
+            "summary": summary,
+            "rides": ride_data,
+        }, status=status.HTTP_200_OK)
