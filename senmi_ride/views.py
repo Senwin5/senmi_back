@@ -2268,6 +2268,7 @@ class AdminDriverDetailView(APIView):
 # ADMIN: ALL CUSTOMERS
 # ============================================================
 
+
 class AdminCustomersView(APIView):
     permission_classes = [IsAdminUser]
 
@@ -2281,6 +2282,9 @@ class AdminCustomersView(APIView):
         data = []
 
         for customer in customers:
+            # =========================================
+            # ALL RIDES FOR THIS CUSTOMER
+            # =========================================
             rides = RideRequest.objects.filter(
                 passenger=customer
             ).order_by("-created_at")
@@ -2293,6 +2297,9 @@ class AdminCustomersView(APIView):
                 total_spent=Sum("fare")
             )
 
+            # =========================================
+            # LATEST FIVE RIDES
+            # =========================================
             recent_rides = []
 
             for ride in rides[:5]:
@@ -2300,14 +2307,40 @@ class AdminCustomersView(APIView):
                     "id": ride.ride_id,
                     "status": ride.status,
                     "service_type": ride.service_type,
+
+                    # Pickup location
                     "pickup_address": ride.pickup_address,
+                    "pickup_lat": ride.pickup_lat,
+                    "pickup_lng": ride.pickup_lng,
+
+                    # Destination location
                     "destination_address": (
                         ride.destination_address
                     ),
+                    "destination_lat": ride.destination_lat,
+                    "destination_lng": ride.destination_lng,
+
+                    # Driver location
+                    # These fields are included only if
+                    # they exist directly on RideRequest.
+                    "driver_lat": (
+                        getattr(ride, "driver_lat", None)
+                    ),
+                    "driver_lng": (
+                        getattr(ride, "driver_lng", None)
+                    ),
+
+                    # Fare and payment
                     "fare": str(ride.fare),
                     "payment_method": ride.payment_method,
                     "payment_status": ride.payment_status,
-                    "created_at": ride.created_at.isoformat(),
+
+                    # Dates
+                    "created_at": (
+                        ride.created_at.isoformat()
+                        if ride.created_at
+                        else None
+                    ),
                     "completed_at": (
                         ride.completed_at.isoformat()
                         if ride.completed_at
@@ -2320,6 +2353,9 @@ class AdminCustomersView(APIView):
                     ),
                 })
 
+            # =========================================
+            # CUSTOMER INFORMATION
+            # =========================================
             data.append({
                 "id": customer.user_id,
                 "name": (
@@ -2333,17 +2369,24 @@ class AdminCustomersView(APIView):
                     if customer.is_active
                     else "Suspended"
                 ),
-                "joined": customer.date_joined.isoformat(),
+                "joined": (
+                    customer.date_joined.isoformat()
+                    if customer.date_joined
+                    else None
+                ),
 
                 # Ride statistics
                 "total_rides": rides.count(),
                 "rides": completed_rides.count(),
+
                 "pending_rides": rides.filter(
                     status="pending"
                 ).count(),
+
                 "cancelled_rides": rides.filter(
                     status="cancelled"
                 ).count(),
+
                 "active_rides": rides.filter(
                     status__in=[
                         "accepted",
@@ -2357,7 +2400,7 @@ class AdminCustomersView(APIView):
                     totals["total_spent"] or 0
                 ),
 
-                # Latest five rides
+                # Latest five rides, including coordinates
                 "recent_rides": recent_rides,
             })
 
