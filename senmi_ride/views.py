@@ -2539,11 +2539,12 @@ class AdminDriverActivityView(APIView):
         ).data
         driver_data["email"] = profile.user.email
 
-        # Normalize empty financial totals to zero.
-        summary = {
-            key: (float(value or 0) if key.startswith("total_") else value)
-            for key, value in summary.items()
-        }
+        for key in (
+            "total_fare",
+            "total_service_fee",
+            "total_driver_earning",
+        ):
+            summary[key] = float(summary[key] or 0)
 
         return Response({
             "driver": driver_data,
