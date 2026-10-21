@@ -2550,3 +2550,51 @@ class AdminDriverActivityView(APIView):
             "summary": summary,
             "rides": ride_data,
         }, status=status.HTTP_200_OK)
+
+
+
+class AdminCommissionPaymentsView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        payments = (
+            RideCommissionPayment.objects
+            .select_related("driver", "ride")
+            .order_by("-created_at")
+        )
+
+        data = []
+
+        for payment in payments:
+            driver = payment.driver
+
+            data.append({
+                "id": payment.id,
+                "driver_id": driver.id,
+                "driver_name": (
+                    driver.get_full_name()
+                    or driver.get_username()
+                ),
+                "driver_email": driver.email or "",
+                "ride_id": (
+                    payment.ride.ride_id
+                    if payment.ride
+                    else None
+                ),
+                "amount": str(payment.amount or 0),
+                "payment_method": payment.payment_method,
+                "reference": payment.reference,
+                "status": payment.status,
+                "paid_at": (
+                    payment.paid_at.isoformat()
+                    if payment.paid_at
+                    else None
+                ),
+                "created_at": (
+                    payment.created_at.isoformat()
+                    if payment.created_at
+                    else None
+                ),
+            })
+
+        return Response(data, status=status.HTTP_200_OK)
