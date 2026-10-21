@@ -2474,7 +2474,6 @@ class AdminDriverActivityView(APIView):
 
         for ride in rides:
             latest_tracking = ride.tracking.order_by("-timestamp").first()
-
             passenger = ride.passenger
             passenger_name = "Unknown"
             passenger_phone = ""
