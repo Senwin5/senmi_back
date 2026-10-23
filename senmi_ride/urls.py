@@ -296,4 +296,5 @@ urlpatterns = [
     AdminCommissionPaymentsView.as_view(),
     name="admin-commission-payments",
     ),
+    
 ]
