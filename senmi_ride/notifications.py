@@ -9,6 +9,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from senmi.utils import send_fcm_notification
+
 from .models import (
     RideDriverProfile,
     RideNotification,
@@ -152,6 +154,24 @@ class AdminRideNotificationView(APIView):
             recipient_records,
             batch_size=1000,
         )
+
+        # Send real push notifications through the existing FCM service.
+        # Run only after the database transaction commits successfully.
+        for record in recipient_records:
+            recipient_user_id = record.recipient_id
+
+            transaction.on_commit(
+                lambda user_id=recipient_user_id: send_fcm_notification(
+                    user=User.objects.filter(pk=user_id).first(),
+                    title=title,
+                    body=message,
+                    data={
+                        "type": "ride_admin_notification",
+                        "ride_notification_id": str(notification.id),
+                        "target": target,
+                    },
+                )
+            )
 
         return Response(
             {
