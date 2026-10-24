@@ -3,6 +3,7 @@ from django.contrib import admin
 from .models import (
     RideDriverProfile,
     RideDriverWallet,
+    RideFCMDevice,
     RideNotification,
     RideNotificationRecipient,
     RideRequest,
@@ -336,3 +337,25 @@ class RideNotificationRecipientAdmin(admin.ModelAdmin):
         "recipient__email",
     )
     list_select_related = ("notification", "recipient")
+
+@admin.register(RideFCMDevice)
+class RideFCMDeviceAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "user",
+        "token_preview",
+        "is_active",
+        "created_at",
+        "updated_at",
+    )
+
+    list_filter = ("is_active", "created_at")
+    search_fields = ("user__username", "user__email", "token")
+    readonly_fields = ("created_at", "updated_at")
+    ordering = ("-created_at",)
+
+    @admin.display(description="FCM Token")
+    def token_preview(self, obj):
+        if len(obj.token) > 24:
+            return f"{obj.token[:24]}..."
+        return obj.token

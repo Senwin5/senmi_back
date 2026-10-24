@@ -1,6 +1,9 @@
+
+import logging
+
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
@@ -9,17 +12,17 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from senmi.utils import send_fcm_notification
-
 from .models import (
-    RideDriverProfile,
     RideNotification,
     RideNotificationRecipient,
+    RideFCMDevice,
 )
 from .permissions import IsRideAdmin
+from .fcm import send_ride_fcm_notification
 
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 def notification_data(notification, recipient_record=None):
@@ -99,7 +102,11 @@ class AdminRideNotificationView(APIView):
         if target == "single":
             if not user_id:
                 return Response(
-                    {"error": "user_id is required for a single user."},
+                    {
+                        "error": (
+                            "user_id is required for a single user."
+                        )
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -112,7 +119,6 @@ class AdminRideNotificationView(APIView):
             )
 
         elif target == "passengers":
-            # Users who have made Ride requests and are not Ride drivers.
             users = (
                 User.objects
                 .filter(ride_requests__isnull=False)
@@ -121,10 +127,10 @@ class AdminRideNotificationView(APIView):
             )
 
         else:
-            # All registered non-staff Ride users.
+            # Include non-staff users and the sending admin.
             users = User.objects.filter(
-                is_staff=False,
-                is_superuser=False,
+                Q(is_staff=False, is_superuser=False)
+                | Q(pk=request.user.pk)
             )
 
         users = users.distinct()
@@ -135,6 +141,7 @@ class AdminRideNotificationView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Save the Ride notification.
         notification = RideNotification.objects.create(
             sender=request.user,
             target=target,
@@ -142,6 +149,7 @@ class AdminRideNotificationView(APIView):
             message=message,
         )
 
+        # Save each recipient's Ride inbox entry.
         recipient_records = [
             RideNotificationRecipient(
                 notification=notification,
@@ -155,32 +163,89 @@ class AdminRideNotificationView(APIView):
             batch_size=1000,
         )
 
-        # Send real push notifications through the existing FCM service.
-        # Run only after the database transaction commits successfully.
+        # Schedule Ride-specific push notifications after commit.
+        notification_id = notification.id
+
         for record in recipient_records:
             recipient_user_id = record.recipient_id
 
-            transaction.on_commit(
-                lambda user_id=recipient_user_id: send_fcm_notification(
-                    user=User.objects.filter(pk=user_id).first(),
-                    title=title,
-                    body=message,
-                    data={
-                        "type": "ride_admin_notification",
-                        "ride_notification_id": str(notification.id),
-                        "target": target,
-                    },
-                )
-            )
+            def send_after_commit(
+                user_id=recipient_user_id,
+                ride_notification_id=notification_id,
+                notification_target=target,
+                notification_title=title,
+                notification_message=message,
+            ):
+                try:
+                    recipient = User.objects.filter(
+                        pk=user_id
+                    ).first()
+
+                    if recipient is None:
+                        logger.warning(
+                            "Ride notification recipient %s not found.",
+                            user_id,
+                        )
+                        return
+
+                    send_ride_fcm_notification(
+                        user=recipient,
+                        title=notification_title,
+                        body=notification_message,
+                        data={
+                            "type": "ride_admin_notification",
+                            "ride_notification_id": str(
+                                ride_notification_id
+                            ),
+                            "target": notification_target,
+                        },
+                    )
+
+                except Exception:
+                    logger.exception(
+                        "Failed to send Ride notification to user %s.",
+                        user_id,
+                    )
+
+            transaction.on_commit(send_after_commit)
 
         return Response(
             {
                 "success": True,
-                "message": "Ride notification sent successfully.",
+                "message": "Ride notification created successfully.",
                 "notification": notification_data(notification),
                 "recipient_count": len(recipient_records),
             },
             status=status.HTTP_201_CREATED,
+        )
+
+
+class RideFCMTokenRegisterView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        token = str(request.data.get("token", "")).strip()
+
+        if not token:
+            return Response(
+                {"error": "FCM token is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        RideFCMDevice.objects.update_or_create(
+            token=token,
+            defaults={
+                "user": request.user,
+                "is_active": True,
+            },
+        )
+
+        return Response(
+            {
+                "success": True,
+                "message": "Ride device token registered successfully.",
+            },
+            status=status.HTTP_200_OK,
         )
 
 
@@ -218,9 +283,12 @@ class MarkRideNotificationReadView(APIView):
             record.read_at = timezone.now()
             record.save(update_fields=["is_read", "read_at"])
 
-        return Response({
-            "success": True,
-            "message": "Notification marked as read.",
-            "recipient_id": record.id,
-            "is_read": record.is_read,
-        })
+        return Response(
+            {
+                "success": True,
+                "message": "Notification marked as read.",
+                "recipient_id": record.id,
+                "is_read": record.is_read,
+            },
+            status=status.HTTP_200_OK,
+        )
