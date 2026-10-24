@@ -341,7 +341,6 @@ class RideNotificationRecipientAdmin(admin.ModelAdmin):
 @admin.register(RideFCMDevice)
 class RideFCMDeviceAdmin(admin.ModelAdmin):
     list_display = (
-        "id",
         "user",
         "token_preview",
         "is_active",
