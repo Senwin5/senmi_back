@@ -2073,7 +2073,6 @@ class DriverCommissionHistoryView(APIView):
 
 from rest_framework.permissions import IsAdminUser
 
-
 class AdminAllRidesView(APIView):
     permission_classes = [IsAdminUser]
 
@@ -2134,9 +2133,10 @@ class AdminAllRidesView(APIView):
                     or ""
                 )
 
-            # Driver profile and contact details
+            # Driver and vehicle details
             driver_name = "Not assigned"
             driver_phone = ""
+            driver_profile_data = None
 
             if ride.driver:
                 driver_name = (
@@ -2145,32 +2145,65 @@ class AdminAllRidesView(APIView):
                     or "Not assigned"
                 )
 
+                driver_email = ride.driver.email or ""
+
                 try:
-                    driver_profile = ride.driver.ride_driver_profile
+                    profile = ride.driver.ride_driver_profile
 
                     driver_name = (
-                        driver_profile.full_name
-                        or driver_name
+                        profile.full_name or driver_name
                     )
 
                     driver_phone = (
-                        driver_profile.phone_number or ""
+                        profile.phone_number or ""
                     )
+
+                    driver_profile_data = {
+                        "driver_id": profile.driver_id,
+                        "full_name": profile.full_name or driver_name,
+                        "phone_number": driver_phone,
+                        "profile_photo": (
+                            profile.profile_photo.url
+                            if profile.profile_photo
+                            else None
+                        ),
+                        "vehicle_brand": profile.vehicle_brand,
+                        "vehicle_model": profile.vehicle_model,
+                        "vehicle_color": profile.vehicle_color,
+                        "vehicle_year": profile.vehicle_year,
+                        "plate_number": profile.plate_number,
+                        "rating": profile.rating,
+                        "rating_count": profile.rating_count,
+                    }
+
                 except RideDriverProfile.DoesNotExist:
-                    pass
+                    driver_email = ride.driver.email or ""
+                else:
+                    driver_email = ride.driver.email or ""
+            else:
+                driver_email = ""
 
             data.append({
                 "id": ride.id,
                 "ride_id": ride.ride_id,
 
                 "passenger": passenger_name,
+                "passenger_name": passenger_name,
+                "passenger_email": (
+                    passenger.email or "" if passenger else ""
+                ),
                 "passenger_phone": passenger_phone,
 
                 "driver": driver_name,
+                "driver_email": driver_email,
                 "driver_phone": driver_phone,
+                "driver_profile": driver_profile_data,
 
                 "pickup": ride.pickup_address,
                 "destination": ride.destination_address,
+
+                "pickup_address": ride.pickup_address,
+                "destination_address": ride.destination_address,
 
                 "pickup_lat": ride.pickup_lat,
                 "pickup_lng": ride.pickup_lng,
@@ -2179,6 +2212,13 @@ class AdminAllRidesView(APIView):
 
                 "driver_lat": driver_lat,
                 "driver_lng": driver_lng,
+
+                "estimated_distance_km": (
+                    ride.estimated_distance_km
+                ),
+                "estimated_duration_minutes": (
+                    ride.estimated_duration_minutes
+                ),
 
                 # Financial breakdown
                 "fare": float(ride.fare or 0),
@@ -2190,13 +2230,39 @@ class AdminAllRidesView(APIView):
                 "service_type": ride.service_type,
                 "payment_method": ride.payment_method,
                 "payment_status": ride.payment_status,
+                "payment_reference": ride.payment_reference,
+                "payment_paid_at": (
+                    ride.payment_paid_at.isoformat()
+                    if ride.payment_paid_at
+                    else None
+                ),
                 "commission_paid": ride.commission_paid,
+                "commission_paid_at": (
+                    ride.commission_paid_at.isoformat()
+                    if ride.commission_paid_at
+                    else None
+                ),
 
                 "status": ride.status,
 
                 "created_at": (
                     ride.created_at.isoformat()
                     if ride.created_at
+                    else None
+                ),
+                "updated_at": (
+                    ride.updated_at.isoformat()
+                    if ride.updated_at
+                    else None
+                ),
+                "completed_at": (
+                    ride.completed_at.isoformat()
+                    if ride.completed_at
+                    else None
+                ),
+                "cancelled_at": (
+                    ride.cancelled_at.isoformat()
+                    if ride.cancelled_at
                     else None
                 ),
 
@@ -2212,7 +2278,7 @@ class AdminAllRidesView(APIView):
             })
 
         return Response(data, status=status.HTTP_200_OK)
-
+    
 class AdminDriversView(APIView):
     permission_classes = [IsAdminUser]
 
