@@ -2553,13 +2553,14 @@ class AdminDriverActivityView(APIView):
 
 
 
+
 class AdminCommissionPaymentsView(APIView):
     permission_classes = [IsAdminUser]
 
     def get(self, request):
         payments = (
             RideCommissionPayment.objects
-            .select_related("driver", "ride")
+            .select_related("driver", "ride", "driver__ride_driver_profile")
             .order_by("-created_at")
         )
 
@@ -2568,14 +2569,31 @@ class AdminCommissionPaymentsView(APIView):
         for payment in payments:
             driver = payment.driver
 
+            # Get the actual driver's name from their profile first.
+            try:
+                profile = driver.ride_driver_profile
+            except Exception:
+                profile = None
+
+            driver_name = (
+                getattr(profile, "full_name", "") or
+                driver.get_full_name() or
+                driver.get_username() or
+                driver.email or
+                f"Driver #{driver.id}"
+            )
+
             data.append({
                 "id": payment.id,
                 "driver_id": driver.id,
-                "driver_name": (
-                    driver.get_full_name()
-                    or driver.get_username()
-                ),
+                "driver_name": driver_name,
                 "driver_email": driver.email or "",
+                "driver_phone": getattr(profile, "phone_number", "") or "",
+                "driver_profile": {
+                    "driver_id": getattr(profile, "driver_id", "") or "",
+                    "full_name": driver_name,
+                    "phone_number": getattr(profile, "phone_number", "") or "",
+                } if profile else None,
                 "ride_id": (
                     payment.ride.ride_id
                     if payment.ride
