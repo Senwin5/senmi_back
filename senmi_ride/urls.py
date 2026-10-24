@@ -11,6 +11,7 @@ from .views import (
     AdminDriverActivityView,
     AdminDriverDetailView,
     AdminDriversView,
+    AdminRideAnalyticsView,
     DriverCommissionHistoryView,
     DriverDeleteRideHistoryView,
     DriverRideHistoryView,
@@ -296,5 +297,10 @@ urlpatterns = [
     AdminCommissionPaymentsView.as_view(),
     name="admin-commission-payments",
     ),
-    
+    path(
+    "admin/analytics/",
+    AdminRideAnalyticsView.as_view(),
+    name="admin-ride-analytics",
+    ),
+
 ]

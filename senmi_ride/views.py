@@ -1,9 +1,11 @@
+from datetime import timedelta
 import uuid
 
 from decimal import Decimal
 
 from django.db import transaction
 from django.db.models.aggregates import Avg, Count, Sum
+from django.db.models.functions import ExtractHour, TruncDate
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
@@ -2616,3 +2618,451 @@ class AdminCommissionPaymentsView(APIView):
             })
 
         return Response(data, status=status.HTTP_200_OK)
+
+
+class AdminRideAnalyticsView(APIView):
+    """
+    Admin analytics based on actual ride and commission records.
+
+    GET /ride/admin/analytics/?days=7
+    GET /ride/admin/analytics/?days=30
+    GET /ride/admin/analytics/?days=90
+    """
+
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        try:
+            days = int(request.query_params.get("days", 7))
+        except (TypeError, ValueError):
+            return Response(
+                {"error": "days must be 7, 30, or 90"},
+                status=400,
+            )
+
+        if days not in (7, 30, 90):
+            return Response(
+                {"error": "days must be 7, 30, or 90"},
+                status=400,
+            )
+
+        today = timezone.localdate()
+        start_date = today - timedelta(days=days - 1)
+        start_datetime = timezone.make_aware(
+            timezone.datetime.combine(
+                start_date,
+                timezone.datetime.min.time(),
+            )
+        )
+        end_datetime = timezone.make_aware(
+            timezone.datetime.combine(
+                today + timedelta(days=1),
+                timezone.datetime.min.time(),
+            )
+        )
+
+        rides = RideRequest.objects.filter(
+            created_at__gte=start_datetime,
+            created_at__lt=end_datetime,
+        )
+
+        # --------------------------------------------------
+        # RIDE STATUS TOTALS
+        # --------------------------------------------------
+
+        status_counts = rides.aggregate(
+            total=Count("id"),
+            pending=Count("id", filter=Q(status="pending")),
+            accepted=Count("id", filter=Q(status="accepted")),
+            arrived=Count("id", filter=Q(status="arrived")),
+            started=Count("id", filter=Q(status="started")),
+            completed=Count("id", filter=Q(status="completed")),
+            cancelled=Count("id", filter=Q(status="cancelled")),
+        )
+
+        total_rides = status_counts["total"] or 0
+        completed_rides = status_counts["completed"] or 0
+        cancelled_rides = status_counts["cancelled"] or 0
+
+        completion_rate = (
+            round(completed_rides / total_rides * 100, 2)
+            if total_rides else 0
+        )
+
+        cancellation_rate = (
+            round(cancelled_rides / total_rides * 100, 2)
+            if total_rides else 0
+        )
+
+        # --------------------------------------------------
+        # FARES AND DRIVER EARNINGS
+        # Only completed rides count toward completed fare.
+        # These are customer-to-driver amounts, not Senmi
+        # commission-payment receipts.
+        # --------------------------------------------------
+
+        completed = rides.filter(status="completed")
+
+        fare_stats = completed.aggregate(
+            total_fares=Sum("fare"),
+            average_fare=Avg("fare"),
+            total_driver_earnings=Sum("driver_earning"),
+            total_service_fees=Sum("service_fee"),
+            average_distance=Avg("estimated_distance_km"),
+            average_estimated_duration=Avg(
+                "estimated_duration_minutes"
+            ),
+        )
+
+        # --------------------------------------------------
+        # DAILY RIDE ACTIVITY
+        # --------------------------------------------------
+
+        daily_rows = (
+            rides
+            .annotate(day=TruncDate("created_at"))
+            .values("day")
+            .annotate(
+                total=Count("id"),
+                pending=Count("id", filter=Q(status="pending")),
+                accepted=Count("id", filter=Q(status="accepted")),
+                arrived=Count("id", filter=Q(status="arrived")),
+                started=Count("id", filter=Q(status="started")),
+                completed=Count("id", filter=Q(status="completed")),
+                cancelled=Count("id", filter=Q(status="cancelled")),
+                completed_fares=Sum(
+                    "fare",
+                    filter=Q(status="completed"),
+                ),
+            )
+            .order_by("day")
+        )
+
+        daily_lookup = {
+            row["day"].isoformat(): row
+            for row in daily_rows
+        }
+
+        daily_activity = []
+
+        for offset in range(days):
+            day = start_date + timedelta(days=offset)
+            key = day.isoformat()
+            row = daily_lookup.get(key, {})
+
+            daily_activity.append({
+                "date": key,
+                "total": row.get("total", 0),
+                "pending": row.get("pending", 0),
+                "accepted": row.get("accepted", 0),
+                "arrived": row.get("arrived", 0),
+                "started": row.get("started", 0),
+                "completed": row.get("completed", 0),
+                "cancelled": row.get("cancelled", 0),
+                "completed_fares": float(
+                    row.get("completed_fares") or 0
+                ),
+            })
+
+        # --------------------------------------------------
+        # COMPLETED FARE BY DAY
+        # --------------------------------------------------
+
+        # --------------------------------------------------
+        # CUSTOMER -> DRIVER PAYMENT STATUS
+        # This is separate from commission payments to Senmi.
+        # --------------------------------------------------
+
+        customer_payment_stats = rides.aggregate(
+            pending=Count(
+                "id",
+                filter=Q(payment_status="pending"),
+            ),
+            paid=Count(
+                "id",
+                filter=Q(payment_status="paid"),
+            ),
+            failed=Count(
+                "id",
+                filter=Q(payment_status="failed"),
+            ),
+        )
+
+        customer_payment_methods = list(
+            rides.values("payment_method")
+            .annotate(count=Count("id"))
+            .order_by("-count")
+        )
+
+        # --------------------------------------------------
+        # SENMI COMMISSION PAYMENTS
+        # Use payment records, not ride fares, for this total.
+        # --------------------------------------------------
+
+        commission_payments = RideCommissionPayment.objects.filter(
+            created_at__gte=start_datetime,
+            created_at__lt=end_datetime,
+        )
+
+        commission_stats = commission_payments.aggregate(
+            total=Count("id"),
+            pending=Count("id", filter=Q(status="pending")),
+            paid=Count("id", filter=Q(status="paid")),
+            failed=Count("id", filter=Q(status="failed")),
+            cancelled=Count("id", filter=Q(status="cancelled")),
+            paid_amount=Sum(
+                "amount",
+                filter=Q(status="paid"),
+            ),
+            pending_amount=Sum(
+                "amount",
+                filter=Q(status="pending"),
+            ),
+        )
+
+        # --------------------------------------------------
+        # BUSIEST HOURS
+        # Based on when ride requests were created.
+        # --------------------------------------------------
+
+        peak_hours = list(
+            rides
+            .annotate(hour=ExtractHour("created_at"))
+            .values("hour")
+            .annotate(total=Count("id"))
+            .order_by("-total")[:8]
+        )
+
+        # --------------------------------------------------
+        # POPULAR PICKUP AND DESTINATION ADDRESSES
+        # --------------------------------------------------
+
+        popular_pickups = list(
+            rides.exclude(pickup_address="")
+            .values("pickup_address")
+            .annotate(total=Count("id"))
+            .order_by("-total")[:5]
+        )
+
+        popular_destinations = list(
+            rides.exclude(destination_address="")
+            .values("destination_address")
+            .annotate(total=Count("id"))
+            .order_by("-total")[:5]
+        )
+
+        # --------------------------------------------------
+        # DRIVER PERFORMANCE
+        # --------------------------------------------------
+
+        driver_rows = (
+            rides
+            .filter(driver__isnull=False)
+            .values("driver")
+            .annotate(
+                total_rides=Count("id"),
+                completed_rides=Count(
+                    "id",
+                    filter=Q(status="completed"),
+                ),
+                cancelled_rides=Count(
+                    "id",
+                    filter=Q(status="cancelled"),
+                ),
+                completed_fares=Sum(
+                    "fare",
+                    filter=Q(status="completed"),
+                ),
+                driver_earnings=Sum(
+                    "driver_earning",
+                    filter=Q(status="completed"),
+                ),
+                average_distance=Avg(
+                    "estimated_distance_km",
+                    filter=Q(status="completed"),
+                ),
+            )
+            .order_by("-completed_rides", "-total_rides")
+        )
+
+        driver_ids = [row["driver"] for row in driver_rows]
+
+        profiles = {
+            profile.user_id: profile
+            for profile in RideDriverProfile.objects.filter(
+                user_id__in=driver_ids
+            )
+        }
+
+        ratings = (
+            RideRating.objects
+            .filter(
+                driver_id__in=driver_ids,
+                created_at__gte=start_datetime,
+                created_at__lt=end_datetime,
+            )
+            .values("driver")
+            .annotate(
+                average_rating=Avg("rating"),
+                rating_count=Count("id"),
+            )
+        )
+
+        rating_lookup = {
+            row["driver"]: row
+            for row in ratings
+        }
+
+        drivers = []
+
+        for row in driver_rows[:10]:
+            user_id = row["driver"]
+            profile = profiles.get(user_id)
+            rating = rating_lookup.get(user_id, {})
+
+            # Use the profile's full name when available.
+            user = None
+            if profile is None:
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                user = User.objects.filter(pk=user_id).first()
+
+            drivers.append({
+                "driver_id": profile.driver_id if profile else None,
+                "name": (
+                    profile.full_name
+                    if profile
+                    else (
+                        user.get_full_name() or user.get_username()
+                        if user else "Unknown driver"
+                    )
+                ),
+                "rides": row["total_rides"],
+                "completed": row["completed_rides"],
+                "cancelled": row["cancelled_rides"],
+                "completed_fares": float(
+                    row["completed_fares"] or 0
+                ),
+                "driver_earnings": float(
+                    row["driver_earnings"] or 0
+                ),
+                "average_distance_km": float(
+                    row["average_distance"] or 0
+                ),
+                "rating": float(
+                    rating.get("average_rating")
+                    or (profile.rating if profile else 0)
+                    or 0
+                ),
+                "rating_count": rating.get(
+                    "rating_count",
+                    profile.rating_count if profile else 0,
+                ),
+                "is_online": profile.is_online if profile else False,
+                "approval_status": profile.status if profile else None,
+            })
+
+        # --------------------------------------------------
+        # SERVICE TYPE BREAKDOWN
+        # --------------------------------------------------
+
+        service_types = list(
+            rides.values("service_type")
+            .annotate(total=Count("id"))
+            .order_by("-total")
+        )
+
+        # --------------------------------------------------
+        # PREVIOUS-PERIOD COMPARISON
+        # Compare ride counts for the preceding equal-length
+        # window, using ride creation date.
+        # --------------------------------------------------
+
+        previous_start = start_datetime - timedelta(days=days)
+
+        previous_rides = RideRequest.objects.filter(
+            created_at__gte=previous_start,
+            created_at__lt=start_datetime,
+        )
+
+        previous_stats = previous_rides.aggregate(
+            total=Count("id"),
+            completed=Count("id", filter=Q(status="completed")),
+            cancelled=Count("id", filter=Q(status="cancelled")),
+        )
+
+        previous_total = previous_stats["total"] or 0
+
+        ride_change_percent = (
+            round(
+                (total_rides - previous_total)
+                / previous_total * 100,
+                2,
+            )
+            if previous_total else None
+        )
+
+        return Response({
+            "period": {
+                "days": days,
+                "start_date": start_date.isoformat(),
+                "end_date": today.isoformat(),
+                "timezone": timezone.get_current_timezone_name(),
+            },
+            "overview": {
+                **status_counts,
+                "completion_rate": completion_rate,
+                "cancellation_rate": cancellation_rate,
+                "average_fare": float(
+                    fare_stats["average_fare"] or 0
+                ),
+                "average_distance_km": float(
+                    fare_stats["average_distance"] or 0
+                ),
+                "average_estimated_duration_minutes": float(
+                    fare_stats["average_estimated_duration"] or 0
+                ),
+                "completed_fares": float(
+                    fare_stats["total_fares"] or 0
+                ),
+                "driver_earnings": float(
+                    fare_stats["total_driver_earnings"] or 0
+                ),
+                "service_fees_from_completed_rides": float(
+                    fare_stats["total_service_fees"] or 0
+                ),
+            },
+            "comparison": {
+                "previous_period_rides": previous_total,
+                "previous_period_completed": (
+                    previous_stats["completed"] or 0
+                ),
+                "previous_period_cancelled": (
+                    previous_stats["cancelled"] or 0
+                ),
+                "ride_count_change_percent": ride_change_percent,
+            },
+            "daily_activity": daily_activity,
+            "customer_payments": {
+                "status": customer_payment_stats,
+                "methods": customer_payment_methods,
+            },
+            "commission_payments": {
+                "total": commission_stats["total"] or 0,
+                "pending": commission_stats["pending"] or 0,
+                "paid": commission_stats["paid"] or 0,
+                "failed": commission_stats["failed"] or 0,
+                "cancelled": commission_stats["cancelled"] or 0,
+                "paid_amount": float(
+                    commission_stats["paid_amount"] or 0
+                ),
+                "pending_amount": float(
+                    commission_stats["pending_amount"] or 0
+                ),
+            },
+            "peak_hours": peak_hours,
+            "popular_pickups": popular_pickups,
+            "popular_destinations": popular_destinations,
+            "drivers": drivers,
+            "service_types": service_types,
+        })
