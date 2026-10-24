@@ -1,0 +1,206 @@
+from django.contrib.auth import get_user_model
+from django.db import transaction
+from django.db.models import Count
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from .models import (
+    RideDriverProfile,
+    RideNotification,
+    RideNotificationRecipient,
+)
+from .permissions import IsRideAdmin
+
+
+User = get_user_model()
+
+
+def notification_data(notification, recipient_record=None):
+    data = {
+        "id": notification.id,
+        "title": notification.title,
+        "message": notification.message,
+        "target": notification.target,
+        "created_at": notification.created_at,
+    }
+
+    if recipient_record is not None:
+        data.update({
+            "recipient_id": recipient_record.id,
+            "is_read": recipient_record.is_read,
+            "read_at": recipient_record.read_at,
+        })
+
+    return data
+
+
+class AdminRideNotificationView(APIView):
+    permission_classes = [IsAuthenticated, IsRideAdmin]
+
+    def get(self, request):
+        notifications = (
+            RideNotification.objects
+            .filter(sender__isnull=False)
+            .annotate(
+                recipient_count=Count("recipients", distinct=True)
+            )
+            .order_by("-created_at")
+        )
+
+        data = [
+            {
+                **notification_data(notification),
+                "recipient_count": notification.recipient_count,
+                "sender_id": notification.sender_id,
+            }
+            for notification in notifications
+        ]
+
+        return Response(data)
+
+    @transaction.atomic
+    def post(self, request):
+        title = str(request.data.get("title", "")).strip()
+        message = str(request.data.get("message", "")).strip()
+        target = str(request.data.get("target", "")).strip().lower()
+        user_id = request.data.get("user_id")
+
+        if not title or not message:
+            return Response(
+                {"error": "Title and message are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if len(title) > 200:
+            return Response(
+                {"error": "Title cannot exceed 200 characters."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if target not in {"all", "drivers", "passengers", "single"}:
+            return Response(
+                {
+                    "error": (
+                        "Target must be all, drivers, "
+                        "passengers, or single."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Determine the Ride notification recipients.
+        if target == "single":
+            if not user_id:
+                return Response(
+                    {"error": "user_id is required for a single user."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            selected_user = get_object_or_404(User, pk=user_id)
+            users = User.objects.filter(pk=selected_user.pk)
+
+        elif target == "drivers":
+            users = User.objects.filter(
+                ride_driver_profile__isnull=False
+            )
+
+        elif target == "passengers":
+            # Users who have made Ride requests and are not Ride drivers.
+            users = (
+                User.objects
+                .filter(ride_requests__isnull=False)
+                .exclude(ride_driver_profile__isnull=False)
+                .distinct()
+            )
+
+        else:
+            # All registered non-staff Ride users.
+            users = User.objects.filter(
+                is_staff=False,
+                is_superuser=False,
+            )
+
+        users = users.distinct()
+
+        if not users.exists():
+            return Response(
+                {"error": "No users were found for this audience."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        notification = RideNotification.objects.create(
+            sender=request.user,
+            target=target,
+            title=title,
+            message=message,
+        )
+
+        recipient_records = [
+            RideNotificationRecipient(
+                notification=notification,
+                recipient=user,
+            )
+            for user in users.iterator()
+        ]
+
+        RideNotificationRecipient.objects.bulk_create(
+            recipient_records,
+            batch_size=1000,
+        )
+
+        return Response(
+            {
+                "success": True,
+                "message": "Ride notification sent successfully.",
+                "notification": notification_data(notification),
+                "recipient_count": len(recipient_records),
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class MyRideNotificationsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        records = (
+            RideNotificationRecipient.objects
+            .filter(recipient=request.user)
+            .select_related("notification")
+            .order_by("-notification__created_at")
+        )
+
+        data = [
+            notification_data(record.notification, record)
+            for record in records
+        ]
+
+        return Response(data)
+
+
+class MarkRideNotificationReadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, recipient_id):
+        record = get_object_or_404(
+            RideNotificationRecipient,
+            pk=recipient_id,
+            recipient=request.user,
+        )
+
+        if not record.is_read:
+            record.is_read = True
+            record.read_at = timezone.now()
+            record.save(update_fields=["is_read", "read_at"])
+
+        return Response({
+            "success": True,
+            "message": "Notification marked as read.",
+            "recipient_id": record.id,
+            "is_read": record.is_read,
+        })

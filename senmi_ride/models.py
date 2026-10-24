@@ -835,3 +835,53 @@ class RideShareToken(models.Model):
 
     def __str__(self):
         return f"{self.ride.ride_id} - {self.token}"
+
+
+class RideNotification(models.Model):
+    TARGET_CHOICES = [
+        ("all", "All Ride Users"),
+        ("drivers", "Drivers"),
+        ("passengers", "Passengers"),
+        ("single", "Single User"),
+    ]
+
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="ride_notifications_sent",
+    )
+    target = models.CharField(max_length=20, choices=TARGET_CHOICES)
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.title
+
+
+class RideNotificationRecipient(models.Model):
+    notification = models.ForeignKey(
+        RideNotification,
+        on_delete=models.CASCADE,
+        related_name="recipients",
+    )
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="ride_notification_inbox",
+    )
+    is_read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["notification", "recipient"],
+                name="unique_ride_notification_recipient",
+            )
+        ]
+        ordering = ["-notification__created_at"]
+
+    def __str__(self):
+        return f"{self.notification.title} → {self.recipient}"

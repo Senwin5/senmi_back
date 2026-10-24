@@ -1,5 +1,8 @@
 from django.urls import path
 
+from senmi_ride.notifications import AdminRideNotificationView, MarkRideNotificationReadView
+from senmi_ride.notifications import MyRideNotificationsView
+
 # ============================================================
 # CORE RIDE VIEWS
 # ============================================================
@@ -301,6 +304,23 @@ urlpatterns = [
     "admin/analytics/",
     AdminRideAnalyticsView.as_view(),
     name="admin-ride-analytics",
+    ),
+
+    # Ride notifications
+    path(
+        "admin/notifications/",
+        AdminRideNotificationView.as_view(),
+        name="ride-admin-notifications",
+    ),
+    path(
+        "notifications/",
+        MyRideNotificationsView.as_view(),
+        name="ride-my-notifications",
+    ),
+    path(
+        "notifications/<int:recipient_id>/read/",
+        MarkRideNotificationReadView.as_view(),
+        name="ride-notification-read",
     ),
 
 ]
