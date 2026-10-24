@@ -3,6 +3,8 @@ from django.contrib import admin
 from .models import (
     RideDriverProfile,
     RideDriverWallet,
+    RideNotification,
+    RideNotificationRecipient,
     RideRequest,
     RideTracking,
     RideRating,
@@ -276,3 +278,61 @@ class RidePricingConfigAdmin(admin.ModelAdmin):
     readonly_fields = (
         "updated_at",
     )
+
+
+
+class RideNotificationRecipientInline(admin.TabularInline):
+    model = RideNotificationRecipient
+    extra = 0
+    can_delete = False
+    readonly_fields = (
+        "recipient",
+        "is_read",
+        "read_at",
+    )
+    fields = (
+        "recipient",
+        "is_read",
+        "read_at",
+    )
+
+
+@admin.register(RideNotification)
+class RideNotificationAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "title",
+        "target",
+        "sender",
+        "created_at",
+        "recipient_count",
+    )
+
+    list_filter = ("target", "created_at")
+    search_fields = ("title", "message")
+    readonly_fields = ("created_at",)
+    ordering = ("-created_at",)
+    inlines = [RideNotificationRecipientInline]
+
+    def recipient_count(self, obj):
+        return obj.recipients.count()
+
+    recipient_count.short_description = "Recipients"
+
+
+@admin.register(RideNotificationRecipient)
+class RideNotificationRecipientAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "notification",
+        "recipient",
+        "is_read",
+        "read_at",
+    )
+    list_filter = ("is_read",)
+    search_fields = (
+        "notification__title",
+        "recipient__username",
+        "recipient__email",
+    )
+    list_select_related = ("notification", "recipient")
