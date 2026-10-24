@@ -19,6 +19,7 @@ from .views import (
     DriverDeleteRideHistoryView,
     DriverRideHistoryView,
     DriverStatsView,
+    RegisterRideFCMTokenView,
     RideDriverProfileView,
     AvailableRidesView,
     AcceptRideView,
@@ -321,6 +322,12 @@ urlpatterns = [
         "notifications/<int:recipient_id>/read/",
         MarkRideNotificationReadView.as_view(),
         name="ride-notification-read",
+    ),
+
+    path(
+    "device/register/",
+    RegisterRideFCMTokenView.as_view(),
+    name="ride-fcm-token-register",
     ),
 
 ]

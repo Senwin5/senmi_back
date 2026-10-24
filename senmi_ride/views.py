@@ -19,6 +19,7 @@ from django.db.models import Q
 from .models import (
     RideDriverAvailability,
     RideDriverProfile,
+    RideFCMDevice,
     RideRequest,
     RideTracking,
     RideRating,
@@ -3123,3 +3124,36 @@ class AdminRideAnalyticsView(APIView):
             "drivers": drivers,
             "service_types": service_types,
         })
+
+
+
+
+class RegisterRideFCMTokenView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        token = str(request.data.get("token", "")).strip()
+
+        if not token:
+            return Response(
+                {"success": False, "error": "FCM token is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        device, created = RideFCMDevice.objects.update_or_create(
+            token=token,
+            defaults={
+                "user": request.user,
+                "is_active": True,
+            },
+        )
+
+        return Response(
+            {
+                "success": True,
+                "message": "Ride FCM token registered successfully.",
+                "device_id": device.id,
+                "created": created,
+            },
+            status=status.HTTP_200_OK,
+        )
