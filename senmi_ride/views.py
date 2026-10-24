@@ -838,10 +838,6 @@ class RideTrackingView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    # --------------------------------------------------------
-    # DRIVER POSTS LOCATION
-    # --------------------------------------------------------
-
     def post(self, request, ride_id):
 
         ride = get_object_or_404(
@@ -2278,6 +2274,7 @@ class AdminAllRidesView(APIView):
             })
 
         return Response(data, status=status.HTTP_200_OK)
+
     
 class AdminDriversView(APIView):
     permission_classes = [IsAdminUser]
