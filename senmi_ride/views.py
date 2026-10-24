@@ -2620,10 +2620,12 @@ class AdminCommissionPaymentsView(APIView):
         return Response(data, status=status.HTTP_200_OK)
 
 
+
 class AdminRideAnalyticsView(APIView):
     """
     Admin analytics based on actual ride and commission records.
 
+    GET /ride/admin/analytics/?days=1
     GET /ride/admin/analytics/?days=7
     GET /ride/admin/analytics/?days=30
     GET /ride/admin/analytics/?days=90
@@ -2636,29 +2638,33 @@ class AdminRideAnalyticsView(APIView):
             days = int(request.query_params.get("days", 7))
         except (TypeError, ValueError):
             return Response(
-                {"error": "days must be 7, 30, or 90"},
+                {"error": "days must be 1, 7, 30, or 90"},
                 status=400,
             )
 
-        if days not in (7, 30, 90):
+        if days not in (1, 7, 30, 90):
             return Response(
-                {"error": "days must be 7, 30, or 90"},
+                {"error": "days must be 1, 7, 30, or 90"},
                 status=400,
             )
 
         today = timezone.localdate()
         start_date = today - timedelta(days=days - 1)
+
+        # Use the configured Django timezone for date boundaries.
         start_datetime = timezone.make_aware(
             timezone.datetime.combine(
                 start_date,
                 timezone.datetime.min.time(),
-            )
+            ),
+            timezone.get_current_timezone(),
         )
         end_datetime = timezone.make_aware(
             timezone.datetime.combine(
                 today + timedelta(days=1),
                 timezone.datetime.min.time(),
-            )
+            ),
+            timezone.get_current_timezone(),
         )
 
         rides = RideRequest.objects.filter(
@@ -2695,10 +2701,7 @@ class AdminRideAnalyticsView(APIView):
         )
 
         # --------------------------------------------------
-        # FARES AND DRIVER EARNINGS
-        # Only completed rides count toward completed fare.
-        # These are customer-to-driver amounts, not Senmi
-        # commission-payment receipts.
+        # COMPLETED FARES AND DRIVER EARNINGS
         # --------------------------------------------------
 
         completed = rides.filter(status="completed")
@@ -2716,6 +2719,7 @@ class AdminRideAnalyticsView(APIView):
 
         # --------------------------------------------------
         # DAILY RIDE ACTIVITY
+        # Include days with zero rides.
         # --------------------------------------------------
 
         daily_rows = (
@@ -2765,12 +2769,7 @@ class AdminRideAnalyticsView(APIView):
             })
 
         # --------------------------------------------------
-        # COMPLETED FARE BY DAY
-        # --------------------------------------------------
-
-        # --------------------------------------------------
-        # CUSTOMER -> DRIVER PAYMENT STATUS
-        # This is separate from commission payments to Senmi.
+        # CUSTOMER PAYMENT STATUS AND METHODS
         # --------------------------------------------------
 
         customer_payment_stats = rides.aggregate(
@@ -2796,7 +2795,6 @@ class AdminRideAnalyticsView(APIView):
 
         # --------------------------------------------------
         # SENMI COMMISSION PAYMENTS
-        # Use payment records, not ride fares, for this total.
         # --------------------------------------------------
 
         commission_payments = RideCommissionPayment.objects.filter(
@@ -2810,19 +2808,12 @@ class AdminRideAnalyticsView(APIView):
             paid=Count("id", filter=Q(status="paid")),
             failed=Count("id", filter=Q(status="failed")),
             cancelled=Count("id", filter=Q(status="cancelled")),
-            paid_amount=Sum(
-                "amount",
-                filter=Q(status="paid"),
-            ),
-            pending_amount=Sum(
-                "amount",
-                filter=Q(status="pending"),
-            ),
+            paid_amount=Sum("amount", filter=Q(status="paid")),
+            pending_amount=Sum("amount", filter=Q(status="pending")),
         )
 
         # --------------------------------------------------
-        # BUSIEST HOURS
-        # Based on when ride requests were created.
+        # PEAK HOURS
         # --------------------------------------------------
 
         peak_hours = list(
@@ -2834,7 +2825,7 @@ class AdminRideAnalyticsView(APIView):
         )
 
         # --------------------------------------------------
-        # POPULAR PICKUP AND DESTINATION ADDRESSES
+        # POPULAR PICKUPS AND DESTINATIONS
         # --------------------------------------------------
 
         popular_pickups = list(
@@ -2913,25 +2904,27 @@ class AdminRideAnalyticsView(APIView):
             for row in ratings
         }
 
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        users = {
+            user.pk: user
+            for user in User.objects.filter(pk__in=driver_ids)
+        }
+
         drivers = []
 
         for row in driver_rows[:10]:
             user_id = row["driver"]
             profile = profiles.get(user_id)
             rating = rating_lookup.get(user_id, {})
-
-            # Use the profile's full name when available.
-            user = None
-            if profile is None:
-                from django.contrib.auth import get_user_model
-                User = get_user_model()
-                user = User.objects.filter(pk=user_id).first()
+            user = users.get(user_id)
 
             drivers.append({
                 "driver_id": profile.driver_id if profile else None,
                 "name": (
                     profile.full_name
-                    if profile
+                    if profile and profile.full_name
                     else (
                         user.get_full_name() or user.get_username()
                         if user else "Unknown driver"
@@ -2963,7 +2956,7 @@ class AdminRideAnalyticsView(APIView):
             })
 
         # --------------------------------------------------
-        # SERVICE TYPE BREAKDOWN
+        # SERVICE TYPES
         # --------------------------------------------------
 
         service_types = list(
@@ -2974,8 +2967,6 @@ class AdminRideAnalyticsView(APIView):
 
         # --------------------------------------------------
         # PREVIOUS-PERIOD COMPARISON
-        # Compare ride counts for the preceding equal-length
-        # window, using ride creation date.
         # --------------------------------------------------
 
         previous_start = start_datetime - timedelta(days=days)
@@ -2995,12 +2986,15 @@ class AdminRideAnalyticsView(APIView):
 
         ride_change_percent = (
             round(
-                (total_rides - previous_total)
-                / previous_total * 100,
+                (total_rides - previous_total) / previous_total * 100,
                 2,
             )
             if previous_total else None
         )
+
+        # --------------------------------------------------
+        # RESPONSE
+        # --------------------------------------------------
 
         return Response({
             "period": {
