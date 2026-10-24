@@ -357,13 +357,44 @@ class RideDriverWalletSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+
 # ============================================================
 # COMMISSION PAYMENT
 # ============================================================
 
-class RideCommissionPaymentSerializer(
-    serializers.ModelSerializer
-):
+class RideCommissionPaymentSerializer(serializers.ModelSerializer):
+    driver_id = serializers.CharField(
+        source="driver.ride_driver_profile.driver_id",
+        read_only=True
+    )
+
+    driver_name = serializers.CharField(
+        source="driver.ride_driver_profile.full_name",
+        read_only=True,
+        default=""
+    )
+
+    driver_email = serializers.EmailField(
+        source="driver.email",
+        read_only=True
+    )
+
+    driver_phone = serializers.CharField(
+        source="driver.ride_driver_profile.phone_number",
+        read_only=True,
+        default=""
+    )
+
+    driver_profile = RideDriverSummarySerializer(
+        source="driver.ride_driver_profile",
+        read_only=True
+    )
+
+    ride_id = serializers.CharField(
+        source="ride.ride_id",
+        read_only=True,
+        allow_null=True
+    )
 
     class Meta:
         model = RideCommissionPayment
@@ -371,7 +402,13 @@ class RideCommissionPaymentSerializer(
         fields = [
             "id",
             "driver",
+            "driver_id",
+            "driver_name",
+            "driver_email",
+            "driver_phone",
+            "driver_profile",
             "ride",
+            "ride_id",
             "amount",
             "payment_method",
             "reference",
@@ -383,19 +420,8 @@ class RideCommissionPaymentSerializer(
             "updated_at",
         ]
 
-        read_only_fields = [
-            "id",
-            "driver",
-            "ride",
-            "amount",
-            "reference",
-            "payment_url",
-            "access_code",
-            "status",
-            "paid_at",
-            "created_at",
-            "updated_at",
-        ]
+        read_only_fields = fields
+
 
 
 # ============================================================
