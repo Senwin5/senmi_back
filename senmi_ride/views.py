@@ -54,12 +54,12 @@ from .matching import (
 # ============================================================
 
 
+
 class RideDriverProfileView(APIView):
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-
         profile = get_object_or_404(
             RideDriverProfile,
             user=request.user,
@@ -76,33 +76,23 @@ class RideDriverProfileView(APIView):
         )
 
     def post(self, request):
-
-        if RideDriverProfile.objects.filter(
-            user=request.user
-        ).exists():
-
-            return Response(
-                {
-                    "detail":
-                        "Driver profile already exists."
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        profile = RideDriverProfile.objects.filter(
+            user=request.user,
+        ).first()
 
         serializer = RideDriverProfileSerializer(
+            profile,
             data=request.data,
             context={"request": request},
         )
 
         if serializer.is_valid():
-
             profile = serializer.save(
                 user=request.user,
                 status="pending",
                 is_online=False,
             )
 
-            # EMAIL NOTIFICATION: NEW DRIVER PROFILE
             try:
                 send_mail(
                     subject="New Ride Driver Profile Submitted",
@@ -116,7 +106,8 @@ class RideDriverProfileView(APIView):
                         f"Vehicle: {profile.vehicle_brand} "
                         f"{profile.vehicle_model}\n"
                         f"Plate Number: {profile.plate_number}\n"
-                        f"Status: {profile.get_status_display()}\n"
+                        f"Status: {profile.get_status_display()}\n\n"
+                        "Please review the profile in the admin dashboard."
                     ),
                     from_email=settings.DEFAULT_FROM_EMAIL,
                     recipient_list=[settings.NOTIFY_EMAIL],
@@ -132,7 +123,7 @@ class RideDriverProfileView(APIView):
                     profile,
                     context={"request": request},
                 ).data,
-                status=status.HTTP_201_CREATED,
+                status=status.HTTP_200_OK,
             )
 
         return Response(
@@ -141,7 +132,6 @@ class RideDriverProfileView(APIView):
         )
 
     def put(self, request):
-
         profile = get_object_or_404(
             RideDriverProfile,
             user=request.user,
@@ -154,7 +144,6 @@ class RideDriverProfileView(APIView):
         )
 
         if serializer.is_valid():
-
             if profile.status == "rejected":
                 serializer.save(
                     status="pending",
@@ -173,6 +162,7 @@ class RideDriverProfileView(APIView):
             serializer.errors,
             status=status.HTTP_400_BAD_REQUEST,
         )
+
 
 
 # ============================================================
