@@ -89,7 +89,7 @@ class RideDriverProfileView(APIView):
             send_email(
                 subject=subject,
                 message=(
-                    "A ride driver has submitted or updated their profile "
+                    "A driver has submitted his profile "
                     "for approval.\n\n"
                     f"Driver ID: {profile.driver_id}\n"
                     f"Name: {profile.full_name}\n"
@@ -168,7 +168,7 @@ class RideDriverProfileView(APIView):
 
             self.send_profile_email(
                 profile,
-                "Ride Driver Profile Updated",
+                "Driver Profile Updated",
             )
 
             return Response(
