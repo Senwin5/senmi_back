@@ -62,6 +62,7 @@ from .matching import (
 
 
 
+
 class RideDriverProfileView(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -82,6 +83,30 @@ class RideDriverProfileView(APIView):
             status=status.HTTP_200_OK,
         )
 
+    def send_profile_email(self, profile, subject):
+        try:
+            send_email(
+                subject=subject,
+                message=(
+                    "A ride driver has submitted or updated their profile "
+                    "for approval.\n\n"
+                    f"Driver ID: {profile.driver_id}\n"
+                    f"Name: {profile.full_name}\n"
+                    f"Email: {profile.user.email}\n"
+                    f"Phone: {profile.phone_number}\n"
+                    f"Vehicle: {profile.vehicle_brand} "
+                    f"{profile.vehicle_model}\n"
+                    f"Plate Number: {profile.plate_number}\n"
+                    f"Status: {profile.get_status_display()}\n\n"
+                    "Please review the profile in the admin dashboard."
+                ),
+                recipients=[settings.NOTIFY_EMAIL],
+            )
+        except Exception:
+            logger.exception(
+                "Failed to send ride driver profile email."
+            )
+
     def post(self, request):
         profile = RideDriverProfile.objects.filter(
             user=request.user,
@@ -100,25 +125,10 @@ class RideDriverProfileView(APIView):
                 is_online=False,
             )
 
-            try:
-                send_email(
-                    subject="New Ride Driver Profile Submitted",
-                    message=(
-                        "A ride driver has submitted their profile for approval.\n\n"
-                        f"Driver ID: {profile.driver_id}\n"
-                        f"Name: {profile.full_name}\n"
-                        f"Email: {profile.user.email}\n"
-                        f"Phone: {profile.phone_number}\n"
-                        f"Vehicle: {profile.vehicle_brand} {profile.vehicle_model}\n"
-                        f"Plate Number: {profile.plate_number}\n"
-                        f"Status: {profile.get_status_display()}\n\n"
-                        "Please review the profile in the admin dashboard."
-                    ),
-                    recipients=[settings.NOTIFY_EMAIL],
-                )
-            except Exception:
-                logger.exception("Failed to send driver profile submission email.")
-                
+            self.send_profile_email(
+                profile,
+                "New Ride Driver Profile Submitted",
+            )
 
             return Response(
                 RideDriverProfileSerializer(
@@ -147,16 +157,24 @@ class RideDriverProfileView(APIView):
 
         if serializer.is_valid():
             if profile.status == "rejected":
-                serializer.save(
+                profile = serializer.save(
                     status="pending",
                     is_online=False,
                     rejection_reason="",
                 )
             else:
-                serializer.save()
+                profile = serializer.save()
+
+            self.send_profile_email(
+                profile,
+                "Ride Driver Profile Updated",
+            )
 
             return Response(
-                serializer.data,
+                RideDriverProfileSerializer(
+                    profile,
+                    context={"request": request},
+                ).data,
                 status=status.HTTP_200_OK,
             )
 
