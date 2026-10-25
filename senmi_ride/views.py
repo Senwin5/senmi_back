@@ -2404,12 +2404,13 @@ class AdminDriverStatusView(APIView):
             try:
                 if profile.user.email:
                     send_email(
-                        subject="Your Senmi Driver Application Is Approved",
+                        subject="Your Senmi Application Is Approved",
                         message=(
-                            f"Hello {profile.user.get_full_name() or 'Driver'},\n\n"
-                            "Congratulations! Your Senmi driver application "
-                            "has been approved.\n\n"
-                            "Thank you for joining Senmi."
+                            f"Hello Sir,\n\n"
+                            "Your Senmi driver application has been approved. "
+                            "Welcome to Senmi!\n\n"
+                            "Best regards,\n"
+                            "The Senmi Team"
                         ),
                         recipients=[profile.user.email],
                     )
@@ -2421,6 +2422,27 @@ class AdminDriverStatusView(APIView):
             except Exception:
                 logger.exception(
                     "Approval email failed for driver %s",
+                    driver_id,
+                )
+
+        # Email the driver when their application is rejected.
+        if new_status == "rejected" and old_status != "rejected":
+            try:
+                if profile.user.email:
+                    send_email(
+                        subject="Update on Your Senmi Driver Application",
+                        message=(
+                            "Hello Sir,\n\n"
+                            "Your Senmi driver application has been rejected. "
+                            "Please contact our support team for more information.\n\n"
+                            "Best regards,\n"
+                            "The Senmi Team"
+                        ),
+                        recipients=[profile.user.email],
+                    )
+            except Exception:
+                logger.exception(
+                    "Rejection email failed for driver %s",
                     driver_id,
                 )
 
