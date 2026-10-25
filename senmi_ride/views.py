@@ -63,6 +63,7 @@ from .matching import (
 
 
 
+
 class RideDriverProfileView(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -182,6 +183,7 @@ class RideDriverProfileView(APIView):
             serializer.errors,
             status=status.HTTP_400_BAD_REQUEST,
         )
+
 
 
 
