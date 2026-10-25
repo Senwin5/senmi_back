@@ -2,14 +2,16 @@ from datetime import timedelta
 import uuid
 
 from decimal import Decimal
+from venv import logger
 
+from django.core.mail import send_mail
 from django.db import transaction
 from django.db.models.aggregates import Avg, Count, Sum
 from django.db.models.functions import ExtractHour, TruncDate
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
-from rest_framework.views import APIView
+from rest_framework.views import APIView, settings
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
@@ -50,6 +52,7 @@ from .matching import (
 # ============================================================
 # DRIVER PROFILE
 # ============================================================
+
 
 class RideDriverProfileView(APIView):
 
@@ -98,6 +101,31 @@ class RideDriverProfileView(APIView):
                 status="pending",
                 is_online=False,
             )
+
+            # EMAIL NOTIFICATION: NEW DRIVER PROFILE
+            try:
+                send_mail(
+                    subject="New Ride Driver Profile Submitted",
+                    message=(
+                        "A ride driver has submitted their profile "
+                        "for approval.\n\n"
+                        f"Driver ID: {profile.driver_id}\n"
+                        f"Name: {profile.full_name}\n"
+                        f"Email: {profile.user.email}\n"
+                        f"Phone: {profile.phone_number}\n"
+                        f"Vehicle: {profile.vehicle_brand} "
+                        f"{profile.vehicle_model}\n"
+                        f"Plate Number: {profile.plate_number}\n"
+                        f"Status: {profile.get_status_display()}\n"
+                    ),
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[settings.NOTIFY_EMAIL],
+                    fail_silently=False,
+                )
+            except Exception:
+                logger.exception(
+                    "Failed to send driver profile submission email."
+                )
 
             return Response(
                 RideDriverProfileSerializer(
