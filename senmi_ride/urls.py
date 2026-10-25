@@ -13,6 +13,7 @@ from .views import (
     AdminCustomersView,
     AdminDriverActivityView,
     AdminDriverDetailView,
+    AdminDriverStatusView,
     AdminDriversView,
     AdminRideAnalyticsView,
     DriverCommissionHistoryView,
@@ -328,6 +329,12 @@ urlpatterns = [
     "device/register/",
     RegisterRideFCMTokenView.as_view(),
     name="ride-fcm-token-register",
+    ),
+
+    path(
+    "admin/drivers/<str:driver_id>/status/",
+    AdminDriverStatusView.as_view(),
+    name="admin-driver-status",
     ),
 
 ]

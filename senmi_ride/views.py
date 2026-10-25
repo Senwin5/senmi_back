@@ -2370,6 +2370,71 @@ class AdminDriverDetailView(APIView):
         return Response(data, status=status.HTTP_200_OK)
 
 
+
+
+class AdminDriverStatusView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def patch(self, request, driver_id):
+        profile = get_object_or_404(
+            RideDriverProfile.objects.select_related("user"),
+            driver_id=driver_id,
+        )
+
+        new_status = request.data.get("status")
+        allowed_statuses = ["pending", "approved", "rejected"]
+
+        if new_status not in allowed_statuses:
+            return Response(
+                {
+                    "error": (
+                        "Invalid status. Use pending, approved, or rejected."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        old_status = profile.status
+
+        profile.status = new_status
+        profile.save(update_fields=["status"])
+
+        # Email the driver when their application is approved.
+        if new_status == "approved" and old_status != "approved":
+            try:
+                if profile.user.email:
+                    send_email(
+                        subject="Your Senmi Driver Application Is Approved",
+                        message=(
+                            f"Hello {profile.user.get_full_name() or 'Driver'},\n\n"
+                            "Congratulations! Your Senmi driver application "
+                            "has been approved.\n\n"
+                            "Thank you for joining Senmi."
+                        ),
+                        recipients=[profile.user.email],
+                    )
+                else:
+                    logger.warning(
+                        "No email address for driver %s",
+                        driver_id,
+                    )
+            except Exception:
+                logger.exception(
+                    "Approval email failed for driver %s",
+                    driver_id,
+                )
+
+        return Response(
+            {
+                "message": f"Driver status updated to {new_status}.",
+                "driver_id": profile.driver_id,
+                "status": profile.status,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+
 # ============================================================
 # ADMIN: ALL CUSTOMERS
 # ============================================================
