@@ -336,5 +336,4 @@ urlpatterns = [
     AdminDriverStatusView.as_view(),
     name="admin-driver-status",
     ),
-
 ]
