@@ -1845,6 +1845,10 @@ class DriverRideHistoryView(APIView):
             data.append({
                 "id": ride.id,
                 "ride_id": ride.ride_id,
+                "passenger_name": (
+                    ride.passenger.get_full_name().strip()
+                    or ride.passenger.username),
+                "passenger_phone": ride.passenger.phone_number or "",
                 "status": ride.status,
 
                 "pickup_address": ride.pickup_address,
