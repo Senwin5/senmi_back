@@ -335,22 +335,39 @@ class CreateRideView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+                # ----------------------------------------------------
+        # CONVERT PICKUP AND DESTINATION TO STREET ADDRESSES
+        # ----------------------------------------------------
+
+        pickup_location = get_driver_street_address(
+            validated_data.get("pickup_lat"),
+            validated_data.get("pickup_lng"),
+        )
+
+        destination_location = get_driver_street_address(
+            validated_data.get("destination_lat"),
+            validated_data.get("destination_lng"),
+        )
+
+        pickup_address = validated_data.get("pickup_address")
+        destination_address = validated_data.get("destination_address")
+
+        if pickup_location and pickup_location.get("address"):
+            pickup_address = pickup_location["address"]
+
+        if destination_location and destination_location.get("address"):
+            destination_address = destination_location["address"]
+
         ride = serializer.save(
-
             passenger=request.user,
-
-            # Save customer's Basic/Premium choice.
             service_type=service_type,
-
             fare=fare,
-
             service_fee=service_fee,
-
             driver_earning=driver_earning,
-
             payment_status="pending",
-
             status="pending",
+            pickup_address=pickup_address,
+            destination_address=destination_address,
         )
 
         # ====================================================
