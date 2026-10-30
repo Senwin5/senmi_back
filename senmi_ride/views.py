@@ -7,6 +7,7 @@ from django.conf import settings
 from rest_framework.views import APIView
 
 from senmi.utils import send_email
+from senmi_ride.notifications import send_driver_commission_reminder
 
 
 logger = logging.getLogger(__name__)
@@ -347,8 +348,6 @@ class AvailableRidesView(APIView):
 
 
 
-
-
 class AcceptRideView(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -450,26 +449,24 @@ class AcceptRideView(APIView):
         )
 
         # ----------------------------------------------------
-        # DRIVER MUST SETTLE OUTSTANDING COMMISSION
-        # BEFORE ACCEPTING ANOTHER RIDE
+        # BLOCK NEW RIDE ACCEPTANCE AT ₦5,000
         # ----------------------------------------------------
 
-        if wallet.commission_balance > Decimal("0.00"):
+        if wallet.commission_balance >= Decimal("5000.00"):
 
             return Response(
                 {
-                    "detail":
-                        "Please pay your outstanding "
-                        "commission before accepting "
-                        "another ride.",
+                    "detail": (
+                        "Your outstanding commission has reached "
+                        "₦5,000. Please make a payment before "
+                        "accepting another ride."
+                    ),
 
-                    "commission_due":
-                        str(
-                            wallet.commission_balance
-                        ),
+                    "commission_due": str(
+                        wallet.commission_balance
+                    ),
 
-                    "commission_payment_required":
-                        True,
+                    "commission_payment_required": True,
                 },
                 status=status.HTTP_402_PAYMENT_REQUIRED,
             )
@@ -796,7 +793,7 @@ class UpdateRideStatusView(APIView):
                 )
 
                 # --------------------------------------------
-                # ADD COMMISSION OWED TO DRIVER WALLET
+                # ADD COMMISSION TO DRIVER WALLET
                 # --------------------------------------------
 
                 wallet, created = (
@@ -817,6 +814,17 @@ class UpdateRideStatusView(APIView):
                         "commission_balance",
                     ]
                 )
+
+                # --------------------------------------------
+                # SEND REMINDER FROM ₦3,000
+                # --------------------------------------------
+
+                if wallet.commission_balance >= Decimal("3000.00"):
+
+                    send_driver_commission_reminder(
+                        driver=ride.driver,
+                        balance=wallet.commission_balance,
+                    )
 
             # ------------------------------------------------
             # CANCEL
@@ -1471,25 +1479,10 @@ class RideCommissionPaymentView(APIView):
 # COMPLETE COMMISSION PAYMENT
 # ============================================================
 
-# ============================================================
-# COMPLETE COMMISSION PAYMENT
-#
-# This settles the driver's ENTIRE outstanding commission
-# balance.
-# ============================================================
-
-def complete_ride_commission_payment(
-    payment,
-    paystack_data=None,
-):
+def complete_ride_commission_payment(payment, paystack_data=None):
 
     if payment.status == "paid":
-
         return payment
-
-    # --------------------------------------------------------
-    # EXPECTED PAYSTACK AMOUNT
-    # --------------------------------------------------------
 
     expected_amount = int(
         payment.amount * Decimal("100")
@@ -1497,64 +1490,62 @@ def complete_ride_commission_payment(
 
     if paystack_data is not None:
 
-        paystack_amount = paystack_data.get(
-            "amount"
-        )
+        paystack_amount = paystack_data.get("amount")
 
         if paystack_amount is None:
-
             raise ValueError(
                 "Paystack did not return a payment amount."
             )
 
         if int(paystack_amount) != expected_amount:
-
             raise ValueError(
-                "Paystack payment amount does not "
-                "match the commission amount."
+                "Paystack payment amount does not match "
+                "the commission payment."
             )
 
-    # --------------------------------------------------------
-    # LOCK DRIVER WALLET
-    # --------------------------------------------------------
+        if paystack_data.get("currency") != "NGN":
+            raise ValueError(
+                "Invalid payment currency."
+            )
+
+        if paystack_data.get("reference") != payment.reference:
+            raise ValueError(
+                "Paystack reference does not match."
+            )
 
     wallet, created = (
         RideDriverWallet.objects
         .select_for_update()
-        .get_or_create(
-            driver=payment.driver
-        )
+        .get_or_create(driver=payment.driver)
     )
 
     outstanding_balance = (
-        wallet.commission_balance
-        or Decimal("0.00")
+        wallet.commission_balance or Decimal("0.00")
     )
 
-    # --------------------------------------------------------
-    # PAYMENT MUST MATCH THE CURRENT OUTSTANDING BALANCE
-    #
-    # We do not allow partial commission settlement.
-    # --------------------------------------------------------
-
-    if payment.amount != outstanding_balance:
-
+    # Do not allow a payment to exceed the current balance.
+    if payment.amount > outstanding_balance:
         raise ValueError(
-            "Commission payment amount does not "
-            "match the driver's current outstanding "
-            "commission balance."
+            "Commission payment amount exceeds "
+            "the driver's current outstanding balance."
         )
-
-    # --------------------------------------------------------
-    # MARK PAYMENT PAID
-    # --------------------------------------------------------
 
     now = timezone.now()
 
+    # Mark only rides completed before this payment was created.
+    RideRequest.objects.filter(
+        driver=payment.driver,
+        status="completed",
+        commission_paid=False,
+        completed_at__lte=payment.created_at,
+    ).update(
+        commission_paid=True,
+        commission_paid_at=now,
+        updated_at=now,
+    )
+
     payment.status = "paid"
-
     payment.paid_at = now
-
     payment.save(
         update_fields=[
             "status",
@@ -1563,55 +1554,26 @@ def complete_ride_commission_payment(
         ]
     )
 
-    # --------------------------------------------------------
-    # MARK ALL COMPLETED UNPAID RIDE COMMISSIONS AS SETTLED
-    #
-    # The payment represents the driver's complete
-    # outstanding commission balance.
-    # --------------------------------------------------------
-
-    RideRequest.objects.filter(
-        driver=payment.driver,
-        status="completed",
-        commission_paid=False,
-    ).update(
-        commission_paid=True,
-        commission_paid_at=now,
-        updated_at=now,
-    )
-
-    # --------------------------------------------------------
-    # CREATE TRANSACTION ONCE
-    # --------------------------------------------------------
-
     RideCommissionTransaction.objects.get_or_create(
-
         payment=payment,
-
         defaults={
-
-            "driver":
-                payment.driver,
-
-            "amount":
-                payment.amount,
-
-            "reference":
-                (
-                    "SENMI-RIDE-TXN-"
-                    f"{uuid.uuid4().hex[:20].upper()}"
-                ),
+            "driver": payment.driver,
+            "amount": payment.amount,
+            "reference": (
+                "SENMI-RIDE-TXN-"
+                f"{uuid.uuid4().hex[:20].upper()}"
+            ),
         },
     )
 
-    # --------------------------------------------------------
-    # CLEAR OUTSTANDING COMMISSION
-    # --------------------------------------------------------
+    # Deduct only the amount actually paid.
+    # Any new commission remains outstanding.
+    wallet.commission_balance = (
+        outstanding_balance - payment.amount
+    )
 
-    wallet.commission_balance = Decimal("0.00")
-
-    wallet.total_commission_paid += (
-        payment.amount
+    wallet.total_commission_paid = (
+        wallet.total_commission_paid + payment.amount
     )
 
     wallet.save(

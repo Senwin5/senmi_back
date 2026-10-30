@@ -21,6 +21,66 @@ from .permissions import IsRideAdmin
 from .fcm import send_ride_fcm_notification
 
 
+
+logger = logging.getLogger(__name__)
+
+
+def send_driver_commission_reminder(driver, balance):
+    """
+    Create an in-app commission reminder and send an FCM
+    push notification after the database transaction commits.
+    """
+
+    title = "Outstanding Commission Reminder"
+
+    message = (
+        f"Your outstanding Senmi commission is "
+        f"₦{balance:,.2f}. Please settle your commission."
+    )
+
+    try:
+        notification = RideNotification.objects.create(
+            sender=None,
+            target="single",
+            title=title,
+            message=message,
+        )
+
+        recipient_record = RideNotificationRecipient.objects.create(
+            notification=notification,
+            recipient=driver,
+        )
+
+        notification_id = notification.id
+
+        def send_push():
+            try:
+                send_ride_fcm_notification(
+                    user=driver,
+                    title=title,
+                    body=message,
+                    data={
+                        "type": "ride_commission_reminder",
+                        "ride_notification_id": str(notification_id),
+                    },
+                )
+            except Exception:
+                logger.exception(
+                    "Failed to send commission reminder to driver %s.",
+                    driver.id,
+                )
+
+        transaction.on_commit(send_push)
+
+    except Exception:
+        logger.exception(
+            "Failed to create commission reminder for driver %s.",
+            driver.id,
+        )
+
+    transaction.on_commit(send_push)
+
+
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
