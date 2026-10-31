@@ -62,9 +62,6 @@ from .matching import (
 # ============================================================
 
 
-
-
-
 class RideDriverProfileView(APIView):
 
     permission_classes = [IsAuthenticated]

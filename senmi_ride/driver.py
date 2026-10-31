@@ -290,13 +290,14 @@ class DriverCancelRideView(APIView):
         # ACCEPTED / ARRIVED / STARTED
         # ----------------------------------------------------
 
-        ride.status = "cancelled"
-
+        ride.status = "pending"
+        ride.driver = None
         ride.cancelled_at = timezone.now()
 
         ride.save(
             update_fields=[
                 "status",
+                "driver",
                 "cancelled_at",
                 "updated_at",
             ]
