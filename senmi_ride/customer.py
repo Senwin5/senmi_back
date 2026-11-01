@@ -20,6 +20,7 @@ from senmi_ride.matching import (
     notify_nearest_drivers,
     find_nearest_drivers,
 )
+from senmi_ride.notifications import notify_ride_status_change
 
 from .models import (
     RideDriverAvailability,
@@ -1408,6 +1409,7 @@ class PassengerCancelRideView(APIView):
                     "updated_at",
                 ]
             )
+            notify_ride_status_change(ride, "cancelled")
 
             return Response(
                 {

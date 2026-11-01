@@ -78,8 +78,6 @@ def send_driver_commission_reminder(driver, balance):
             driver.id,
         )
 
-    transaction.on_commit(send_push)
-
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -351,4 +349,165 @@ class MarkRideNotificationReadView(APIView):
                 "is_read": record.is_read,
             },
             status=status.HTTP_200_OK,
+        )
+
+
+def notify_ride_status_change(ride, new_status):
+    """
+    Create an in-app notification and send an FCM push
+    to the passenger when the ride reaches a relevant status.
+    """
+
+    messages = {
+        "accepted": (
+            "Your Driver Has Accepted Your Ride!",
+            "Your Senmi driver has accepted your ride.",
+        ),
+        "arrived": (
+            "Your Driver Has Arrived!",
+            "Your Senmi driver is at your pickup location.",
+        ),
+        "completed": (
+            "Ride Completed!",
+            "Your ride has been completed. Thank you for choosing Senmi!",
+        ),
+        "cancelled": (
+            "Ride Cancelled",
+            "Your Senmi ride has been cancelled. You can request another ride.",
+        ),
+    }
+
+    if new_status not in messages:
+        return
+
+    passenger = ride.passenger
+
+    if passenger is None:
+        logger.warning(
+            "Cannot notify ride %s: no passenger is assigned.",
+            ride.ride_id,
+        )
+        return
+
+    title, message = messages[new_status]
+
+    try:
+        notification = RideNotification.objects.create(
+            sender=None,
+            target="single",
+            title=title,
+            message=message,
+        )
+
+        recipient_record = RideNotificationRecipient.objects.create(
+            notification=notification,
+            recipient=passenger,
+        )
+
+        notification_id = notification.id
+        passenger_id = passenger.id
+        ride_id = str(ride.ride_id)
+
+        def send_push():
+            try:
+                recipient = User.objects.filter(
+                    pk=passenger_id
+                ).first()
+
+                if recipient is None:
+                    logger.warning(
+                        "Passenger %s not found for ride %s.",
+                        passenger_id,
+                        ride_id,
+                    )
+                    return
+
+                send_ride_fcm_notification(
+                    user=recipient,
+                    title=title,
+                    body=message,
+                    data={
+                        "type": "ride_status",
+                        "ride_id": ride_id,
+                        "status": new_status,
+                        "ride_notification_id": str(notification_id),
+                        "screen": "ride_tracking",
+                    },
+                )
+
+            except Exception:
+                logger.exception(
+                    "Failed to send %s notification for ride %s.",
+                    new_status,
+                    ride_id,
+                )
+
+        transaction.on_commit(send_push)
+
+    except Exception:
+        logger.exception(
+            "Failed to create %s notification for ride %s.",
+            new_status,
+            ride.ride_id,
+        )
+
+
+def notify_driver_released_ride(ride):
+    passenger = ride.passenger
+
+    if passenger is None:
+        return
+
+    title = "Driver Unavailable"
+    message = (
+        "Your assigned driver is no longer available for this ride. "
+        "We are making your ride available to another driver."
+    )
+
+    try:
+        notification = RideNotification.objects.create(
+            sender=None,
+            target="single",
+            title=title,
+            message=message,
+        )
+
+        RideNotificationRecipient.objects.create(
+            notification=notification,
+            recipient=passenger,
+        )
+
+        notification_id = notification.id
+        passenger_id = passenger.id
+        ride_id = str(ride.ride_id)
+
+        def send_push():
+            try:
+                recipient = User.objects.filter(
+                    pk=passenger_id
+                ).first()
+
+                if recipient:
+                    send_ride_fcm_notification(
+                        user=recipient,
+                        title=title,
+                        body=message,
+                        data={
+                            "type": "ride_driver_released",
+                            "ride_id": ride_id,
+                            "status": "pending",
+                            "ride_notification_id": str(notification_id),
+                        },
+                    )
+
+            except Exception:
+                logger.exception(
+                    "Failed to notify passenger about driver release."
+                )
+
+        transaction.on_commit(send_push)
+
+    except Exception:
+        logger.exception(
+            "Failed to create driver release notification."
         )

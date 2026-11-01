@@ -8,7 +8,7 @@ from rest_framework.views import APIView
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from senmi.utils import send_email
-from senmi_ride.notifications import send_driver_commission_reminder
+from senmi_ride.notifications import notify_ride_status_change, send_driver_commission_reminder
 
 
 logger = logging.getLogger(__name__)
@@ -395,14 +395,6 @@ class AcceptRideView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # ----------------------------------------------------
-        # DRIVER CAN ONLY HAVE ONE ACTIVE RIDE
-        #
-        # accepted
-        # arrived
-        # started
-        # ----------------------------------------------------
-
         active_ride = (
             RideRequest.objects
             .filter(
@@ -559,6 +551,9 @@ class AcceptRideView(APIView):
                 "updated_at",
             ]
         )
+        transaction.on_commit(
+            lambda: notify_ride_status_change(ride, "accepted")
+        )
 
         return Response(
             RideRequestSerializer(
@@ -613,19 +608,6 @@ class UpdateRideStatusView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    # --------------------------------------------------------
-    # DRIVER
-    #
-    # accepted → arrived
-    # accepted → cancelled
-    #
-    # arrived → started
-    # arrived → cancelled
-    #
-    # started → completed
-    # started → cancelled
-    # --------------------------------------------------------
-
     DRIVER_TRANSITIONS = {
 
         "accepted": [
@@ -644,16 +626,6 @@ class UpdateRideStatusView(APIView):
         ],
     }
 
-    # --------------------------------------------------------
-    # CUSTOMER
-    #
-    # pending → cancelled
-    # accepted → cancelled
-    # arrived → cancelled
-    #
-    # STARTED:
-    # customer CANNOT cancel.
-    # --------------------------------------------------------
 
     CUSTOMER_TRANSITIONS = {
 
@@ -687,6 +659,7 @@ class UpdateRideStatusView(APIView):
         )
 
         if not new_status:
+
 
             return Response(
                 {
@@ -741,7 +714,9 @@ class UpdateRideStatusView(APIView):
                         "updated_at",
                     ]
                 )
-
+            transaction.on_commit(
+                lambda: notify_ride_status_change(ride, new_status)
+            )
             return Response(
                 RideRequestSerializer(
                     ride
@@ -819,9 +794,11 @@ class UpdateRideStatusView(APIView):
 
                 if wallet.commission_balance >= Decimal("3000.00"):
 
-                    send_driver_commission_reminder(
-                        driver=ride.driver,
-                        balance=wallet.commission_balance,
+                    transaction.on_commit(
+                        lambda: send_driver_commission_reminder(
+                            driver=ride.driver,
+                            balance=wallet.commission_balance,
+                        )
                     )
 
             # ------------------------------------------------
@@ -856,6 +833,10 @@ class UpdateRideStatusView(APIView):
                         "updated_at",
                     ]
                 )
+
+            transaction.on_commit(
+                lambda: notify_ride_status_change(ride, new_status)
+            )
 
             return Response(
                 RideRequestSerializer(

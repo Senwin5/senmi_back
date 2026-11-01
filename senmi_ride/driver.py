@@ -9,6 +9,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 
+from senmi_ride.notifications import notify_driver_released_ride
+
 from .models import (
     RideDriverProfile,
     RideDriverAvailability,
@@ -302,6 +304,7 @@ class DriverCancelRideView(APIView):
                 "updated_at",
             ]
         )
+        notify_driver_released_ride(ride)
 
         return Response(
             {
