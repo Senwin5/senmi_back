@@ -175,7 +175,14 @@ class RideRequestSerializer(serializers.ModelSerializer):
         source="driver.ride_driver_profile",
         read_only=True
     )
+
     has_rating = serializers.SerializerMethodField()
+
+    passenger_name = serializers.SerializerMethodField()
+
+    # DRIVER LIVE LOCATION
+    driver_lat = serializers.SerializerMethodField()
+    driver_lng = serializers.SerializerMethodField()
 
     class Meta:
         model = RideRequest
@@ -193,6 +200,10 @@ class RideRequestSerializer(serializers.ModelSerializer):
             "driver_email",
             "driver_profile",
             "has_rating",
+
+            # DRIVER LIVE LOCATION
+            "driver_lat",
+            "driver_lng",
 
             # Ride service
             "service_type",
@@ -239,10 +250,14 @@ class RideRequestSerializer(serializers.ModelSerializer):
             "passenger_name",
             "passenger_email",
             "passenger_phone",
+
             "driver",
             "driver_email",
             "driver_profile",
             "has_rating",
+
+            "driver_lat",
+            "driver_lng",
 
             "fare",
             "service_fee",
@@ -263,8 +278,6 @@ class RideRequestSerializer(serializers.ModelSerializer):
             "cancelled_at",
         ]
 
-    passenger_name = serializers.SerializerMethodField()
-
     def get_has_rating(self, obj):
         return RideRating.objects.filter(
             ride=obj
@@ -284,7 +297,23 @@ class RideRequestSerializer(serializers.ModelSerializer):
 
         return obj.passenger.email
 
+    # GET LATEST DRIVER LATITUDE
+    def get_driver_lat(self, obj):
+        latest_tracking = obj.tracking.first()
 
+        if latest_tracking:
+            return latest_tracking.latitude
+
+        return None
+
+    # GET LATEST DRIVER LONGITUDE
+    def get_driver_lng(self, obj):
+        latest_tracking = obj.tracking.first()
+
+        if latest_tracking:
+            return latest_tracking.longitude
+
+        return None
 
 # ============================================================
 # TRACKING

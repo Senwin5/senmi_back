@@ -5,7 +5,8 @@ from decimal import Decimal
 import logging
 from django.conf import settings
 from rest_framework.views import APIView
-
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from senmi.utils import send_email
 from senmi_ride.notifications import send_driver_commission_reminder
 
@@ -891,54 +892,67 @@ class RideTrackingView(APIView):
             ride_id=ride_id,
         )
 
-        # ----------------------------------------------------
-        # ONLY ASSIGNED DRIVER
-        # ----------------------------------------------------
-
+        # ONLY THE ASSIGNED DRIVER
         if ride.driver_id != request.user.id:
-
             return Response(
                 {
-                    "detail":
-                        "You are not the driver "
-                        "for this ride."
+                    "detail": "You are not the driver for this ride."
                 },
                 status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # ONLY ACTIVE RIDES
+        if ride.status not in ["accepted", "arrived", "started"]:
+            return Response(
+                {
+                    "detail": "This ride is no longer active."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         serializer = RideTrackingSerializer(
             data={
                 "ride": ride.id,
-
-                "latitude":
-                    request.data.get(
-                        "latitude"
-                    ),
-
-                "longitude":
-                    request.data.get(
-                        "longitude"
-                    ),
+                "latitude": request.data.get("latitude"),
+                "longitude": request.data.get("longitude"),
             }
         )
 
-        if serializer.is_valid():
-
-            tracking = serializer.save(
-                driver=request.user
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-            return Response(
-                RideTrackingSerializer(
-                    tracking
-                ).data,
-                status=status.HTTP_201_CREATED,
+        tracking = serializer.save(
+            driver=request.user
+        )
+
+        # BROADCAST THE SAVED LOCATION TO THE PASSENGER
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+
+        channel_layer = get_channel_layer()
+
+        if channel_layer is not None:
+            async_to_sync(channel_layer.group_send)(
+                f"ride_tracking_{ride_id}",
+                {
+                    "type": "driver_location",
+                    "ride_id": ride_id,
+                    "driver_id": request.user.id,
+                    "lat": tracking.latitude,
+                    "lng": tracking.longitude,
+                    "status": ride.status,
+                    "timestamp": tracking.timestamp.isoformat(),
+                },
             )
 
         return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST,
+            RideTrackingSerializer(tracking).data,
+            status=status.HTTP_201_CREATED,
         )
+
 
     # --------------------------------------------------------
     # CUSTOMER / DRIVER GET TRACKING HISTORY
