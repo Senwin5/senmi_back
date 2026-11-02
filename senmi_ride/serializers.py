@@ -75,6 +75,26 @@ class RideDriverProfileSerializer(serializers.ModelSerializer):
         allow_blank=False,
     )
 
+    emergency_contact_name = serializers.CharField(
+    required=True,
+    allow_blank=False,
+    )
+
+    emergency_contact_phone = serializers.CharField(
+        required=True,
+        allow_blank=False,
+    )
+
+    emergency_contact_address = serializers.CharField(
+        required=True,
+        allow_blank=False,
+    )
+
+    emergency_contact_relationship = serializers.CharField(
+        required=True,
+        allow_blank=False,
+    )
+
     class Meta:
         model = RideDriverProfile
 
