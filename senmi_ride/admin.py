@@ -1,4 +1,8 @@
+from venv import logger
+
 from django.contrib import admin
+
+from senmi.utils import send_email
 
 from .models import (
     RideDriverProfile,
@@ -58,11 +62,40 @@ class RideDriverProfileAdmin(admin.ModelAdmin):
 
     @admin.action(description="Approve selected drivers")
     def approve_drivers(self, request, queryset):
-        queryset.update(
-            status="approved",
-            rejection_reason="",
-            is_online=False,
-        )
+        for profile in queryset.select_related("user"):
+            old_status = profile.status
+
+            profile.status = "approved"
+            profile.rejection_reason = ""
+            profile.is_online = False
+
+            profile.save()
+
+            if old_status != "approved":
+                try:
+                    if profile.user.email:
+                        send_email(
+                            subject="Your Senmi Application Is Approved",
+                            message=(
+                                "Hello Sir,\n\n"
+                                "Your Senmi driver application has been approved. "
+                                "Welcome to Senmi!\n\n"
+                                "Best regards,\n"
+                                "The Senmi Team"
+                            ),
+                            recipients=[profile.user.email],
+                        )
+                    else:
+                        logger.warning(
+                            "No email address for driver %s",
+                            profile.driver_id,
+                        )
+                except Exception:
+                    logger.exception(
+                        "Approval email failed for driver %s",
+                        profile.driver_id,
+                    )
+                    
 
     @admin.action(description="Reject selected drivers")
     def reject_drivers(self, request, queryset):
