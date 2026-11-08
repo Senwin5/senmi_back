@@ -11,8 +11,8 @@ from django.conf import settings
 from django.utils import timezone
 
 from .models import RideDriverAvailability
-
-from senmi.utils import send_fcm_notification
+from .fcm import send_ride_fcm_notification
+#from senmi.utils import send_fcm_notification
 
 
 logger = logging.getLogger(__name__)
@@ -371,18 +371,14 @@ def notify_nearest_drivers(ride):
         ]
 
         driver_user = driver_profile.user
-
-
+        
         # ====================================================
         # FCM PUSH NOTIFICATION
-        #
-        # Uses your existing working Senmi
-        # send_fcm_notification() function.
         # ====================================================
 
         try:
 
-            send_fcm_notification(
+            sent = send_ride_fcm_notification(
 
                 user=driver_user,
 
@@ -395,26 +391,27 @@ def notify_nearest_drivers(ride):
 
                 data={
 
-                    "type":
-                        "ride_request",
+                    "type": "ride_request",
 
-                    "ride_id":
-                        ride.ride_id,
+                    "ride_id": str(ride.ride_id),
 
-                    "pickup_address":
-                        ride.pickup_address,
+                    "pickup_address": ride.pickup_address,
 
-                    "destination_address":
-                        ride.destination_address,
+                    "destination_address": ride.destination_address,
 
-                    "fare":
-                        ride.fare,
+                    "fare": str(ride.fare),
 
-                    "distance_to_pickup_km":
-                        distance_to_pickup,
+                    "distance_to_pickup_km": str(distance_to_pickup),
 
                 },
 
+            )
+
+            logger.info(
+                "NEW RIDE FCM RESULT | driver=%s | ride=%s | sent=%s",
+                driver_profile.driver_id,
+                ride.ride_id,
+                sent,
             )
 
         except Exception:
@@ -425,6 +422,7 @@ def notify_nearest_drivers(ride):
                 driver_profile.driver_id,
                 ride.ride_id,
             )
+
 
 
         # ====================================================
