@@ -7,44 +7,35 @@
 
 {% block content %}
 
-<!-- =====================================
-     HERO SECTION
-===================================== -->
 
+<!-- HERO SECTION -->
 <section class="hero-section py-5"
          style="background: linear-gradient(135deg, #2E1065, #581C87, #7C3AED);
                 color: white;">
 
     <div class="container">
-
         <div class="row align-items-center gy-5">
 
-            <!-- LEFT -->
             <div class="col-lg-6">
 
                 <span class="badge rounded-pill px-3 py-2"
                       style="background-color: #EDE9FE; color: #581C87;">
-
-                    RIDES & PACKAGE DELIVERY
-
+                    SENMI IS NOW LIVE
                 </span>
 
                 <h1 class="display-3 fw-bold mt-3">
-                    Senmi, 
-                    <span style="color: green;">
+                    Senmi,
+                    <span style="color: #C4B5FD;">
                         Your World
                     </span>
                     in Motion.
                 </h1>
 
                 <p class="lead mt-4" style="color: #F3E8FF;">
-
-                    Welcome to Senmi Mobility. Discover a convenient
-                    way to move around and send packages through one
-                    technology-enabled platform. Whether you are
-                    planning a journey or sending something important,
-                    Senmi is building more ways to move.
-
+                    Move around and send packages with ease.
+                    Senmi brings ride-hailing and package delivery
+                    together in one convenient mobile platform.
+                    Download Senmi today and get moving!
                 </p>
 
                 <div class="d-flex gap-3 flex-wrap mt-4">
@@ -53,163 +44,117 @@
                        target="_blank"
                        rel="noopener noreferrer"
                        class="btn btn-light btn-lg px-4">
-
                         <i class="bi bi-google-play me-2"></i>
-                        Download App
-
+                        Download Senmi
                     </a>
 
                     <a href="/contact/"
                        class="btn btn-outline-light btn-lg px-4">
-
                         <i class="bi bi-envelope me-2"></i>
                         Contact Us
-
                     </a>
 
                 </div>
 
-                <!-- SERVICE HIGHLIGHTS -->
                 <div class="row mt-5 g-3">
 
                     <div class="col-4">
-
                         <h3 class="fw-bold">
                             <i class="bi bi-car-front-fill"></i>
                         </h3>
-
                         <small>Ride-Hailing</small>
-
                     </div>
 
                     <div class="col-4">
-
                         <h3 class="fw-bold">
                             <i class="bi bi-box-seam"></i>
                         </h3>
-
                         <small>Package Delivery</small>
-
                     </div>
 
                     <div class="col-4">
-
                         <h3 class="fw-bold">
                             <i class="bi bi-geo-alt-fill"></i>
                         </h3>
-
-                        <small>Smart Mobility</small>
-
+                        <small>Trip Tracking</small>
                     </div>
 
                 </div>
 
             </div>
 
-            <!-- RIGHT -->
             <div class="col-lg-6 text-center">
 
                 <img src="{% static 'images/hero-phone.png' %}"
                      class="img-fluid rounded-4"
                      style="max-height: 500px;"
-                     alt="Senmi ride-hailing and package delivery mobile application">
+                     alt="Senmi mobile application">
 
             </div>
 
         </div>
-
     </div>
-
 </section>
 
 
-<!-- ============================================================
-     SENMI SERVICES
-============================================================ -->
 
+<!-- SENMI SERVICES -->
 <section class="py-5">
-
     <div class="container">
 
         <div class="text-center mb-5">
-
             <span class="badge rounded-pill px-3 py-2"
                   style="background-color: #EDE9FE; color: #581C87;">
-
                 OUR SERVICES
-
             </span>
 
             <h2 class="fw-bold mt-3" style="color: #581C87;">
-
-                One Platform. More Ways to Move.
-
+                Everything You Need to Move
             </h2>
 
             <p class="text-muted mx-auto"
                style="max-width: 700px;">
-
-                Senmi brings ride-hailing and package delivery
-                together in one mobility platform, helping customers
-                travel and send packages more conveniently.
-
+                Whether you are travelling or sending a package,
+                Senmi makes everyday mobility and delivery easier.
+                Enjoy both services from one convenient platform.
             </p>
-
         </div>
 
         <div class="row g-4">
 
             <!-- RIDE-HAILING -->
-
             <div class="col-lg-6">
-
                 <div class="card border-0 shadow-sm rounded-4 h-100">
-
                     <div class="card-body p-5">
 
                         <div class="rounded-circle d-inline-flex
                                     align-items-center justify-content-center mb-4"
-                             style="width: 70px;
-                                    height: 70px;
+                             style="width: 70px; height: 70px;
                                     background-color: #EDE9FE;
                                     color: #581C87;">
-
                             <i class="bi bi-car-front-fill fs-2"></i>
-
                         </div>
 
                         <span class="badge mb-3"
-                              style="background-color: #EDE9FE;
-                                     color: #581C87;">
-
-                            RIDE-HAILING
-
+                              style="background-color: #DCFCE7; color: #166534;">
+                            NOW LIVE
                         </span>
 
                         <h3 class="fw-bold" style="color: #581C87;">
-
-                            Move Around with Senmi
-
+                            Ride-Hailing
                         </h3>
 
                         <p class="text-muted mt-3">
-
-                            Explore Senmi's ride-hailing service for
-                            convenient journeys. The platform is
-                            designed to connect customers with drivers
-                            and support the ride experience from
-                            requesting a trip to reaching a destination.
-
+                            Get where you need to go with Senmi.
+                            Request a ride, connect with approved
+                            drivers, view your ride details and
+                            follow your journey through the app.
                         </p>
 
                         <ul class="text-muted">
-
-                            <li class="mb-2">Convenient ride requests</li>
-
-                            <li class="mb-2">Driver and vehicle information</li>
-
-                            <li class="mb-2">Trip status and tracking where available</li>
-
+                            <li class="mb-2">Easy ride requests</li>
+                            <li class="mb-2">Approved driver connections</li>
+                            <li class="mb-2">Trip updates and tracking</li>
                         </ul>
 
                         <a href="https://play.google.com/store/apps/details?id=com.senmi.app"
@@ -217,68 +162,47 @@
                            rel="noopener noreferrer"
                            class="btn text-white mt-3"
                            style="background-color: #581C87;">
-
                             <i class="bi bi-google-play me-2"></i>
-                            Explore Senmi
-
+                            Download Senmi
                         </a>
 
                     </div>
-
                 </div>
-
             </div>
 
-
             <!-- PACKAGE DELIVERY -->
-
             <div class="col-lg-6">
-
                 <div class="card border-0 shadow-sm rounded-4 h-100">
-
                     <div class="card-body p-5">
 
                         <div class="rounded-circle d-inline-flex
                                     align-items-center justify-content-center mb-4"
-                             style="width: 70px;
-                                    height: 70px;
+                             style="width: 70px; height: 70px;
                                     background-color: #EDE9FE;
                                     color: #581C87;">
-
                             <i class="bi bi-box-seam fs-2"></i>
-
                         </div>
 
-                        <span class="badge bg-success mb-3">
-
-                            AVAILABLE NOW
-
+                        <span class="badge mb-3"
+                              style="background-color: #DCFCE7; color: #166534;">
+                            NOW LIVE
                         </span>
 
                         <h3 class="fw-bold" style="color: #581C87;">
-
-                            Send Packages with Senmi
-
+                            Package Delivery
                         </h3>
 
                         <p class="text-muted mt-3">
-
-                            Send packages through a convenient delivery
-                            service. Create delivery requests, provide
-                            pickup and destination details, make
-                            payments, and receive delivery updates
-                            through the Senmi platform.
-
+                            Send packages conveniently with Senmi.
+                            Create delivery requests, provide pickup
+                            and destination details, make payments
+                            and follow your delivery progress.
                         </p>
 
                         <ul class="text-muted">
-
-                            <li class="mb-2">Convenient delivery requests</li>
-
+                            <li class="mb-2">Easy delivery requests</li>
                             <li class="mb-2">Delivery status updates</li>
-
                             <li class="mb-2">Package tracking where available</li>
-
                         </ul>
 
                         <a href="https://play.google.com/store/apps/details?id=com.senmi.app"
@@ -286,23 +210,19 @@
                            rel="noopener noreferrer"
                            class="btn text-white mt-3"
                            style="background-color: #581C87;">
-
                             <i class="bi bi-google-play me-2"></i>
-                            Get Senmi
-
+                            Download Senmi
                         </a>
 
                     </div>
-
                 </div>
-
             </div>
 
         </div>
-
     </div>
-
 </section>
+
+
 
 
 <!-- ============================================================
@@ -310,138 +230,97 @@
 ============================================================ -->
 
 <section class="py-5">
-
     <div class="container">
 
         <div class="text-center mb-5">
-
             <span class="badge rounded-pill px-3 py-2"
                   style="background-color: #EDE9FE; color: #581C87;">
-
-                THE SENMI EXPERIENCE
-
+                WHY CHOOSE SENMI
             </span>
 
             <h2 class="fw-bold mt-3" style="color: #581C87;">
-
-                Mobility Made Simpler
-
+                One App. More Ways to Move.
             </h2>
 
-            <p class="text-muted mx-auto"
-               style="max-width: 700px;">
-
-                Whether you need to travel or send a package,
-                Senmi brings practical mobility services together
-                in one place.
-
+            <p class="text-muted mx-auto" style="max-width: 700px;">
+                From getting to your destination to sending packages,
+                Senmi brings convenient ride-hailing and delivery
+                services together in one easy-to-use app.
             </p>
-
         </div>
 
         <div class="row g-4">
 
             <div class="col-md-4">
-
                 <div class="card shadow-sm h-100 border-0 rounded-4">
-
                     <div class="card-body p-4 text-center">
-
-                        <i class="bi bi-car-front-fill display-5"
+                        <i class="bi bi-lightning-charge-fill display-5"
                            style="color: #581C87;"></i>
 
                         <h4 class="mt-3" style="color: #581C87;">
-
-                            Convenient Journeys
-
+                            Easy to Use
                         </h4>
 
                         <p class="text-muted mb-0">
-
-                            Access ride-hailing features designed to
-                            make requesting and managing journeys
-                            more convenient.
-
+                            Request rides and arrange package deliveries
+                            through a simple and convenient app experience.
                         </p>
-
                     </div>
-
                 </div>
-
             </div>
 
-
             <div class="col-md-4">
-
                 <div class="card shadow-sm h-100 border-0 rounded-4">
-
                     <div class="card-body p-4 text-center">
-
-                        <i class="bi bi-box-seam display-5"
+                        <i class="bi bi-geo-alt-fill display-5"
                            style="color: #581C87;"></i>
 
                         <h4 class="mt-3" style="color: #581C87;">
-
-                            Package Delivery
-
+                            Stay Updated
                         </h4>
 
                         <p class="text-muted mb-0">
-
-                            Arrange deliveries, follow delivery
-                            updates, and stay informed throughout
-                            the package journey.
-
+                            Follow ride and delivery updates so you can
+                            stay informed as your request progresses.
                         </p>
-
                     </div>
-
                 </div>
-
             </div>
 
-
             <div class="col-md-4">
-
                 <div class="card shadow-sm h-100 border-0 rounded-4">
-
                     <div class="card-body p-4 text-center">
-
                         <i class="bi bi-shield-check display-5"
                            style="color: #581C87;"></i>
 
                         <h4 class="mt-3" style="color: #581C87;">
-
-                            Trust & Support
-
+                            Built Around Trust
                         </h4>
 
                         <p class="text-muted mb-0">
-
-                            Driver and rider approval processes,
-                            service updates, and customer support
-                            help users navigate the platform.
-
+                            Senmi uses driver approval processes and
+                            support channels to help create a more
+                            dependable platform experience.
                         </p>
-
                     </div>
-
                 </div>
-
             </div>
 
         </div>
 
+        <div class="text-center mt-5">
+            <a href="https://play.google.com/store/apps/details?id=com.senmi.app"
+               target="_blank"
+               rel="noopener noreferrer"
+               class="btn btn-lg text-white rounded-pill px-4"
+               style="background-color: #581C87;">
+                <i class="bi bi-google-play me-2"></i>
+                Get the Senmi App
+            </a>
+        </div>
+
     </div>
-
 </section>
-
-
-
-
-
-
-
 
 
 
