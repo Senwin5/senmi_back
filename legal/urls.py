@@ -9,6 +9,7 @@ from .views import (
     home,
     faq,
     contact,
+    leadership,
 )
 from legal import views
 
@@ -16,6 +17,7 @@ urlpatterns = [
     path('', home, name='home'),
     path('home', home, name='home'),
     path('about/', about, name='about'),
+    path('leadership/', leadership, name='leadership'),
     path('privacy/', privacy_policy, name='privacy'),
     path('terms/', terms_conditions, name='terms'),
     path('faq/', faq, name='faq'),

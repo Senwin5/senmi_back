@@ -11,6 +11,9 @@ def terms_conditions(request):
 def about(request):
     return render(request, 'legal/about.html')
 
+def leadership(request):
+    return render(request, 'legal/leadership.html')
+
 
 def home(request):
     return render(request, 'legal/home.html')
